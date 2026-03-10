@@ -181,7 +181,7 @@ export default function ScraperMapsPage() {
       .from("scraping_sessions")
       .update({ status: "paused" })
       .eq("id", activeSessionId);
-    toast.info("Scraping in pausa");
+    toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
   };
 
   const handleStop = async () => {
