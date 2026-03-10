@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -12,6 +13,7 @@ import type { Campaign } from "@/types";
 export default function CampaignsPage() {
   const { campaigns, isLoading, refetch } = useCampaigns();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const navigate = useNavigate();
 
   const totInviati = campaigns.reduce((a, c) => a + c.inviati, 0);
   const totAperti = campaigns.reduce((a, c) => a + c.aperti, 0);
@@ -82,7 +84,7 @@ export default function CampaignsPage() {
       <CampaignsList
         campaigns={campaigns}
         isLoading={isLoading}
-        onEdit={() => {}}
+        onEdit={(c) => navigate(`/campaigns/${c.id}`)}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
       />

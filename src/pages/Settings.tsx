@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save } from "lucide-react";
+import { Settings, Eye, EyeOff, Loader2, Save, Plus, Trash2, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
 
 interface SettingField {
   chiave: string;
@@ -48,6 +49,10 @@ export default function SettingsPage() {
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [blocklist, setBlocklist] = useState("");
+  const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
+  const [senders, setSenders] = useState<{ email: string; name: string }[]>([]);
+  const [newSender, setNewSender] = useState({ email: "", name: "" });
+  const [exporting, setExporting] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -57,11 +62,14 @@ export default function SettingsPage() {
     const { data } = await supabase.from("app_settings").select("*") as any;
     if (data) {
       const map: Record<string, string> = {};
-      data.forEach((s: any) => {
-        map[s.chiave] = s.valore || "";
-      });
+      data.forEach((s: any) => { map[s.chiave] = s.valore || ""; });
       setValues(map);
       setBlocklist(map["email_blocklist"] || "");
+      // Load senders
+      try {
+        const sendersJson = map["email_senders"];
+        if (sendersJson) setSenders(JSON.parse(sendersJson));
+      } catch {}
     }
   };
 
@@ -78,16 +86,56 @@ export default function SettingsPage() {
           );
         }
       }
-      // Save blocklist
       await supabase.from("app_settings").upsert(
         { chiave: "email_blocklist", valore: blocklist, categoria: "limiti", updated_at: new Date().toISOString() } as any,
         { onConflict: "chiave" }
       );
+      await supabase.from("app_settings").upsert(
+        { chiave: "email_senders", valore: JSON.stringify(senders), categoria: "mittenti", updated_at: new Date().toISOString() } as any,
+        { onConflict: "chiave" }
+      );
       toast.success("Impostazioni salvate");
-    } catch (err) {
+    } catch {
       toast.error("Errore salvataggio impostazioni");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const testN8n = async () => {
+    setN8nStatus("testing");
+    try {
+      const url = values["n8n_instance_url"];
+      if (!url) { setN8nStatus("offline"); toast.error("URL n8n non configurato"); return; }
+      const start = Date.now();
+      const response = await fetch(`${url.replace(/\/$/, "")}/healthz`, { mode: "no-cors", signal: AbortSignal.timeout(5000) });
+      const ping = Date.now() - start;
+      setN8nStatus("online");
+      toast.success(`n8n raggiungibile (${ping}ms)`);
+    } catch {
+      setN8nStatus("offline");
+      toast.error("n8n non raggiungibile");
+    }
+  };
+
+  const addSender = () => {
+    if (!newSender.email.trim()) return;
+    setSenders([...senders, { email: newSender.email.trim(), name: newSender.name.trim() }]);
+    setNewSender({ email: "", name: "" });
+  };
+
+  const removeSender = (i: number) => setSenders(senders.filter((_, idx) => idx !== i));
+
+  const handleExport = async (type: string) => {
+    setExporting(type);
+    try {
+      if (type === "contacts") await exportContactsCsv();
+      else if (type === "campaigns") await exportCampaignReport();
+      toast.success("Esportazione completata");
+    } catch (err: any) {
+      toast.error(err.message || "Errore esportazione");
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -114,17 +162,27 @@ export default function SettingsPage() {
 
         {/* API Keys Tab */}
         <TabsContent value="api_keys" className="space-y-4">
-          {/* Group by provider */}
           {[
             { title: "GOOGLE MAPS", keys: apiKeyFields.filter(f => f.chiave.startsWith("google")) },
             { title: "SCRAPINGBEE", keys: apiKeyFields.filter(f => f.chiave.startsWith("scrapingbee")) },
-            { title: "n8n", keys: apiKeyFields.filter(f => f.chiave.startsWith("n8n")) },
+            {
+              title: "n8n", keys: apiKeyFields.filter(f => f.chiave.startsWith("n8n")),
+              extra: (
+                <Button variant="outline" size="sm" className="font-mono text-xs gap-1.5" onClick={testN8n} disabled={n8nStatus === "testing"}>
+                  {n8nStatus === "testing" ? <Loader2 className="h-3 w-3 animate-spin" /> : n8nStatus === "online" ? <Wifi className="h-3 w-3 text-primary" /> : n8nStatus === "offline" ? <WifiOff className="h-3 w-3 text-destructive" /> : <Wifi className="h-3 w-3" />}
+                  {n8nStatus === "testing" ? "Test..." : n8nStatus === "online" ? "Online" : n8nStatus === "offline" ? "Offline" : "Test connessione"}
+                </Button>
+              )
+            },
             { title: "RESEND", keys: apiKeyFields.filter(f => f.chiave.startsWith("resend")) },
             { title: "TELNYX", keys: apiKeyFields.filter(f => f.chiave.startsWith("telnyx")) },
             { title: "META WHATSAPP BUSINESS", keys: apiKeyFields.filter(f => f.chiave.startsWith("meta")) },
           ].map((group) => (
             <div key={group.title} className="rounded-lg border border-border bg-card p-4 space-y-3">
-              <div className="terminal-header text-primary">{group.title}</div>
+              <div className="flex items-center justify-between">
+                <div className="terminal-header text-primary">{group.title}</div>
+                {(group as any).extra}
+              </div>
               {group.keys.map((field) => (
                 <div key={field.chiave} className="space-y-1">
                   <Label className="font-mono text-xs text-muted-foreground">{field.label}</Label>
@@ -137,12 +195,7 @@ export default function SettingsPage() {
                       className="font-mono text-xs bg-accent border-border"
                     />
                     {field.isSecret && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() => setVisibility({ ...visibility, [field.chiave]: !visibility[field.chiave] })}
-                      >
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setVisibility({ ...visibility, [field.chiave]: !visibility[field.chiave] })}>
                         {visibility[field.chiave] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     )}
@@ -155,8 +208,40 @@ export default function SettingsPage() {
 
         {/* Mittenti Tab */}
         <TabsContent value="mittenti" className="space-y-4">
-          <div className="rounded-lg border border-border bg-card p-6 text-center">
-            <p className="font-mono text-sm text-muted-foreground">Gestione mittenti email verificati — Verrà implementato con integrazione Resend</p>
+          <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+            <div className="terminal-header text-primary">EMAIL MITTENTI</div>
+            {senders.length === 0 && (
+              <p className="font-mono text-xs text-muted-foreground">Nessun mittente configurato. Aggiungi il primo.</p>
+            )}
+            {senders.map((s, i) => (
+              <div key={i} className="flex items-center justify-between rounded-md border border-border bg-accent px-3 py-2">
+                <div>
+                  <span className="font-mono text-sm text-foreground">{s.email}</span>
+                  {s.name && <span className="font-mono text-xs text-muted-foreground ml-2">"{s.name}"</span>}
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSender(i)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                value={newSender.email}
+                onChange={(e) => setNewSender({ ...newSender, email: e.target.value })}
+                placeholder="email@dominio.it"
+                className="font-mono text-xs bg-accent border-border flex-1"
+              />
+              <Input
+                value={newSender.name}
+                onChange={(e) => setNewSender({ ...newSender, name: e.target.value })}
+                placeholder="Nome mittente"
+                className="font-mono text-xs bg-accent border-border flex-1"
+              />
+              <Button variant="outline" size="sm" onClick={addSender} className="font-mono text-xs shrink-0">
+                <Plus className="h-3 w-3 mr-1" /> Aggiungi
+              </Button>
+            </div>
+            <p className="font-mono text-[10px] text-muted-foreground">I mittenti saranno disponibili come opzione nel wizard campagne email. Ricorda di verificare il dominio su Resend.</p>
           </div>
         </TabsContent>
 
@@ -179,7 +264,6 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
-
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="terminal-header text-primary">BLOCKLIST EMAIL</div>
             <p className="text-xs text-muted-foreground">Domini e pattern da escludere (uno per riga)</p>
@@ -196,14 +280,18 @@ export default function SettingsPage() {
         <TabsContent value="import_export" className="space-y-4">
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="terminal-header text-primary">IMPORT</div>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start">↑ Importa CSV contatti → vai alla pagina Contatti</Button>
+            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start" onClick={() => window.location.href = "/contacts"}>
+              ↑ Importa CSV contatti → vai alla pagina Contatti
+            </Button>
           </div>
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="terminal-header text-primary">EXPORT</div>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start">↓ Esporta tutti i contatti CSV</Button>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start">↓ Esporta contatti filtrati</Button>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start">↓ Esporta log attività</Button>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start">↓ Esporta report campagne</Button>
+            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start" onClick={() => handleExport("contacts")} disabled={exporting === "contacts"}>
+              {exporting === "contacts" ? "⏳ Esportazione..." : "↓ Esporta tutti i contatti CSV"}
+            </Button>
+            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start" onClick={() => handleExport("campaigns")} disabled={exporting === "campaigns"}>
+              {exporting === "campaigns" ? "⏳ Esportazione..." : "↓ Esporta report campagne"}
+            </Button>
           </div>
         </TabsContent>
       </Tabs>

@@ -1,14 +1,15 @@
-import { useState, useMemo } from "react";
-import { Users, Plus, Upload, Download, Search, X } from "lucide-react";
+import { useState } from "react";
+import { Users, Plus, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ContactDetailDrawer } from "@/components/contacts/ContactDetailDrawer";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
 import { ContactFiltersBar } from "@/components/contacts/ContactFiltersBar";
 import { CsvImportDialog } from "@/components/contacts/CsvImportDialog";
+import { CreateContactDialog } from "@/components/contacts/CreateContactDialog";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
 import { useContacts } from "@/hooks/useContacts";
+import { exportContactsCsv } from "@/lib/csvExporter";
+import { toast } from "sonner";
 import type { Contact, ContactFilters } from "@/types";
 
 export default function ContactsPage() {
@@ -16,8 +17,22 @@ export default function ContactsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { contacts, totalCount, isLoading, refetch } = useContacts(filters);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportContactsCsv(filters as Record<string, unknown>);
+      toast.success(`${contacts.length} contatti esportati`);
+    } catch (err: any) {
+      toast.error(err.message || "Errore esportazione");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -31,10 +46,10 @@ export default function ContactsPage() {
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="h-4 w-4 mr-1" /> IMPORTA CSV
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-1" /> ESPORTA
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+            <Download className="h-4 w-4 mr-1" /> {exporting ? "ESPORTA..." : "ESPORTA"}
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4 mr-1" /> AGGIUNGI
           </Button>
         </div>
@@ -81,6 +96,13 @@ export default function ContactsPage() {
         open={showImport}
         onClose={() => setShowImport(false)}
         onComplete={refetch}
+      />
+
+      {/* Create Contact */}
+      <CreateContactDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={refetch}
       />
     </div>
   );

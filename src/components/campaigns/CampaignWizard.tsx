@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailEditor } from "./EmailEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -223,12 +224,10 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                   <p className="text-[10px] text-muted-foreground mt-1 font-mono">Variabili: {"{{nome}}"}, {"{{azienda}}"}, {"{{citta}}"}</p>
                 </div>
                 <div>
-                  <Label className="terminal-header mb-1.5 block">Corpo email (HTML) *</Label>
-                  <Textarea
+                  <Label className="terminal-header mb-1.5 block">Corpo email *</Label>
+                  <EmailEditor
                     value={data.body_html}
-                    onChange={(e) => update({ body_html: e.target.value })}
-                    placeholder="<p>Gentile {{nome}},</p>..."
-                    className="font-mono text-sm min-h-[180px]"
+                    onChange={(html) => update({ body_html: html })}
                   />
                 </div>
               </>
