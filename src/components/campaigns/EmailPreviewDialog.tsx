@@ -72,10 +72,10 @@ export function EmailPreviewDialog({ open, onOpenChange, subject, bodyHtml, send
         </div>
 
         {/* Email body preview */}
-        <div className="rounded-lg border border-border bg-white p-4 min-h-[200px]">
+        <div className="rounded-lg border border-border bg-background p-4 min-h-[200px]">
           {previewHtml ? (
             <div
-              className="prose prose-sm max-w-none text-black"
+              className="prose prose-sm max-w-none text-foreground"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           ) : (
