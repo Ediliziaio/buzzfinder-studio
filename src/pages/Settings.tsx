@@ -281,6 +281,41 @@ export default function SettingsPage() {
             </div>
             <p className="font-mono text-[10px] text-muted-foreground">I mittenti saranno disponibili come opzione nel wizard campagne email. Ricorda di verificare il dominio su Resend.</p>
           </div>
+
+          {/* Sender Defaults (Bug M3) */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="terminal-header text-primary">DEFAULTS MITTENTE</div>
+            <p className="text-xs text-muted-foreground">Valori pre-compilati nel wizard campagne email</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">Nome mittente default</Label>
+                <Input
+                  value={values["sender_name_default"] || ""}
+                  onChange={(e) => setValues({ ...values, sender_name_default: e.target.value })}
+                  placeholder="La mia azienda"
+                  className="font-mono text-xs bg-accent border-border"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">Email mittente default</Label>
+                <Input
+                  value={values["sender_email_default"] || ""}
+                  onChange={(e) => setValues({ ...values, sender_email_default: e.target.value })}
+                  placeholder="outreach@miodominio.it"
+                  className="font-mono text-xs bg-accent border-border"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="font-mono text-xs text-muted-foreground">Reply-to default</Label>
+              <Input
+                value={values["reply_to_default"] || ""}
+                onChange={(e) => setValues({ ...values, reply_to_default: e.target.value })}
+                placeholder="info@miodominio.it"
+                className="font-mono text-xs bg-accent border-border"
+              />
+            </div>
+          </div>
         </TabsContent>
 
         {/* Limiti Tab */}
