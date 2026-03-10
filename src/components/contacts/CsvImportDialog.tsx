@@ -86,6 +86,7 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
   const handleImport = async () => {
     setStep("importing");
+    const user_id = await getCurrentUserId();
     const rawBatch: Record<string, unknown>[] = [];
 
     for (const row of csvData) {
