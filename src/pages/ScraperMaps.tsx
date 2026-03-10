@@ -28,7 +28,7 @@ import {
 
 export interface MapsConfig {
   query: string;
-  citta: string;
+  citta: string[];
   raggio: number;
   maxResults: number;
   soloConSito: boolean;
@@ -40,7 +40,7 @@ export interface MapsConfig {
 export default function ScraperMapsPage() {
   const [config, setConfig] = useState<MapsConfig>({
     query: "",
-    citta: "",
+    citta: [],
     raggio: 25,
     maxResults: 1000,
     soloConSito: true,
