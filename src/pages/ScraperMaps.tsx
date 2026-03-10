@@ -50,9 +50,11 @@ export default function ScraperMapsPage() {
   });
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [allSessionIds, setAllSessionIds] = useState<string[]>([]);
   const [results, setResults] = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [currentCityIndex, setCurrentCityIndex] = useState(0);
   const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
 
   const activeSession = useScrapingSession(activeSessionId);
