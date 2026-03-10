@@ -225,7 +225,25 @@ export default function ScraperMapsPage() {
 
         {/* Progress box */}
         {activeSession && (activeSession.status === "running" || activeSession.status === "pending") && (
-          <MapsProgressBox session={activeSession} />
+          <>
+            <MapsProgressBox session={activeSession} />
+            {/* Live feed */}
+            {lastImported.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+                <div className="terminal-header text-xs">ULTIMI IMPORTATI</div>
+                {lastImported.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                    <span className="text-primary">•</span>
+                    <span className="text-foreground truncate flex-1">{c.azienda}</span>
+                    {c.citta && <span className="text-muted-foreground">{c.citta}</span>}
+                    {c.hasSito && <span className="text-primary" title="Con sito">🌐</span>}
+                    {c.hasTel && <span className="text-info" title="Con telefono">📞</span>}
+                    {!c.hasSito && !c.hasTel && <span className="text-muted-foreground" title="Solo indirizzo">📍</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Previous sessions */}
