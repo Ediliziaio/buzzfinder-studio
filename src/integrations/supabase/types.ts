@@ -48,29 +48,38 @@ export type Database = {
         Row: {
           campaign_id: string | null
           canale_id: string | null
+          clicked_at: string | null
           contact_id: string | null
           errore: string | null
           id: string
           inviato_at: string | null
+          opened_at: string | null
           stato: string | null
+          triggered_at: string | null
         }
         Insert: {
           campaign_id?: string | null
           canale_id?: string | null
+          clicked_at?: string | null
           contact_id?: string | null
           errore?: string | null
           id?: string
           inviato_at?: string | null
+          opened_at?: string | null
           stato?: string | null
+          triggered_at?: string | null
         }
         Update: {
           campaign_id?: string | null
           canale_id?: string | null
+          clicked_at?: string | null
           contact_id?: string | null
           errore?: string | null
           id?: string
           inviato_at?: string | null
+          opened_at?: string | null
           stato?: string | null
+          triggered_at?: string | null
         }
         Relationships: [
           {
@@ -114,6 +123,7 @@ export type Database = {
           inviati_b: number | null
           n8n_webhook_id: string | null
           nome: string
+          paused_at: string | null
           provider: string | null
           reply_to: string | null
           scheduled_at: string | null
@@ -122,9 +132,12 @@ export type Database = {
           sending_rate_per_hour: number | null
           started_at: string | null
           stato: string | null
+          stopped_at: string | null
           subject: string | null
           subject_b: string | null
           template_whatsapp_id: string | null
+          template_whatsapp_language: string | null
+          template_whatsapp_variables: Json | null
           tipo: string
           totale_destinatari: number | null
           user_id: string | null
@@ -153,6 +166,7 @@ export type Database = {
           inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome: string
+          paused_at?: string | null
           provider?: string | null
           reply_to?: string | null
           scheduled_at?: string | null
@@ -161,9 +175,12 @@ export type Database = {
           sending_rate_per_hour?: number | null
           started_at?: string | null
           stato?: string | null
+          stopped_at?: string | null
           subject?: string | null
           subject_b?: string | null
           template_whatsapp_id?: string | null
+          template_whatsapp_language?: string | null
+          template_whatsapp_variables?: Json | null
           tipo: string
           totale_destinatari?: number | null
           user_id?: string | null
@@ -192,6 +209,7 @@ export type Database = {
           inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome?: string
+          paused_at?: string | null
           provider?: string | null
           reply_to?: string | null
           scheduled_at?: string | null
@@ -200,9 +218,12 @@ export type Database = {
           sending_rate_per_hour?: number | null
           started_at?: string | null
           stato?: string | null
+          stopped_at?: string | null
           subject?: string | null
           subject_b?: string | null
           template_whatsapp_id?: string | null
+          template_whatsapp_language?: string | null
+          template_whatsapp_variables?: Json | null
           tipo?: string
           totale_destinatari?: number | null
           user_id?: string | null
