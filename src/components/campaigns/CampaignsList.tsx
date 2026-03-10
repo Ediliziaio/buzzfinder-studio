@@ -13,14 +13,7 @@ const tipoIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageSquare className="h-4 w-4" />,
 };
 
-const statoMap: Record<string, { label: string; variant: "success" | "warning" | "info" | "destructive" | "default" }> = {
-  bozza: { label: "Bozza", variant: "default" },
-  schedulata: { label: "Schedulata", variant: "info" },
-  in_corso: { label: "In corso", variant: "warning" },
-  completata: { label: "Completata", variant: "success" },
-  pausa: { label: "In pausa", variant: "default" },
-  errore: { label: "Errore", variant: "destructive" },
-};
+// StatusBadge uses the `status` prop directly with its internal mapping
 
 interface CampaignsListProps {
   campaigns: Campaign[];
