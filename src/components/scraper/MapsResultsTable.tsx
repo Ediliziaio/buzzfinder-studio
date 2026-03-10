@@ -269,5 +269,3 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
   );
 }
 
-// Need to import Search for empty state
-import { Search } from "lucide-react";
