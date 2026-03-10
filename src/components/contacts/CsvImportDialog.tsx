@@ -130,9 +130,13 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     let imported = 0;
     for (let i = 0; i < valid.length; i += chunkSize) {
       const chunk = valid.slice(i, i + chunkSize);
-      const { error } = await supabase.from("contacts").insert(chunk as any);
-      if (error) {
-        console.error("Import error:", error);
+      if (duplicateHandling === "update") {
+        // Upsert on email
+        const { error } = await supabase.from("contacts").upsert(chunk as any, { onConflict: "email", ignoreDuplicates: false });
+        if (error) console.error("Import error:", error);
+      } else {
+        const { error } = await supabase.from("contacts").insert(chunk as any);
+        if (error) console.error("Import error:", error);
       }
       imported += chunk.length;
       setImportedCount(imported);
