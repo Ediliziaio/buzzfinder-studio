@@ -137,6 +137,8 @@ export default function CampaignDetailPage() {
             // Bug C2: include supabase credentials for n8n
             supabase_url: import.meta.env.VITE_SUPABASE_URL,
             supabase_anon_key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            // AI personalization flag
+            use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
           });
 
           // Bug M5: save n8n execution ID
