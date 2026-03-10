@@ -1,35 +1,22 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, Play, Pause, Square, Download, ListPlus, Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentUserId } from "@/lib/auth";
-import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
-import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import { MapsConfigPanel } from "@/components/scraper/MapsConfigPanel";
 import { MapsProgressBox } from "@/components/scraper/MapsProgressBox";
 import { MapsResultsTable } from "@/components/scraper/MapsResultsTable";
 import { MapsPreviousSessions } from "@/components/scraper/MapsPreviousSessions";
 import { toast } from "sonner";
-import type { Contact, ScrapingSession } from "@/types";
+import type { Contact } from "@/types";
+import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
 export interface MapsConfig {
   query: string;
-  citta: string[];
+  citta: string;
   raggio: number;
   maxResults: number;
   soloConSito: boolean;
@@ -40,176 +27,28 @@ export interface MapsConfig {
 
 export default function ScraperMapsPage() {
   const [config, setConfig] = useState<MapsConfig>({
-    query: "",
-    citta: [],
-    raggio: 25,
-    maxResults: 1000,
-    soloConSito: true,
-    soloConTelefono: false,
-    ratingMin: 0,
-    recensioniMin: 0,
+    query: "", citta: "", raggio: 25, maxResults: 500,
+    soloConSito: true, soloConTelefono: false, ratingMin: 0, recensioniMin: 0,
   });
-
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [allSessionIds, setAllSessionIds] = useState<string[]>([]);
   const [results, setResults] = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStopConfirm, setShowStopConfirm] = useState(false);
-  const [currentCityIndex, setCurrentCityIndex] = useState(0);
-  const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
+  const [isRunningLocal, setIsRunningLocal] = useState(false);
+  const [lastImported, setLastImported] = useState<
+    { azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]
+  >([]);
+
+  const isPaused = useRef(false);
+  const isStopped = useRef(false);
 
   const activeSession = useScrapingSession(activeSessionId);
   const { sessions: previousSessions, refetch: refetchSessions, hasMore, loadMore } = useScrapingSessions();
 
-  const isRunning = activeSession?.status === "running";
-  const isPending = activeSession?.status === "pending";
+  const isRunning =
+    isRunningLocal || activeSession?.status === "running" || activeSession?.status === "pending";
 
-  // Load results for active session (filtered by scraping_session_id)
-  useEffect(() => {
-    if (!activeSessionId) return;
-
-    const loadResults = async () => {
-      const { data } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("scraping_session_id", activeSessionId)
-        .order("created_at", { ascending: false })
-        .limit(5000);
-      setResults((data as unknown as Contact[]) || []);
-    };
-
-    loadResults();
-
-    // Subscribe to new contacts for this session only
-    const channel = supabase
-      .channel(`new-contacts-${activeSessionId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "contacts",
-          filter: `scraping_session_id=eq.${activeSessionId}`,
-        },
-        (payload) => {
-          const c = payload.new as unknown as Contact;
-          setResults((prev) => [c, ...prev]);
-          setLastImported((prev) => [
-            { azienda: c.azienda, citta: c.citta, hasSito: !!c.sito_web, hasTel: !!c.telefono },
-            ...prev,
-          ].slice(0, 5));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeSessionId]);
-
-  const handleStart = async () => {
-    if (!config.query || config.citta.length === 0) {
-      toast.error("Inserisci categoria e almeno una città");
-      return;
-    }
-
-    const n8nOk = await checkN8nHealth();
-    if (!n8nOk) {
-      toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
-        duration: 6000,
-        action: { label: "Impostazioni", onClick: () => window.location.assign("/settings") },
-      });
-      return;
-    }
-
-    const sessionIds: string[] = [];
-    setResults([]);
-    setCurrentCityIndex(0);
-
-    try {
-      const user_id = await getCurrentUserId();
-      for (let i = 0; i < config.citta.length; i++) {
-        const city = config.citta[i];
-        setCurrentCityIndex(i);
-
-        const { data: session, error } = await supabase
-          .from("scraping_sessions")
-          .insert({
-            user_id,
-            tipo: "google_maps",
-            query: config.query,
-            citta: city,
-            raggio: config.raggio,
-            max_results: config.maxResults,
-            status: "pending",
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        sessionIds.push(session.id);
-
-        // Set the first session as active for monitoring
-        if (i === 0) {
-          setActiveSessionId(session.id);
-        }
-
-        const settings = await getN8nSettings();
-        const webhookPath = settings.n8n_webhook_scrape_maps || "/webhook/scrape-maps";
-
-        await triggerN8nWebhook(webhookPath, {
-          session_id: session.id,
-          query: config.query,
-          citta: city,
-          raggio_km: config.raggio,
-          max_results: config.maxResults,
-          filtri: {
-            solo_con_sito: config.soloConSito,
-            solo_con_telefono: config.soloConTelefono,
-            rating_min: config.ratingMin,
-            recensioni_min: config.recensioniMin,
-          },
-        });
-
-        toast.success(`Job avviato per ${city} (${i + 1}/${config.citta.length})`);
-      }
-
-      setAllSessionIds(sessionIds);
-      refetchSessions();
-    } catch (err: any) {
-      toast.error(err.message || "Errore avvio scraping");
-      if (activeSessionId) {
-        await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", activeSessionId);
-      }
-    }
-  };
-
-  const handlePause = async () => {
-    if (!activeSessionId) return;
-    await supabase
-      .from("scraping_sessions")
-      .update({ status: "paused" })
-      .eq("id", activeSessionId);
-    toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
-  };
-
-  const handleStop = async () => {
-    setShowStopConfirm(true);
-  };
-
-  const confirmStop = async () => {
-    setShowStopConfirm(false);
-    if (!activeSessionId) return;
-    await supabase
-      .from("scraping_sessions")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", activeSessionId);
-    toast.info("Scraping fermato");
-    refetchSessions();
-  };
-
-  const handleLoadSession = async (sessionId: string) => {
-    setActiveSessionId(sessionId);
+  const loadResultsForSession = useCallback(async (sessionId: string) => {
     const { data } = await supabase
       .from("contacts")
       .select("*")
@@ -217,17 +56,142 @@ export default function ScraperMapsPage() {
       .order("created_at", { ascending: false })
       .limit(5000);
     setResults((data as unknown as Contact[]) || []);
+  }, []);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    loadResultsForSession(activeSessionId);
+    const channel = supabase
+      .channel(`new-contacts-${activeSessionId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "contacts", filter: `scraping_session_id=eq.${activeSessionId}` },
+        (payload) => {
+          const c = payload.new as unknown as Contact;
+          setResults((prev) => [c, ...prev.slice(0, 4999)]);
+          setLastImported((prev) =>
+            [{ azienda: c.azienda, citta: c.citta, hasSito: !!c.sito_web, hasTel: !!c.telefono }, ...prev].slice(0, 5)
+          );
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeSessionId, loadResultsForSession]);
+
+  const runScrapingLoop = useCallback(async (sessionId: string) => {
+    let nextPageToken: string | undefined = undefined;
+    isPaused.current = false;
+    isStopped.current = false;
+    setIsRunningLocal(true);
+    try {
+      while (true) {
+        if (isStopped.current) break;
+        while (isPaused.current && !isStopped.current) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        if (isStopped.current) break;
+
+        const { data, error } = await supabase.functions.invoke("scrape-maps-page", {
+          body: {
+            session_id: sessionId,
+            query: config.query,
+            citta: config.citta,
+            raggio_km: config.raggio,
+            max_results: config.maxResults,
+            next_page_token: nextPageToken || undefined,
+            filtri: {
+              solo_con_sito: config.soloConSito,
+              solo_con_telefono: config.soloConTelefono,
+              rating_min: config.ratingMin,
+              recensioni_min: config.recensioniMin,
+            },
+          },
+        });
+
+        if (error) throw new Error(error.message || "Errore Edge Function");
+        if (data?.aborted) break;
+        if (data?.error) throw new Error(data.error);
+        if (data?.retry) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+
+        nextPageToken = data?.next_page_token || undefined;
+        if (data?.done || !nextPageToken) {
+          toast.success(`Scraping completato: ${data?.total_importati ?? 0} contatti importati`);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Errore sconosciuto";
+      toast.error(`Errore scraping: ${message}`);
+      await supabase.from("scraping_sessions")
+        .update({ status: "failed", error_message: message }).eq("id", sessionId);
+    } finally {
+      setIsRunningLocal(false);
+      refetchSessions();
+    }
+  }, [config, refetchSessions]);
+
+  const handleStart = async () => {
+    if (!config.query || !config.citta) { toast.error("Inserisci categoria e città"); return; }
+    try {
+      const { data: session, error } = await supabase
+        .from("scraping_sessions")
+        .insert({ tipo: "google_maps", query: config.query, citta: config.citta,
+                  raggio: config.raggio, max_results: config.maxResults, status: "pending" })
+        .select().single();
+      if (error) throw error;
+      setActiveSessionId(session.id);
+      setResults([]);
+      setLastImported([]);
+      toast.info("Scraping avviato...");
+      runScrapingLoop(session.id);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Errore");
+    }
   };
 
-  const costEstimate = useMemo(() => {
-    const costPer1000 = 2.5;
-    const totalResults = config.maxResults * Math.max(config.citta.length, 1);
-    return ((totalResults / 1000) * costPer1000).toFixed(2);
-  }, [config.maxResults, config.citta.length]);
+  const handlePause = async () => {
+    if (!activeSessionId) return;
+    isPaused.current = true;
+    await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", activeSessionId);
+    toast.info("Scraping in pausa");
+  };
+
+  const handleResume = async () => {
+    if (!activeSessionId) return;
+    isPaused.current = false;
+    await supabase.from("scraping_sessions").update({ status: "running" }).eq("id", activeSessionId);
+    toast.info("Scraping ripreso");
+  };
+
+  const handleStop = () => setShowStopConfirm(true);
+
+  const confirmStop = async () => {
+    setShowStopConfirm(false);
+    isStopped.current = true;
+    if (activeSessionId) {
+      await supabase.from("scraping_sessions")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", activeSessionId);
+    }
+    setIsRunningLocal(false);
+    toast.info("Scraping fermato — risultati parziali salvati");
+    refetchSessions();
+  };
+
+  const handleLoadSession = async (sessionId: string) => {
+    isStopped.current = true;
+    setIsRunningLocal(false);
+    setActiveSessionId(sessionId);
+    await loadResultsForSession(sessionId);
+  };
+
+  const costEstimate = useMemo(() => ((config.maxResults / 1000) * 2.5).toFixed(2), [config.maxResults]);
+  const isPausedState = activeSession?.status === "paused";
 
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
-      {/* Left panel — Config */}
       <div className="w-[380px] shrink-0 flex flex-col gap-4 overflow-y-auto pr-2">
         <div className="flex items-center gap-3">
           <Search className="h-6 w-6 text-primary" />
@@ -238,17 +202,17 @@ export default function ScraperMapsPage() {
           config={config}
           onChange={setConfig}
           costEstimate={costEstimate}
-          isRunning={isRunning || isPending}
+          isRunning={isRunning}
+          isPaused={isPausedState}
           onStart={handleStart}
           onPause={handlePause}
+          onResume={handleResume}
           onStop={handleStop}
         />
 
-        {/* Progress box */}
-        {activeSession && (activeSession.status === "running" || activeSession.status === "pending") && (
+        {activeSession && (activeSession.status === "running" || activeSession.status === "pending" || activeSession.status === "paused") && (
           <>
             <MapsProgressBox session={activeSession} />
-            {/* Live feed */}
             {lastImported.length > 0 && (
               <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                 <div className="terminal-header text-xs">ULTIMI IMPORTATI</div>
@@ -267,7 +231,6 @@ export default function ScraperMapsPage() {
           </>
         )}
 
-        {/* Previous sessions */}
         <MapsPreviousSessions
           sessions={previousSessions}
           onLoad={handleLoadSession}
@@ -276,7 +239,6 @@ export default function ScraperMapsPage() {
         />
       </div>
 
-      {/* Right panel — Results */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <MapsResultsTable
           results={results}
@@ -288,7 +250,6 @@ export default function ScraperMapsPage() {
         />
       </div>
 
-      {/* Stop confirmation dialog */}
       <AlertDialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
