@@ -37,6 +37,10 @@ export interface WizardData {
   tipo: CampaignTipo;
   nome: string;
   subject: string;
+  subject_b: string;
+  ab_test_enabled: boolean;
+  ab_test_split: number;
+  ab_test_sample_size: number;
   body_html: string;
   body_text: string;
   sender_email: string;
@@ -58,6 +62,10 @@ const defaultData: WizardData = {
   tipo: "email",
   nome: "",
   subject: "",
+  subject_b: "",
+  ab_test_enabled: false,
+  ab_test_split: 50,
+  ab_test_sample_size: 100,
   body_html: "",
   body_text: "",
   sender_email: "",
