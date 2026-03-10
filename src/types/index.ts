@@ -86,6 +86,7 @@ export interface Campaign {
   tipo: CampaignTipo;
   stato: CampaignStato;
   subject: string | null;
+  subject_b: string | null;
   body_html: string | null;
   body_text: string | null;
   template_whatsapp_id: string | null;
@@ -106,6 +107,15 @@ export interface Campaign {
   completed_at: string | null;
   n8n_webhook_id: string | null;
   sending_rate_per_hour: number;
+  ab_test_enabled: boolean;
+  ab_test_split: number;
+  ab_test_sample_size: number;
+  ab_winner: string | null;
+  ab_winner_selected_at: string | null;
+  aperti_a: number;
+  aperti_b: number;
+  inviati_a: number;
+  inviati_b: number;
   created_at: string;
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock } from "lucide-react";
+import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -217,6 +217,66 @@ export default function CampaignDetailPage() {
         <KpiCard label="APERTI" value={campaign.aperti.toLocaleString()} trend={`${openRate}%`} trendUp={Number(openRate) > 15} icon={<Eye className="h-4 w-4" />} />
         <KpiCard label="COSTO" value={`€${Number(campaign.costo_reale_eur || 0).toFixed(2)}`} icon={<Euro className="h-4 w-4" />} />
       </div>
+
+      {/* A/B Test Results */}
+      {(campaign as any).ab_test_enabled && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-primary" />
+            <span className="terminal-header text-primary">A/B TEST — OGGETTO</span>
+            {(campaign as any).ab_winner && (
+              <span className="ml-auto flex items-center gap-1 font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
+                <Trophy className="h-3 w-3" /> Vincitore: {(campaign as any).ab_winner.toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`rounded-lg border p-3 space-y-2 ${(campaign as any).ab_winner === 'A' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded bg-primary/10 border border-primary/30 flex items-center justify-center font-mono text-[10px] text-primary font-bold">A</span>
+                <span className="font-mono text-xs font-medium truncate">{campaign.subject || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-foreground">Inviati</span>
+                <span className="font-mono text-sm font-bold">{(campaign as any).inviati_a || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-foreground">Aperti</span>
+                <span className="font-mono text-sm font-bold">
+                  {(campaign as any).aperti_a || 0}
+                  {(campaign as any).inviati_a > 0 && (
+                    <span className="text-muted-foreground ml-1">({(((campaign as any).aperti_a / (campaign as any).inviati_a) * 100).toFixed(1)}%)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+            <div className={`rounded-lg border p-3 space-y-2 ${(campaign as any).ab_winner === 'B' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded bg-secondary/50 border border-border flex items-center justify-center font-mono text-[10px] font-bold">B</span>
+                <span className="font-mono text-xs font-medium truncate">{(campaign as any).subject_b || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-foreground">Inviati</span>
+                <span className="font-mono text-sm font-bold">{(campaign as any).inviati_b || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-foreground">Aperti</span>
+                <span className="font-mono text-sm font-bold">
+                  {(campaign as any).aperti_b || 0}
+                  {(campaign as any).inviati_b > 0 && (
+                    <span className="text-muted-foreground ml-1">({(((campaign as any).aperti_b / (campaign as any).inviati_b) * 100).toFixed(1)}%)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+          {!(campaign as any).ab_winner && (campaign.stato === "in_corso" || campaign.stato === "completata") && (
+            <p className="font-mono text-[10px] text-muted-foreground text-center">
+              ⏳ In attesa dei risultati del campione test per selezionare il vincitore...
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Phase Progress */}
       <div className="rounded-lg border border-border bg-card p-4">
