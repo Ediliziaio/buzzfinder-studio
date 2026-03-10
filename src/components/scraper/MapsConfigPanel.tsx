@@ -1,11 +1,12 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Play, Pause, Square, ChevronDown } from "lucide-react";
+import { Play, Pause, Square, ChevronDown, X, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
+import type { MapsConfig } from "@/pages/ScraperMaps";
 import type { MapsConfig } from "@/pages/ScraperMaps";
 import {
   Select,
