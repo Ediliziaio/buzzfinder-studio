@@ -1,28 +1,50 @@
 
 
-## Status: LeadHunter Pro is Complete
+## Scraping Module — Gap Analysis & Implementation Plan
 
-The application has been fully implemented across all previous iterations. Every feature from the spec is present:
+After reviewing the full codebase, the scraping module architecture is already correct: frontend creates session → triggers n8n webhook → Supabase Realtime updates UI. However, several refinements from the prompt are missing.
 
-### Already Implemented (100%)
+### Gaps Found
 
-- **Database**: All 10 tables with indices, RLS policies, and Realtime enabled on `scraping_sessions`, `scraping_jobs`, `campaigns`
-- **Design System**: Dark industrial theme with CSS variables, custom fonts (JetBrains Mono, IBM Plex Sans, Space Mono), terminal-style components
-- **Layout**: Sidebar (220px/52px collapsible), sticky header with credit pills and n8n status indicator, breadcrumb navigation
-- **Page 1 - Scraper Maps**: Config panel with filters, progress box, results table, previous sessions accordion
-- **Page 2 - Scraper Websites**: Queue panel, results table, detail modal, configuration options
-- **Page 3 - Contacts**: Full table with filters, bulk actions with confirmation dialogs, CSV import (4-step wizard with column mapper), export, manual creation, detail drawer with edit mode and activity timeline
-- **Page 4 - Lists**: Card grid, static/dynamic list creation with filter builder
-- **Page 5 - Campaigns**: Campaign list with stats, 4-step wizard with TipTap email editor (variable support), SMS character counter, WhatsApp template selector, recipient selection, cost estimation, email preview dialog
-- **Page 5B - Campaign Detail**: KPI cards, progress phases bar, recipients table
-- **Page 6 - Analytics**: 8 KPI cards, 4 charts (area, bar, pie, donut), campaign performance comparison, cost projection with budget tracking
-- **Page 7 - Settings**: API Keys tab (all providers), Mittenti tab (sender CRUD), Limiti tab (rate limits, cost alerts, blocklist), Import/Export tab (CSV, JSON backup)
-- **Utilities**: costCalculator, phoneNormalizer, emailValidator, csvExporter
-- **Integrations**: n8n webhook service, Supabase Realtime subscriptions
-- **Auth**: Email/password login with RequireAuth wrapper
-- **Header**: Live credit pills (Email/SMS/WA) refreshed every 60s from usage_log, n8n status indicator
+1. **No n8n health check before starting scraping jobs** — The Maps and Websites pages call `triggerN8nWebhook` directly without first verifying n8n is reachable. The health check exists only in Settings (test button). If n8n is down, the user gets a generic axios error instead of the clear "n8n non raggiungibile" panel.
 
-### No Changes Needed
+2. **No email blacklist filtering in extraction logic** — The prompt specifies rigorous email blacklist patterns (`noreply@`, `test@`, file extensions like `.png@`, sentry domains, etc.). The current `emailValidator.ts` has basic role/disposable checks but not the full scraping-specific blacklist.
 
-The spec has been fully implemented. There is nothing remaining to build. You can start using the application by logging in at the auth page.
+3. **No Zod validation schema for imported contacts** — The prompt requires `contactImportSchema` with strict validation before any INSERT. Currently CSV import and scraping results are inserted without Zod validation.
+
+4. **No "live feed" of last imported contacts** in the Maps progress panel — The prompt shows "Ultimi importati:" list during scraping. Currently only the progress box (`MapsProgressBox`) shows counters.
+
+5. **Scraping Maps: no `radius_meters` in webhook payload** — The payload sends `raggio_km` but the Google Places API spec in the prompt uses `radius_meters`. Minor naming issue for n8n workflow consistency.
+
+6. **No confirmation dialog on STOP scraping** — The prompt requires confirmation dialogs for destructive actions. Stopping a scraping session has no confirmation.
+
+7. **Website scraper: no "Retry" functionality** for failed jobs — The retry button exists visually but isn't wired to any handler.
+
+### Implementation Plan
+
+**Phase 1: n8n Health Check Service**
+- Add `checkN8nHealth()` to `src/services/n8n.ts` that fetches `{n8n_url}/healthz` with 3s timeout
+- Call it in `ScraperMaps.handleStart()` and `ScraperWebsites.handleStart()` before creating the session
+- On failure, show a clear error panel (not just a toast) with the configured URL and links to Settings
+- Update `AppHeader` to periodically check n8n health and update `n8nStatus` in the store
+
+**Phase 2: Contact Import Validation Schema**
+- Create `src/lib/validators/contact.ts` with Zod schema matching the prompt's `contactImportSchema`
+- Strict phone regex (`/^\+39\d{9,12}$/`), email validation, URL normalization transform
+- Apply in CSV import flow (`CsvImportDialog`) before batch insert
+- Add scraping-specific email blacklist patterns to `emailValidator.ts` (file extensions, sentry, test@, etc.)
+
+**Phase 3: Live Feed in Maps Progress**
+- Add a "last 5 imported" contacts feed to `MapsProgressBox` using the existing Realtime INSERT subscription on contacts
+- Show azienda, citta, and status icons (con sito/con tel/solo indirizzo)
+
+**Phase 4: Website Scraper Retry**
+- Wire the retry button in `WebScraperQueue` `JobItem` to update the job status back to `queued` and re-trigger the n8n webhook for that single job
+- Add confirmation dialog on STOP for both Maps and Websites scraper pages
+
+**Phase 5: n8n Status in Header**
+- Move n8n health check to `AppHeader` useEffect, poll every 30s
+- Update store `n8nStatus` based on result so it reflects real connectivity
+
+All changes are frontend-only. The n8n workflows and ScrapingBee integration remain server-side as designed.
 
