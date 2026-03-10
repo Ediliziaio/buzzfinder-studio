@@ -21,6 +21,7 @@ interface Props {
 }
 
 type Step = "upload" | "mapping" | "options" | "importing" | "done";
+type DuplicateHandling = "skip" | "update";
 
 const contactFields = [
   { value: "skip", label: "— Salta —" },
