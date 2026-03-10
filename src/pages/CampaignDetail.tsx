@@ -71,8 +71,42 @@ export default function CampaignDetailPage() {
     if (newStato === "completata" && !campaign.completed_at) updates.completed_at = new Date().toISOString();
 
     const { error } = await supabase.from("campaigns").update(updates as any).eq("id", campaign.id);
-    if (error) toast.error("Errore aggiornamento stato");
-    else { toast.success(`Campagna ${newStato}`); loadCampaign(); }
+    if (error) { toast.error("Errore aggiornamento stato"); return; }
+
+    toast.success(`Campagna ${newStato}`);
+    loadCampaign();
+
+    // Trigger n8n webhook on launch
+    if (newStato === "in_corso") {
+      try {
+        const settings = await getN8nSettings();
+        const webhookMap: Record<string, string> = {
+          email: settings.n8n_webhook_send_emails || "",
+          sms: settings.n8n_webhook_send_sms || "",
+          whatsapp: settings.n8n_webhook_send_whatsapp || "",
+        };
+        const webhookPath = webhookMap[campaign.tipo];
+        if (webhookPath) {
+          await triggerN8nWebhook(webhookPath, {
+            campaign_id: campaign.id,
+            tipo: campaign.tipo,
+            subject: campaign.subject,
+            body_html: campaign.body_html,
+            body_text: campaign.body_text,
+            sender_email: campaign.sender_email,
+            sender_name: campaign.sender_name,
+            reply_to: campaign.reply_to,
+            template_whatsapp_id: campaign.template_whatsapp_id,
+            rate_per_hour: campaign.sending_rate_per_hour,
+          });
+          toast.success("Job di invio avviato su n8n");
+        } else {
+          toast.warning("Webhook n8n non configurato — configura in Impostazioni");
+        }
+      } catch (err: any) {
+        toast.error(`Errore trigger n8n: ${err.message}`);
+      }
+    }
   };
 
   if (loading || !campaign) {
