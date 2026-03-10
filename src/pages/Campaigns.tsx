@@ -84,7 +84,7 @@ export default function CampaignsPage() {
       <CampaignsList
         campaigns={campaigns}
         isLoading={isLoading}
-        onEdit={() => {}}
+        onEdit={(c) => navigate(`/campaigns/${c.id}`)}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
       />
