@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
