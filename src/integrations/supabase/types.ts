@@ -88,7 +88,14 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          ab_test_enabled: boolean | null
+          ab_test_sample_size: number | null
+          ab_test_split: number | null
+          ab_winner: string | null
+          ab_winner_selected_at: string | null
           aperti: number | null
+          aperti_a: number | null
+          aperti_b: number | null
           body_html: string | null
           body_text: string | null
           cliccati: number | null
@@ -100,6 +107,8 @@ export type Database = {
           errori: number | null
           id: string
           inviati: number | null
+          inviati_a: number | null
+          inviati_b: number | null
           n8n_webhook_id: string | null
           nome: string
           provider: string | null
@@ -111,12 +120,20 @@ export type Database = {
           started_at: string | null
           stato: string | null
           subject: string | null
+          subject_b: string | null
           template_whatsapp_id: string | null
           tipo: string
           totale_destinatari: number | null
         }
         Insert: {
+          ab_test_enabled?: boolean | null
+          ab_test_sample_size?: number | null
+          ab_test_split?: number | null
+          ab_winner?: string | null
+          ab_winner_selected_at?: string | null
           aperti?: number | null
+          aperti_a?: number | null
+          aperti_b?: number | null
           body_html?: string | null
           body_text?: string | null
           cliccati?: number | null
@@ -128,6 +145,8 @@ export type Database = {
           errori?: number | null
           id?: string
           inviati?: number | null
+          inviati_a?: number | null
+          inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome: string
           provider?: string | null
@@ -139,12 +158,20 @@ export type Database = {
           started_at?: string | null
           stato?: string | null
           subject?: string | null
+          subject_b?: string | null
           template_whatsapp_id?: string | null
           tipo: string
           totale_destinatari?: number | null
         }
         Update: {
+          ab_test_enabled?: boolean | null
+          ab_test_sample_size?: number | null
+          ab_test_split?: number | null
+          ab_winner?: string | null
+          ab_winner_selected_at?: string | null
           aperti?: number | null
+          aperti_a?: number | null
+          aperti_b?: number | null
           body_html?: string | null
           body_text?: string | null
           cliccati?: number | null
@@ -156,6 +183,8 @@ export type Database = {
           errori?: number | null
           id?: string
           inviati?: number | null
+          inviati_a?: number | null
+          inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome?: string
           provider?: string | null
@@ -167,6 +196,7 @@ export type Database = {
           started_at?: string | null
           stato?: string | null
           subject?: string | null
+          subject_b?: string | null
           template_whatsapp_id?: string | null
           tipo?: string
           totale_destinatari?: number | null
