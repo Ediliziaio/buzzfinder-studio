@@ -107,6 +107,11 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
       }
       contact.fonte = "csv_import";
       contact.stato = "nuovo";
+      // Apply default tags
+      const tagsArr = defaultTags.split(",").map((t) => t.trim()).filter(Boolean);
+      if (tagsArr.length > 0) {
+        contact.tags = tagsArr;
+      }
       rawBatch.push(contact);
     }
 
