@@ -169,6 +169,10 @@ export default function ScraperMapsPage() {
       refetchSessions();
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
+      // Cleanup: mark session as failed if it was created
+      if (activeSessionId) {
+        await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", activeSessionId);
+      }
     }
   };
 
