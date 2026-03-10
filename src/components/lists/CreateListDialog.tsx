@@ -73,7 +73,7 @@ export function CreateListDialog({ open, onClose, onCreated }: Props) {
         nome: nome.trim(),
         descrizione: descrizione.trim() || null,
         tipo,
-        filtri,
+        filtri: filtri as unknown as Record<string, never>,
         totale_contatti: totale,
       }]);
       if (error) throw error;
