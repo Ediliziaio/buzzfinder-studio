@@ -218,9 +218,32 @@ export default function ScraperWebsitesPage() {
   };
 
   const handleStop = async () => {
+    setShowStopConfirm(true);
+  };
+
+  const confirmStop = async () => {
+    setShowStopConfirm(false);
     if (!sessionId) return;
     await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", sessionId);
     toast.info("Scraping fermato");
+  };
+
+  const handleRetryJob = async (job: ScrapingJob) => {
+    await supabase.from("scraping_jobs").update({ status: "queued", error_message: null, tentativo: (job.tentativo || 1) + 1 }).eq("id", job.id);
+    toast.info(`Riprova: ${job.url}`);
+    // Re-trigger n8n for single job retry
+    try {
+      const settings = await getN8nSettings();
+      const webhookPath = settings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
+      await triggerN8nWebhook(webhookPath, {
+        session_id: job.session_id,
+        urls: [job.url],
+        retry_job_id: job.id,
+        supabase_url: import.meta.env.VITE_SUPABASE_URL,
+      });
+    } catch (err: any) {
+      toast.error(`Errore retry: ${err.message}`);
+    }
   };
 
   const handleClearQueue = () => {
