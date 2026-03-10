@@ -236,7 +236,7 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={resetAndClose}>Annulla</Button>
-              <Button onClick={handleImport}>CONFERMA IMPORT ({csvData.length} righe)</Button>
+              <Button onClick={() => setStep("options")}>AVANTI →</Button>
             </div>
           </div>
         )}
