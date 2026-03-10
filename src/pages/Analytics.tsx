@@ -323,3 +323,33 @@ function CostProjectionCard({ totalCostEur }: { totalCostEur: number }) {
     </div>
   );
 }
+
+function AiCostKpi() {
+  const [aiData, setAiData] = useState<{ cost: number; count: number }>({ cost: 0, count: 0 });
+
+  useEffect(() => {
+    supabase
+      .from("campaigns")
+      .select("ai_cost_eur, ai_personalization_processed")
+      .eq("ai_personalization_enabled", true)
+      .then(({ data }) => {
+        if (data) {
+          const cost = data.reduce((a: number, c: any) => a + Number(c.ai_cost_eur || 0), 0);
+          const count = data.reduce((a: number, c: any) => a + Number(c.ai_personalization_processed || 0), 0);
+          setAiData({ cost, count });
+        }
+      });
+  }, []);
+
+  if (aiData.cost === 0 && aiData.count === 0) return null;
+
+  return (
+    <KpiCard
+      label="COSTO AI"
+      value={`€${aiData.cost.toFixed(2)}`}
+      trend={`${aiData.count} msg`}
+      trendUp
+      icon={<Sparkles className="h-4 w-4" />}
+    />
+  );
+}
