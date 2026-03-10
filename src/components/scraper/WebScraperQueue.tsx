@@ -221,7 +221,7 @@ export function WebScraperQueue({
   );
 }
 
-function JobItem({ item, onClick }: { item: { type: "url" | "job"; url: string; job?: ScrapingJob }; onClick: () => void }) {
+function JobItem({ item, onClick, onRetry }: { item: { type: "url" | "job"; url: string; job?: ScrapingJob }; onClick: () => void; onRetry?: () => void }) {
   const job = item.job;
   const domain = item.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
 
@@ -275,9 +275,16 @@ function JobItem({ item, onClick }: { item: { type: "url" | "job"; url: string; 
       {job?.status === "failed" && (
         <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-destructive">
           <span className="truncate">{job.error_message || "Errore"}</span>
-          <Button variant="ghost" size="sm" className="h-4 px-1 text-[10px]">
-            <RotateCcw className="h-2.5 w-2.5" />
-          </Button>
+          {onRetry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-4 px-1 text-[10px]"
+              onClick={(e) => { e.stopPropagation(); onRetry(); }}
+            >
+              <RotateCcw className="h-2.5 w-2.5" />
+            </Button>
+          )}
         </div>
       )}
     </div>
