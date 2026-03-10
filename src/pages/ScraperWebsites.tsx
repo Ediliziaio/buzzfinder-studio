@@ -5,6 +5,7 @@ import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
 import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
+import { useScrapingSessions } from "@/hooks/useScrapingSession";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
 import {
@@ -95,18 +96,28 @@ export default function ScraperWebsitesPage() {
     setUrls((prev) => [...prev, ...newUrls.filter((u) => u && !prev.includes(u))]);
   };
 
+  const [mapsSessionIdForImport, setMapsSessionIdForImport] = useState<string | null>(null);
+  const { sessions: mapsSessions } = useScrapingSessions();
+
   const handleImportFromMaps = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("contacts")
       .select("id, sito_web")
-      .eq("fonte", "google_maps")
       .not("sito_web", "is", null)
       .order("created_at", { ascending: false })
       .limit(500);
+
+    if (mapsSessionIdForImport) {
+      query = query.eq("scraping_session_id", mapsSessionIdForImport);
+    } else {
+      query = query.eq("fonte", "google_maps");
+    }
+
+    const { data } = await query;
     if (data) {
       const newUrls = data.map((c) => c.sito_web!).filter(Boolean);
       handleAddUrls(newUrls);
-      toast.success(`${newUrls.length} URL importati dall'ultima sessione Maps`);
+      toast.success(`${newUrls.length} URL importati${mapsSessionIdForImport ? " dalla sessione selezionata" : " da Maps"}`);
     }
   };
 
@@ -198,7 +209,6 @@ export default function ScraperWebsitesPage() {
             crawl_depth: config.crawlDepth,
             search_pages: config.searchPages,
           },
-          supabase_url: import.meta.env.VITE_SUPABASE_URL,
         }),
         {
           loading: "Avvio scraping siti su n8n...",
@@ -218,7 +228,7 @@ export default function ScraperWebsitesPage() {
   const handlePause = async () => {
     if (!sessionId) return;
     await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", sessionId);
-    toast.info("Scraping in pausa");
+    toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
   };
 
   const handleStop = async () => {
@@ -243,7 +253,6 @@ export default function ScraperWebsitesPage() {
         session_id: job.session_id,
         urls: [job.url],
         retry_job_id: job.id,
-        supabase_url: import.meta.env.VITE_SUPABASE_URL,
       });
     } catch (err: any) {
       toast.error(`Errore retry: ${err.message}`);

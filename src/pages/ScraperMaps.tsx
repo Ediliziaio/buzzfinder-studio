@@ -56,7 +56,7 @@ export default function ScraperMapsPage() {
   const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
 
   const activeSession = useScrapingSession(activeSessionId);
-  const { sessions: previousSessions, refetch: refetchSessions } = useScrapingSessions();
+  const { sessions: previousSessions, refetch: refetchSessions, hasMore, loadMore } = useScrapingSessions();
 
   const isRunning = activeSession?.status === "running";
   const isPending = activeSession?.status === "pending";
@@ -157,7 +157,6 @@ export default function ScraperMapsPage() {
             rating_min: config.ratingMin,
             recensioni_min: config.recensioniMin,
           },
-          supabase_url: import.meta.env.VITE_SUPABASE_URL,
         }),
         {
           loading: "Avvio job scraping su n8n...",
@@ -182,7 +181,7 @@ export default function ScraperMapsPage() {
       .from("scraping_sessions")
       .update({ status: "paused" })
       .eq("id", activeSessionId);
-    toast.info("Scraping in pausa");
+    toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
   };
 
   const handleStop = async () => {
@@ -264,6 +263,8 @@ export default function ScraperMapsPage() {
         <MapsPreviousSessions
           sessions={previousSessions}
           onLoad={handleLoadSession}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
         />
       </div>
 

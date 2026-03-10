@@ -47,6 +47,9 @@ export function useContacts(filters: ContactFilters, pageSize = DEFAULT_PAGE_SIZ
       if (filters.hasTelefono) {
         query = query.not("telefono", "is", null);
       }
+      if (filters.tags?.length) {
+        query = query.overlaps("tags", filters.tags);
+      }
 
       const { data, count, error } = await query;
       if (error) throw error;

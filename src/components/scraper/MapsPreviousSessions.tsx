@@ -8,9 +8,11 @@ import type { ScrapingSession } from "@/types";
 interface Props {
   sessions: ScrapingSession[];
   onLoad: (sessionId: string) => void;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
-export function MapsPreviousSessions({ sessions, onLoad }: Props) {
+export function MapsPreviousSessions({ sessions, onLoad, hasMore, onLoadMore }: Props) {
   const [open, setOpen] = useState(false);
 
   if (sessions.length === 0) return null;
@@ -52,6 +54,11 @@ export function MapsPreviousSessions({ sessions, onLoad }: Props) {
             </Button>
           </div>
         ))}
+        {hasMore && onLoadMore && (
+          <Button variant="ghost" size="sm" className="w-full h-7 text-xs font-mono text-muted-foreground" onClick={onLoadMore}>
+            Mostra precedenti...
+          </Button>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

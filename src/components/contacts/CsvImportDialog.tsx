@@ -21,6 +21,7 @@ interface Props {
 }
 
 type Step = "upload" | "mapping" | "options" | "importing" | "done";
+type DuplicateHandling = "skip" | "update";
 
 const contactFields = [
   { value: "skip", label: "— Salta —" },
@@ -47,6 +48,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
   const [importedCount, setImportedCount] = useState(0);
   const [invalidRows, setInvalidRows] = useState<{ row: Record<string, unknown>; errors: string }[]>([]);
   const [showInvalid, setShowInvalid] = useState(false);
+  const [duplicateHandling, setDuplicateHandling] = useState<DuplicateHandling>("skip");
+  const [defaultTags, setDefaultTags] = useState("");
 
   const handleFile = (file: File) => {
     Papa.parse(file, {
@@ -104,6 +107,11 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
       }
       contact.fonte = "csv_import";
       contact.stato = "nuovo";
+      // Apply default tags
+      const tagsArr = defaultTags.split(",").map((t) => t.trim()).filter(Boolean);
+      if (tagsArr.length > 0) {
+        contact.tags = tagsArr;
+      }
       rawBatch.push(contact);
     }
 
@@ -122,9 +130,13 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     let imported = 0;
     for (let i = 0; i < valid.length; i += chunkSize) {
       const chunk = valid.slice(i, i + chunkSize);
-      const { error } = await supabase.from("contacts").insert(chunk as any);
-      if (error) {
-        console.error("Import error:", error);
+      if (duplicateHandling === "update") {
+        // Upsert on email
+        const { error } = await supabase.from("contacts").upsert(chunk as any, { onConflict: "email", ignoreDuplicates: false });
+        if (error) console.error("Import error:", error);
+      } else {
+        const { error } = await supabase.from("contacts").insert(chunk as any);
+        if (error) console.error("Import error:", error);
       }
       imported += chunk.length;
       setImportedCount(imported);
@@ -148,6 +160,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     setImportedCount(0);
     setInvalidRows([]);
     setShowInvalid(false);
+    setDuplicateHandling("skip");
+    setDefaultTags("");
     onClose();
   };
 
@@ -233,7 +247,39 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={resetAndClose}>Annulla</Button>
-              <Button onClick={handleImport}>CONFERMA IMPORT ({csvData.length} righe)</Button>
+              <Button onClick={() => setStep("options")}>AVANTI →</Button>
+            </div>
+          </div>
+        )}
+
+        {step === "options" && (
+          <div className="space-y-4">
+            <p className="font-mono text-xs text-muted-foreground">Opzioni di importazione</p>
+            <div className="space-y-3">
+              <div>
+                <label className="font-mono text-xs text-foreground block mb-1">Gestione duplicati (stessa email)</label>
+                <select
+                  value={duplicateHandling}
+                  onChange={(e) => setDuplicateHandling(e.target.value as DuplicateHandling)}
+                  className="w-full rounded-md border border-border bg-accent px-2 py-1.5 font-mono text-xs text-foreground"
+                >
+                  <option value="skip">Salta duplicati</option>
+                  <option value="update">Aggiorna esistenti</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-mono text-xs text-foreground block mb-1">Tag da applicare (separati da virgola)</label>
+                <input
+                  value={defaultTags}
+                  onChange={(e) => setDefaultTags(e.target.value)}
+                  placeholder="es. import-2026, prospect"
+                  className="w-full rounded-md border border-border bg-accent px-2 py-1.5 font-mono text-xs text-foreground"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStep("mapping")}>← Indietro</Button>
+              <Button onClick={handleImport}>IMPORTA ({csvData.length} righe)</Button>
             </div>
           </div>
         )}
