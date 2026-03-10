@@ -77,6 +77,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>({ ...defaultData });
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (open) {
