@@ -113,10 +113,19 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const handleCreate = async () => {
     setSaving(true);
     try {
+      // Compute scheduled_at by combining date + time
+      let scheduledAt: string | null = null;
+      if (data.scheduled_at) {
+        const d = new Date(data.scheduled_at);
+        const [h, m] = data.scheduleTime.split(":").map(Number);
+        d.setHours(h, m, 0, 0);
+        scheduledAt = d.toISOString();
+      }
+
       const { error } = await supabase.from("campaigns").insert({
         nome: data.nome.trim(),
         tipo: data.tipo,
-        stato: "bozza",
+        stato: scheduledAt ? "schedulata" : "bozza",
         subject: data.subject || null,
         body_html: data.body_html || null,
         body_text: data.body_text || null,
@@ -127,9 +136,15 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         totale_destinatari: data.recipientCount,
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
+        scheduled_at: scheduledAt,
       });
       if (error) throw error;
-      toast({ title: "Campagna creata", description: `"${data.nome}" salvata come bozza` });
+      toast({
+        title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
+        description: scheduledAt
+          ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })}`
+          : `"${data.nome}" salvata come bozza`,
+      });
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
