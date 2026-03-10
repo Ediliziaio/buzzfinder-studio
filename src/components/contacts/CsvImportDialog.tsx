@@ -241,6 +241,38 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
           </div>
         )}
 
+        {step === "options" && (
+          <div className="space-y-4">
+            <p className="font-mono text-xs text-muted-foreground">Opzioni di importazione</p>
+            <div className="space-y-3">
+              <div>
+                <label className="font-mono text-xs text-foreground block mb-1">Gestione duplicati (stessa email)</label>
+                <select
+                  value={duplicateHandling}
+                  onChange={(e) => setDuplicateHandling(e.target.value as DuplicateHandling)}
+                  className="w-full rounded-md border border-border bg-accent px-2 py-1.5 font-mono text-xs text-foreground"
+                >
+                  <option value="skip">Salta duplicati</option>
+                  <option value="update">Aggiorna esistenti</option>
+                </select>
+              </div>
+              <div>
+                <label className="font-mono text-xs text-foreground block mb-1">Tag da applicare (separati da virgola)</label>
+                <input
+                  value={defaultTags}
+                  onChange={(e) => setDefaultTags(e.target.value)}
+                  placeholder="es. import-2026, prospect"
+                  className="w-full rounded-md border border-border bg-accent px-2 py-1.5 font-mono text-xs text-foreground"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStep("mapping")}>← Indietro</Button>
+              <Button onClick={handleImport}>IMPORTA ({csvData.length} righe)</Button>
+            </div>
+          </div>
+        )}
+
         {step === "importing" && (
           <div className="space-y-4 py-4">
             <TerminalProgress
