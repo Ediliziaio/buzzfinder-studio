@@ -36,6 +36,19 @@ const maxResultsOptions = [100, 500, 1000, 2500, 5000];
 
 export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onStart, onPause, onStop }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [cityInput, setCityInput] = useState("");
+
+  const addCity = () => {
+    const city = cityInput.trim();
+    if (city && !config.citta.includes(city)) {
+      onChange({ ...config, citta: [...config.citta, city] });
+      setCityInput("");
+    }
+  };
+
+  const removeCity = (city: string) => {
+    onChange({ ...config, citta: config.citta.filter((c) => c !== city) });
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-4">
