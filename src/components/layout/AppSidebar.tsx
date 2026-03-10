@@ -8,6 +8,7 @@ import {
   List,
   Send,
   GitBranch,
+  ShieldOff,
   BarChart3,
   Settings,
   ChevronLeft,
