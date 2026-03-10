@@ -138,7 +138,10 @@ export function WizardStepReview({ data, costStimato, canale }: Props) {
 
       <div className="rounded-lg border border-border bg-muted/50 p-3">
         <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-          ⚠️ La campagna verrà salvata come <strong>bozza</strong>. Potrai avviarla dalla pagina di dettaglio campagna.
+          {data.scheduled_at
+            ? `📅 La campagna verrà salvata come **schedulata** e inviata automaticamente il ${format(data.scheduled_at, "dd MMM yyyy", { locale: it })}.`
+            : "⚠️ La campagna verrà salvata come **bozza**. Potrai avviarla dalla pagina di dettaglio campagna."
+          }
         </p>
       </div>
     </div>
