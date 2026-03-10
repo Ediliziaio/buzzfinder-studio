@@ -198,7 +198,6 @@ export default function ScraperWebsitesPage() {
             crawl_depth: config.crawlDepth,
             search_pages: config.searchPages,
           },
-          supabase_url: import.meta.env.VITE_SUPABASE_URL,
         }),
         {
           loading: "Avvio scraping siti su n8n...",
