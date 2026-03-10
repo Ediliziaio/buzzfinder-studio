@@ -1,4 +1,4 @@
-import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon, Sparkles, Cpu } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
