@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
           <BarChart3 className="h-6 w-6 text-primary" />
           <h1 className="font-display text-xl font-bold text-foreground">ANALYTICS</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} className="gap-2 font-mono text-xs">
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 font-mono text-xs">
           <RefreshCw className="h-3 w-3" /> Aggiorna
         </Button>
       </div>

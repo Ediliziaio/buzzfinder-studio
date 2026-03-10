@@ -19,8 +19,9 @@ export default function ContactsPage() {
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const { contacts, totalCount, isLoading, refetch, page, setPage, totalPages } = useContacts(filters);
+  const { contacts, totalCount, isLoading, refetch, totalPages } = useContacts(filters, page);
 
   const handleExport = async () => {
     setExporting(true);
