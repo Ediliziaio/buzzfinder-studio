@@ -56,7 +56,7 @@ export default function ScraperMapsPage() {
   const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
 
   const activeSession = useScrapingSession(activeSessionId);
-  const { sessions: previousSessions, refetch: refetchSessions } = useScrapingSessions();
+  const { sessions: previousSessions, refetch: refetchSessions, hasMore, loadMore } = useScrapingSessions();
 
   const isRunning = activeSession?.status === "running";
   const isPending = activeSession?.status === "pending";
