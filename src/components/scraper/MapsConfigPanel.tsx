@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import { Play, Pause, Square, ChevronDown, X, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { MapsConfig } from "@/pages/ScraperMaps";
-import type { MapsConfig } from "@/pages/ScraperMaps";
 import {
   Select,
   SelectContent,
