@@ -23,6 +23,9 @@ export function WizardStepReview({ data, costStimato, canale }: Props) {
     { icon: Users, label: "Destinatari", value: data.recipientCount.toLocaleString() },
     { icon: Zap, label: "Velocità", value: `${data.sending_rate_per_hour}/ora` },
     { icon: Clock, label: "Tempo stimato", value: etaLabel },
+    ...(data.scheduled_at
+      ? [{ icon: CalendarIcon, label: "Programmata per", value: format(data.scheduled_at, "dd MMM yyyy 'alle' HH:mm", { locale: it }) }]
+      : []),
   ];
 
   return (
