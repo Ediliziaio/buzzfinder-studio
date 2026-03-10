@@ -12,7 +12,7 @@ interface Props {
   onLoadMore?: () => void;
 }
 
-export function MapsPreviousSessions({ sessions, onLoad }: Props) {
+export function MapsPreviousSessions({ sessions, onLoad, hasMore, onLoadMore }: Props) {
   const [open, setOpen] = useState(false);
 
   if (sessions.length === 0) return null;
