@@ -333,6 +333,11 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
+      {/* AI Personalization Panel */}
+      {(campaign as any).ai_personalization_enabled && (
+        <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
+      )}
+
       {/* Phase Progress */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center gap-2">
