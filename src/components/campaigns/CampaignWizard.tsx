@@ -20,6 +20,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
+import { WizardStepAI } from "./WizardStepAI";
 import { populateCampaignRecipients, htmlToPlainText, getSmsInfo } from "@/lib/campaignHelpers";
 import { calculateCost } from "@/lib/costCalculator";
 import type { CampaignTipo } from "@/types";
