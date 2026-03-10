@@ -208,6 +208,10 @@ export default function ScraperWebsitesPage() {
       );
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
+      // Cleanup: mark session as failed
+      if (sessionId) {
+        await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", sessionId);
+      }
     }
   };
 

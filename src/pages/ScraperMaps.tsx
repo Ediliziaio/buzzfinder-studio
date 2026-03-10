@@ -205,7 +205,7 @@ export default function ScraperMapsPage() {
     const { data } = await supabase
       .from("contacts")
       .select("*")
-      .eq("fonte", "google_maps")
+      .eq("scraping_session_id", sessionId)
       .order("created_at", { ascending: false })
       .limit(5000);
     setResults((data as unknown as Contact[]) || []);
