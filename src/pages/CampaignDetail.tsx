@@ -37,6 +37,7 @@ export default function CampaignDetailPage() {
   const [recipientFilter, setRecipientFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showReplica, setShowReplica] = useState(false);
 
   useEffect(() => {
     if (!id) return;
