@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,12 +6,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, FileText, Check } from "lucide-react";
+import { Upload, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import Papa from "papaparse";
 import { TerminalProgress } from "@/components/shared/TerminalProgress";
+import { validateContactBatch } from "@/lib/validators/contact";
+import { normalizeItalianPhone } from "@/lib/phoneNormalizer";
 
 interface Props {
   open: boolean;
@@ -19,7 +20,7 @@ interface Props {
   onComplete: () => void;
 }
 
-type Step = "upload" | "mapping" | "options" | "importing";
+type Step = "upload" | "mapping" | "options" | "importing" | "done";
 
 const contactFields = [
   { value: "skip", label: "— Salta —" },
@@ -44,6 +45,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [importProgress, setImportProgress] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
+  const [invalidRows, setInvalidRows] = useState<{ row: Record<string, unknown>; errors: string }[]>([]);
+  const [showInvalid, setShowInvalid] = useState(false);
 
   const handleFile = (file: File) => {
     Papa.parse(file, {
@@ -53,7 +56,6 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
         const headers = results.meta.fields || [];
         setCsvHeaders(headers);
         setCsvData(results.data as Record<string, string>[]);
-        // Auto-map by name similarity
         const autoMap: Record<string, string> = {};
         headers.forEach((h) => {
           const lower = h.toLowerCase().trim();
@@ -80,38 +82,61 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
   const handleImport = async () => {
     setStep("importing");
-    const batch: any[] = [];
+    const rawBatch: Record<string, unknown>[] = [];
 
     for (const row of csvData) {
-      const contact: Record<string, string> = {};
+      const contact: Record<string, unknown> = {};
       for (const [csvCol, field] of Object.entries(mapping)) {
         if (field !== "skip" && row[csvCol]) {
           contact[field] = row[csvCol];
         }
       }
       if (!contact.azienda) contact.azienda = "Senza nome";
+      // Normalize before validation
+      if (typeof contact.telefono === "string") {
+        contact.telefono_normalizzato = normalizeItalianPhone(contact.telefono);
+      }
+      if (typeof contact.email === "string") {
+        contact.email = contact.email.toLowerCase().trim();
+      }
+      if (typeof contact.sito_web === "string" && !(contact.sito_web as string).startsWith("http")) {
+        contact.sito_web = `https://${contact.sito_web}`;
+      }
       contact.fonte = "csv_import";
       contact.stato = "nuovo";
-      batch.push(contact);
+      rawBatch.push(contact);
     }
 
-    // Insert in chunks of 100
+    // Validate with Zod
+    const { valid, invalid } = validateContactBatch(rawBatch);
+    setInvalidRows(invalid);
+
+    if (valid.length === 0) {
+      toast.error(`Nessuna riga valida su ${rawBatch.length}. Controlla i dati.`);
+      setStep("done");
+      return;
+    }
+
+    // Insert valid rows in chunks of 100
     const chunkSize = 100;
     let imported = 0;
-    for (let i = 0; i < batch.length; i += chunkSize) {
-      const chunk = batch.slice(i, i + chunkSize);
+    for (let i = 0; i < valid.length; i += chunkSize) {
+      const chunk = valid.slice(i, i + chunkSize);
       const { error } = await supabase.from("contacts").insert(chunk as any);
       if (error) {
         console.error("Import error:", error);
       }
       imported += chunk.length;
       setImportedCount(imported);
-      setImportProgress(Math.round((imported / batch.length) * 100));
+      setImportProgress(Math.round((imported / valid.length) * 100));
     }
 
-    toast.success(`${imported} contatti importati con successo`);
+    const msg = invalid.length > 0
+      ? `${imported} contatti importati, ${invalid.length} scartati per errori di validazione`
+      : `${imported} contatti importati con successo`;
+    toast.success(msg);
     onComplete();
-    resetAndClose();
+    setStep("done");
   };
 
   const resetAndClose = () => {
@@ -121,6 +146,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     setMapping({});
     setImportProgress(0);
     setImportedCount(0);
+    setInvalidRows([]);
+    setShowInvalid(false);
     onClose();
   };
 
@@ -222,6 +249,47 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
             <p className="font-mono text-xs text-center text-muted-foreground">
               Non chiudere questa finestra...
             </p>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="space-y-4 py-4">
+            <p className="font-mono text-sm text-foreground text-center">
+              ✅ {importedCount} contatti importati
+              {invalidRows.length > 0 && (
+                <span className="text-destructive"> — {invalidRows.length} scartati</span>
+              )}
+            </p>
+
+            {invalidRows.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <button
+                  onClick={() => setShowInvalid(!showInvalid)}
+                  className="flex items-center gap-2 w-full text-left font-mono text-xs text-destructive"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>{invalidRows.length} righe con errori di validazione</span>
+                  {showInvalid ? <ChevronUp className="h-3.5 w-3.5 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto" />}
+                </button>
+                {showInvalid && (
+                  <div className="mt-2 max-h-[200px] overflow-y-auto space-y-1">
+                    {invalidRows.slice(0, 10).map((inv, i) => (
+                      <div key={i} className="font-mono text-xs text-muted-foreground border-t border-border pt-1">
+                        <span className="text-foreground">{(inv.row as any).azienda || `Riga ${i + 1}`}</span>
+                        {" — "}{inv.errors}
+                      </div>
+                    ))}
+                    {invalidRows.length > 10 && (
+                      <p className="text-xs text-muted-foreground pt-1">...e altre {invalidRows.length - 10} righe</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button onClick={resetAndClose}>CHIUDI</Button>
+            </div>
           </div>
         )}
       </DialogContent>
