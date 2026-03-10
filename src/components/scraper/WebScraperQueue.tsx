@@ -24,6 +24,7 @@ interface Props {
   onStop: () => void;
   onClearQueue: () => void;
   onJobClick: (job: ScrapingJob) => void;
+  onRetryJob?: (job: ScrapingJob) => void;
   isRunning: boolean;
   stats: { queued: number; processing: number; completed: number; failed: number };
 }
