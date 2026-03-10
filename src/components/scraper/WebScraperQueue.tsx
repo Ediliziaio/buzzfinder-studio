@@ -96,6 +96,7 @@ export function WebScraperQueue({
               key={item.job?.id || `url-${i}`}
               item={item}
               onClick={() => item.job && onJobClick(item.job)}
+              onRetry={item.job && onRetryJob ? () => onRetryJob(item.job!) : undefined}
             />
           ))
         )}
