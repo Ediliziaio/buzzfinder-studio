@@ -289,6 +289,7 @@ export default function ScraperWebsitesPage() {
           onStop={handleStop}
           onClearQueue={handleClearQueue}
           onJobClick={handleShowDetail}
+          onRetryJob={handleRetryJob}
           isRunning={isRunning}
           stats={queueStats}
         />
