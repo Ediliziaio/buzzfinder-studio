@@ -6,7 +6,7 @@ export type ScrapingJobStatus = 'queued' | 'processing' | 'completed' | 'failed'
 export type CampaignTipo = 'email' | 'sms' | 'whatsapp';
 export type CampaignStato = 'bozza' | 'schedulata' | 'in_corso' | 'completata' | 'pausa' | 'errore';
 export type CampaignRecipientStato = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'failed' | 'bounced' | 'unsubscribed';
-export type ActivityTipo = 'email_inviata' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato';
+export type ActivityTipo = 'email_inviata' | 'email_aperta' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato';
 export type ListTipo = 'statica' | 'dinamica';
 export type SettingCategoria = 'api_keys' | 'limiti' | 'scraping' | 'mittenti';
 
