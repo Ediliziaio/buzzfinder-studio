@@ -163,6 +163,7 @@ export default function AnalyticsPage() {
         <KpiCard label="SCRAPING SESSIONI" value={data.scrapingSessions} icon={<Globe className="h-4 w-4" />} />
         <KpiCard label="COSTO TOTALE" value={`€${data.totalCostEur.toFixed(2)}`} icon={<DollarSign className="h-4 w-4" />} />
         <AiCostKpi />
+      </div>
 
       {/* Cost Projection */}
       <CostProjectionCard totalCostEur={data.totalCostEur} />
