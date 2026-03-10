@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,12 +6,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, FileText, Check } from "lucide-react";
+import { Upload, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import Papa from "papaparse";
 import { TerminalProgress } from "@/components/shared/TerminalProgress";
+import { validateContactBatch } from "@/lib/validators/contact";
+import { normalizeItalianPhone } from "@/lib/phoneNormalizer";
 
 interface Props {
   open: boolean;
