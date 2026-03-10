@@ -48,6 +48,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
   const [importedCount, setImportedCount] = useState(0);
   const [invalidRows, setInvalidRows] = useState<{ row: Record<string, unknown>; errors: string }[]>([]);
   const [showInvalid, setShowInvalid] = useState(false);
+  const [duplicateHandling, setDuplicateHandling] = useState<DuplicateHandling>("skip");
+  const [defaultTags, setDefaultTags] = useState("");
 
   const handleFile = (file: File) => {
     Papa.parse(file, {
