@@ -248,10 +248,26 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                   onChange={(e) => update({ body_text: e.target.value })}
                   placeholder="Ciao {{nome}}, scopri le nostre offerte..."
                   className="font-mono text-sm min-h-[120px]"
-                  maxLength={160}
                 />
+                {(() => {
+                  const len = data.body_text.length;
+                  const smsCount = len === 0 ? 0 : Math.ceil(len / 160);
+                  const isOver = len > 160;
+                  return (
+                    <div className="flex items-center justify-between mt-1">
+                      <p className={cn("text-[10px] font-mono", isOver ? "text-warning" : "text-muted-foreground")}>
+                        {len}/160 caratteri {isOver && `— ${smsCount} SMS`}
+                      </p>
+                      {isOver && (
+                        <span className="text-[10px] font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                          ⚠️ {smsCount} SMS a {len} char — costo ×{smsCount}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <p className="text-[10px] text-muted-foreground mt-1 font-mono">
-                  {data.body_text.length}/160 caratteri
+                  Variabili: {"{{nome}}"}, {"{{azienda}}"}, {"{{citta}}"}
                 </p>
               </div>
             )}

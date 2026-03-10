@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Mail, MessageSquare, Smartphone, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 
 const breadcrumbMap: Record<string, string> = {
   "/scraper/maps": "Scraper Maps",
@@ -18,7 +19,55 @@ const breadcrumbMap: Record<string, string> = {
 export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { credits, n8nStatus, sidebarCollapsed } = useAppStore();
+  const { credits, n8nStatus, sidebarCollapsed, setCredits } = useAppStore();
+
+  const fetchCredits = useCallback(async () => {
+    try {
+      // Fetch limits from app_settings
+      const { data: settings } = await supabase
+        .from("app_settings")
+        .select("chiave, valore")
+        .in("chiave", ["limite_email_giorno", "limite_sms_giorno", "limite_whatsapp_giorno"]);
+
+      const limits: Record<string, number> = {
+        email: 50000, sms: 10000, whatsapp: 5000,
+      };
+      settings?.forEach((s) => {
+        if (s.chiave === "limite_email_giorno") limits.email = (Number(s.valore) || 1000) * 30;
+        if (s.chiave === "limite_sms_giorno") limits.sms = (Number(s.valore) || 500) * 30;
+        if (s.chiave === "limite_whatsapp_giorno") limits.whatsapp = (Number(s.valore) || 250) * 30;
+      });
+
+      // Fetch this month's usage
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { data: usage } = await supabase
+        .from("usage_log")
+        .select("tipo, quantita")
+        .gte("created_at", startOfMonth.toISOString());
+
+      const used: Record<string, number> = { email: 0, sms: 0, whatsapp: 0 };
+      usage?.forEach((u) => {
+        if (u.tipo in used) used[u.tipo] += (u.quantita || 0);
+      });
+
+      setCredits({
+        email: Math.max(0, limits.email - used.email),
+        sms: Math.max(0, limits.sms - used.sms),
+        whatsapp: Math.max(0, limits.whatsapp - used.whatsapp),
+      });
+    } catch {
+      // Keep default credits on error
+    }
+  }, [setCredits]);
+
+  useEffect(() => {
+    fetchCredits();
+    const interval = setInterval(fetchCredits, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, [fetchCredits]);
 
   const currentPage = Object.entries(breadcrumbMap).find(([path]) =>
     location.pathname.startsWith(path)
