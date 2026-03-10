@@ -629,8 +629,13 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           </div>
         )}
 
-        {/* Step 3: Riepilogo */}
+        {/* Step 3: AI Personalization */}
         {step === 3 && (
+          <WizardStepAI data={data} update={update} />
+        )}
+
+        {/* Step 4: Riepilogo */}
+        {step === 4 && (
           <WizardStepReview data={data} costStimato={costStimato} canale={canale} />
         )}
 
