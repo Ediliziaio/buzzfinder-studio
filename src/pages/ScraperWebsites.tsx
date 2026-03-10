@@ -4,9 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
-import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
+import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface WebScraperConfig {
   timeoutSec: number;
