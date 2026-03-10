@@ -217,11 +217,10 @@ export default function ScraperMapsPage() {
   };
 
   const costEstimate = useMemo(() => {
-    // Google Places: ~$0.032 per Text Search + $0.017 per Place Details
-    // Approx €0.045 per result → €2.50 per 1000
     const costPer1000 = 2.5;
-    return ((config.maxResults / 1000) * costPer1000).toFixed(2);
-  }, [config.maxResults]);
+    const totalResults = config.maxResults * Math.max(config.citta.length, 1);
+    return ((totalResults / 1000) * costPer1000).toFixed(2);
+  }, [config.maxResults, config.citta.length]);
 
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
