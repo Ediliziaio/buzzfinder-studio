@@ -243,11 +243,14 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
       <div className="space-y-2">
         <Button
           onClick={onStart}
-          disabled={isRunning || !config.query || !config.citta}
+          disabled={isRunning || !config.query || config.citta.length === 0}
           className="w-full font-mono font-bold"
           size="lg"
         >
-          <Play className="h-4 w-4 mr-2" /> AVVIA SCRAPING
+          <Play className="h-4 w-4 mr-2" />
+          {config.citta.length > 1
+            ? `AVVIA SCRAPING (${config.citta.length} città)`
+            : "AVVIA SCRAPING"}
         </Button>
         {isRunning && (
           <div className="flex gap-2">
