@@ -162,7 +162,7 @@ export default function AnalyticsPage() {
         <KpiCard label="TASSO CLICK" value={`${clickRate}%`} trendUp={Number(clickRate) > 2} trend={Number(clickRate) > 2 ? "buono" : "da migliorare"} />
         <KpiCard label="SCRAPING SESSIONI" value={data.scrapingSessions} icon={<Globe className="h-4 w-4" />} />
         <KpiCard label="COSTO TOTALE" value={`€${data.totalCostEur.toFixed(2)}`} icon={<DollarSign className="h-4 w-4" />} />
-      </div>
+        <AiCostKpi />
 
       {/* Cost Projection */}
       <CostProjectionCard totalCostEur={data.totalCostEur} />
