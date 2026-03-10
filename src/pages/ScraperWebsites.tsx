@@ -95,18 +95,28 @@ export default function ScraperWebsitesPage() {
     setUrls((prev) => [...prev, ...newUrls.filter((u) => u && !prev.includes(u))]);
   };
 
+  const [mapsSessionIdForImport, setMapsSessionIdForImport] = useState<string | null>(null);
+  const { sessions: mapsSessions } = useScrapingSessions();
+
   const handleImportFromMaps = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("contacts")
       .select("id, sito_web")
-      .eq("fonte", "google_maps")
       .not("sito_web", "is", null)
       .order("created_at", { ascending: false })
       .limit(500);
+
+    if (mapsSessionIdForImport) {
+      query = query.eq("scraping_session_id", mapsSessionIdForImport);
+    } else {
+      query = query.eq("fonte", "google_maps");
+    }
+
+    const { data } = await query;
     if (data) {
       const newUrls = data.map((c) => c.sito_web!).filter(Boolean);
       handleAddUrls(newUrls);
-      toast.success(`${newUrls.length} URL importati dall'ultima sessione Maps`);
+      toast.success(`${newUrls.length} URL importati${mapsSessionIdForImport ? " dalla sessione selezionata" : " da Maps"}`);
     }
   };
 
