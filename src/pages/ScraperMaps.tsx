@@ -6,6 +6,7 @@ import { MapsProgressBox } from "@/components/scraper/MapsProgressBox";
 import { MapsResultsTable } from "@/components/scraper/MapsResultsTable";
 import { MapsPreviousSessions } from "@/components/scraper/MapsPreviousSessions";
 import { toast } from "sonner";
+import { getCurrentUserId } from "@/lib/auth";
 import type { Contact } from "@/types";
 import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import {
@@ -135,9 +136,10 @@ export default function ScraperMapsPage() {
   const handleStart = async () => {
     if (!config.query || !config.citta) { toast.error("Inserisci categoria e città"); return; }
     try {
+      const user_id = await getCurrentUserId();
       const { data: session, error } = await supabase
         .from("scraping_sessions")
-        .insert({ tipo: "google_maps", query: config.query, citta: config.citta,
+        .insert({ user_id, tipo: "google_maps", query: config.query, citta: config.citta,
                   raggio: config.raggio, max_results: config.maxResults, status: "pending" })
         .select().single();
       if (error) throw error;
