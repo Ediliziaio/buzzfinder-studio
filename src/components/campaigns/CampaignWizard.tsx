@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock } from "lucide-react";
+import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,8 @@ import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
+import { populateCampaignRecipients, htmlToPlainText, getSmsInfo } from "@/lib/campaignHelpers";
+import { calculateCost } from "@/lib/costCalculator";
 import type { CampaignTipo } from "@/types";
 
 const STEPS = [
@@ -35,6 +37,12 @@ const CANALI = [
   { value: "whatsapp" as CampaignTipo, label: "WhatsApp", icon: MessageSquare, desc: "Template WhatsApp Business", costPer: 0.04 },
 ];
 
+export interface WhatsAppVariable {
+  index: number;
+  tipo: "campo" | "fisso";
+  valore: string;
+}
+
 export interface WizardData {
   tipo: CampaignTipo;
   nome: string;
@@ -49,6 +57,8 @@ export interface WizardData {
   sender_name: string;
   reply_to: string;
   template_whatsapp_id: string;
+  template_whatsapp_language: string;
+  template_whatsapp_variables: WhatsAppVariable[];
   recipientSource: "all" | "list" | "filter";
   selectedListId: string;
   filterStato: string[];
@@ -74,6 +84,8 @@ const defaultData: WizardData = {
   sender_name: "",
   reply_to: "",
   template_whatsapp_id: "",
+  template_whatsapp_language: "it",
+  template_whatsapp_variables: [],
   recipientSource: "all",
   selectedListId: "",
   filterStato: [],
@@ -91,33 +103,89 @@ interface CampaignWizardProps {
   onCreated: () => void;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizardProps) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>({ ...defaultData });
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Load sender defaults from app_settings when wizard opens (Bug M3)
   useEffect(() => {
     if (open) {
       setStep(0);
-      setData({ ...defaultData });
+      supabase
+        .from("app_settings")
+        .select("chiave, valore")
+        .in("chiave", ["sender_name_default", "sender_email_default", "reply_to_default"])
+        .then(({ data: settings }) => {
+          const map: Record<string, string> = {};
+          settings?.forEach((s: any) => { if (s.valore) map[s.chiave] = s.valore; });
+          setData({
+            ...defaultData,
+            sender_name: map.sender_name_default || "",
+            sender_email: map.sender_email_default || "",
+            reply_to: map.reply_to_default || "",
+          });
+        });
     }
   }, [open]);
 
   const update = (partial: Partial<WizardData>) => setData((d) => ({ ...d, ...partial }));
 
   const canale = CANALI.find((c) => c.value === data.tipo)!;
-  const costStimato = data.recipientCount * canale.costPer;
+
+  // Use costCalculator for accurate cost estimation (Bug M6)
+  const messageLength = data.tipo === "sms" ? data.body_text.length : 0;
+  const costBreakdown = calculateCost(data.tipo, data.recipientCount, messageLength);
+  const costStimato = costBreakdown.totalCost;
 
   const canNext = () => {
     if (step === 0) return !!data.tipo && data.nome.trim().length > 0;
     if (step === 1) return data.recipientCount > 0;
     if (step === 2) {
-      if (data.tipo === "email") return data.subject.trim().length > 0 && data.body_html.trim().length > 0;
+      if (data.tipo === "email") {
+        return (
+          data.subject.trim().length > 0 &&
+          data.body_html.trim().length > 0 &&
+          data.sender_email.trim().length > 0 &&
+          EMAIL_REGEX.test(data.sender_email.trim())
+        );
+      }
       if (data.tipo === "sms") return data.body_text.trim().length > 0;
-      if (data.tipo === "whatsapp") return data.template_whatsapp_id.trim().length > 0;
+      if (data.tipo === "whatsapp") {
+        return (
+          data.template_whatsapp_id.trim().length > 0 &&
+          data.template_whatsapp_language.trim().length > 0
+        );
+      }
     }
     return true;
+  };
+
+  const addWhatsAppVariable = () => {
+    const nextIndex = data.template_whatsapp_variables.length + 1;
+    update({
+      template_whatsapp_variables: [
+        ...data.template_whatsapp_variables,
+        { index: nextIndex, tipo: "campo", valore: "nome" },
+      ],
+    });
+  };
+
+  const removeWhatsAppVariable = (idx: number) => {
+    const vars = data.template_whatsapp_variables.filter((_, i) => i !== idx);
+    // Re-index
+    update({
+      template_whatsapp_variables: vars.map((v, i) => ({ ...v, index: i + 1 })),
+    });
+  };
+
+  const updateWhatsAppVariable = (idx: number, partial: Partial<WhatsAppVariable>) => {
+    const vars = [...data.template_whatsapp_variables];
+    vars[idx] = { ...vars[idx], ...partial };
+    update({ template_whatsapp_variables: vars });
   };
 
   const handleCreate = async () => {
@@ -132,8 +200,13 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         scheduledAt = d.toISOString();
       }
 
+      // Auto-generate plain text from HTML for email (Bug M2)
+      const bodyText = data.tipo === "email" ? htmlToPlainText(data.body_html) : data.body_text;
+
       const user_id = await getCurrentUserId();
-      const { error } = await supabase.from("campaigns").insert({
+
+      // Insert campaign and get ID back (Bug C1)
+      const { data: newCampaign, error } = await supabase.from("campaigns").insert({
         user_id,
         nome: data.nome.trim(),
         tipo: data.tipo,
@@ -144,8 +217,10 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         ab_test_split: data.ab_test_split,
         ab_test_sample_size: data.ab_test_sample_size,
         body_html: data.body_html || null,
-        body_text: data.body_text || null,
+        body_text: bodyText || null,
         template_whatsapp_id: data.template_whatsapp_id || null,
+        template_whatsapp_language: data.tipo === "whatsapp" ? data.template_whatsapp_language : null,
+        template_whatsapp_variables: data.tipo === "whatsapp" ? data.template_whatsapp_variables : [],
         sender_email: data.sender_email || null,
         sender_name: data.sender_name || null,
         reply_to: data.reply_to || null,
@@ -153,14 +228,26 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
         scheduled_at: scheduledAt,
-      } as any);
+      } as any).select("id").single();
+
       if (error) throw error;
-      toast({
-        title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
-        description: scheduledAt
-          ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })}`
-          : `"${data.nome}" salvata come bozza`,
-      });
+      if (!newCampaign) throw new Error("Errore creazione campagna");
+
+      // Populate campaign_recipients (Bug C1)
+      try {
+        const inserted = await populateCampaignRecipients(newCampaign.id, data);
+        toast({
+          title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
+          description: scheduledAt
+            ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })} — ${inserted} destinatari`
+            : `"${data.nome}" salvata come bozza — ${inserted} destinatari`,
+        });
+      } catch (recipientErr: any) {
+        // Rollback: delete campaign if recipient population fails
+        await supabase.from("campaigns").delete().eq("id", newCampaign.id);
+        throw new Error(`Errore popolamento destinatari: ${recipientErr.message}`);
+      }
+
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
@@ -169,6 +256,9 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       setSaving(false);
     }
   };
+
+  // SMS info for GSM7 detection (Bug M1)
+  const smsInfo = getSmsInfo(data.body_text);
 
   return (
     <>
@@ -228,7 +318,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                     <c.icon className={cn("h-6 w-6 mb-2", data.tipo === c.value ? "text-primary" : "text-muted-foreground")} />
                     <div className="font-mono text-sm font-semibold">{c.label}</div>
                     <div className="text-xs text-muted-foreground mt-1">{c.desc}</div>
-                    <div className="font-mono text-[10px] text-primary mt-2">€{c.costPer}/msg</div>
                   </button>
                 ))}
               </div>
@@ -252,8 +341,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                     <Input value={data.sender_name} onChange={(e) => update({ sender_name: e.target.value })} placeholder="LeadHunter Pro" className="font-mono text-sm" />
                   </div>
                   <div>
-                    <Label className="terminal-header mb-1.5 block">Mittente email</Label>
+                    <Label className="terminal-header mb-1.5 block">Mittente email *</Label>
                     <Input value={data.sender_email} onChange={(e) => update({ sender_email: e.target.value })} placeholder="noreply@tuodominio.it" className="font-mono text-sm" />
+                    {data.sender_email && !EMAIL_REGEX.test(data.sender_email) && (
+                      <p className="text-[10px] text-destructive font-mono mt-1">Email mittente non valida</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -341,19 +433,29 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                   placeholder="Ciao {{nome}}, scopri le nostre offerte..."
                   className="font-mono text-sm min-h-[120px]"
                 />
+                {/* GSM7 vs UCS-2 detection (Bug M1) */}
                 {(() => {
-                  const len = data.body_text.length;
-                  const smsCount = len === 0 ? 0 : Math.ceil(len / 160);
-                  const isOver = len > 160;
+                  const { isGsm7, maxSingle, smsCount, len } = smsInfo;
+                  const isOver = len > maxSingle;
                   return (
-                    <div className="flex items-center justify-between mt-1">
-                      <p className={cn("text-[10px] font-mono", isOver ? "text-warning" : "text-muted-foreground")}>
-                        {len}/160 caratteri {isOver && `— ${smsCount} SMS`}
-                      </p>
-                      {isOver && (
-                        <span className="text-[10px] font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded">
-                          ⚠️ {smsCount} SMS a {len} char — costo ×{smsCount}
-                        </span>
+                    <div className="space-y-1 mt-1">
+                      <div className="flex items-center justify-between">
+                        <p className={cn("text-[10px] font-mono", isOver ? "text-warning" : "text-muted-foreground")}>
+                          {len}/{maxSingle} caratteri {isOver && `— ${smsCount} SMS`}
+                        </p>
+                        {isOver && (
+                          <span className="text-[10px] font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                            ⚠️ {smsCount} SMS — costo ×{smsCount}
+                          </span>
+                        )}
+                      </div>
+                      {!isGsm7 && len > 0 && (
+                        <div className="flex items-start gap-1.5 rounded-md bg-warning/10 border border-warning/20 px-2 py-1.5">
+                          <AlertTriangle className="h-3 w-3 text-warning mt-0.5 shrink-0" />
+                          <span className="font-mono text-[10px] text-warning leading-relaxed">
+                            Caratteri speciali rilevati (UCS-2): limite ridotto a 70 car/SMS invece di 160
+                          </span>
+                        </div>
                       )}
                     </div>
                   );
@@ -364,17 +466,81 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
               </div>
             )}
             {data.tipo === "whatsapp" && (
-              <div>
-                <Label className="terminal-header mb-1.5 block">Template ID WhatsApp *</Label>
-                <Input
-                  value={data.template_whatsapp_id}
-                  onChange={(e) => update({ template_whatsapp_id: e.target.value })}
-                  placeholder="es. welcome_message_01"
-                  className="font-mono text-sm"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1 font-mono">
-                  Inserisci l'ID del template approvato da Meta Business
-                </p>
+              <div className="space-y-4">
+                <div>
+                  <Label className="terminal-header mb-1.5 block">Template ID WhatsApp *</Label>
+                  <Input
+                    value={data.template_whatsapp_id}
+                    onChange={(e) => update({ template_whatsapp_id: e.target.value })}
+                    placeholder="es. welcome_message_01"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1 font-mono">
+                    Inserisci l'ID del template approvato da Meta Business
+                  </p>
+                </div>
+                <div>
+                  <Label className="terminal-header mb-1.5 block">Lingua template</Label>
+                  <Select value={data.template_whatsapp_language} onValueChange={(v) => update({ template_whatsapp_language: v })}>
+                    <SelectTrigger className="font-mono text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="it">Italiano (it)</SelectItem>
+                      <SelectItem value="en">Inglese (en)</SelectItem>
+                      <SelectItem value="en_US">Inglese US (en_US)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="terminal-header mb-1.5 block">Variabili template</Label>
+                  <p className="text-[10px] text-muted-foreground mb-2 font-mono">
+                    Mappa le variabili {"{{1}}"}, {"{{2}}"} ecc. ai campi contatto o valori fissi
+                  </p>
+                  <div className="space-y-2">
+                    {data.template_whatsapp_variables.map((v, idx) => (
+                      <div key={idx} className="flex items-center gap-2 rounded-md border border-border bg-accent p-2">
+                        <span className="font-mono text-xs text-primary font-bold shrink-0 w-8">{`{{${v.index}}}`}</span>
+                        <Select value={v.tipo} onValueChange={(val) => updateWhatsAppVariable(idx, { tipo: val as "campo" | "fisso" })}>
+                          <SelectTrigger className="font-mono text-xs w-[110px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="campo">Campo</SelectItem>
+                            <SelectItem value="fisso">Fisso</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {v.tipo === "campo" ? (
+                          <Select value={v.valore} onValueChange={(val) => updateWhatsAppVariable(idx, { valore: val })}>
+                            <SelectTrigger className="font-mono text-xs flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="nome">Nome</SelectItem>
+                              <SelectItem value="azienda">Azienda</SelectItem>
+                              <SelectItem value="citta">Città</SelectItem>
+                              <SelectItem value="telefono">Telefono</SelectItem>
+                              <SelectItem value="email">Email</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={v.valore}
+                            onChange={(e) => updateWhatsAppVariable(idx, { valore: e.target.value })}
+                            placeholder="Valore fisso..."
+                            className="font-mono text-xs flex-1"
+                          />
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeWhatsAppVariable(idx)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button variant="outline" size="sm" className="font-mono text-xs mt-2" onClick={addWhatsAppVariable}>
+                    <Plus className="h-3 w-3 mr-1" /> Aggiungi variabile
+                  </Button>
+                </div>
               </div>
             )}
             <div>

@@ -28,12 +28,12 @@ export function calculateEmailCost(recipientCount: number): CostBreakdown {
 }
 
 export function calculateSmsCost(recipientCount: number, messageLength: number): CostBreakdown {
-  const smsCount = messageLength > 160 ? 2 : 1;
+  const smsCount = messageLength === 0 ? 0 : messageLength > 160 ? Math.ceil(messageLength / 153) : 1;
   const unitCost = 0.0085;
-  const totalCost = recipientCount * unitCost * smsCount;
+  const totalCost = recipientCount * unitCost * (smsCount || 1);
 
   const warnings: string[] = [];
-  if (smsCount > 1) warnings.push(`Testo > 160 char: costo raddoppiato (${smsCount} SMS per messaggio)`);
+  if (smsCount > 1) warnings.push(`Testo lungo: ${smsCount} SMS per messaggio — costo ×${smsCount}`);
 
   return {
     provider: "Telnyx",

@@ -27,6 +27,7 @@ const apiKeyFields: SettingField[] = [
   { chiave: "n8n_webhook_send_emails", label: "n8n Webhook — Invia Email", placeholder: "/webhook/send-emails", isSecret: false, categoria: "api_keys" },
   { chiave: "n8n_webhook_send_sms", label: "n8n Webhook — Invia SMS", placeholder: "/webhook/send-sms", isSecret: false, categoria: "api_keys" },
   { chiave: "n8n_webhook_send_whatsapp", label: "n8n Webhook — Invia WhatsApp", placeholder: "/webhook/send-whatsapp", isSecret: false, categoria: "api_keys" },
+  { chiave: "n8n_webhook_campaign_control", label: "n8n Webhook — Controllo Campagna", placeholder: "/webhook/campaign-control", isSecret: false, categoria: "api_keys" },
   { chiave: "resend_api_key", label: "Resend API Key", placeholder: "re_...", isSecret: true, categoria: "api_keys" },
   { chiave: "telnyx_api_key", label: "Telnyx API Key v2", placeholder: "KEY01...", isSecret: true, categoria: "api_keys" },
   { chiave: "meta_access_token", label: "Meta WhatsApp Access Token", placeholder: "EAAa...", isSecret: true, categoria: "api_keys" },
@@ -97,6 +98,16 @@ export default function SettingsPage() {
         { chiave: "email_senders", valore: JSON.stringify(senders), categoria: "mittenti", updated_at: new Date().toISOString() } as any,
         { onConflict: "chiave" }
       );
+      // Save sender defaults
+      for (const key of ["sender_name_default", "sender_email_default", "reply_to_default"]) {
+        const val = values[key];
+        if (val !== undefined) {
+          await supabase.from("app_settings").upsert(
+            { chiave: key, valore: val, categoria: "mittenti", updated_at: new Date().toISOString() } as any,
+            { onConflict: "chiave" }
+          );
+        }
+      }
       toast.success("Impostazioni salvate");
     } catch {
       toast.error("Errore salvataggio impostazioni");
@@ -279,6 +290,41 @@ export default function SettingsPage() {
               </Button>
             </div>
             <p className="font-mono text-[10px] text-muted-foreground">I mittenti saranno disponibili come opzione nel wizard campagne email. Ricorda di verificare il dominio su Resend.</p>
+          </div>
+
+          {/* Sender Defaults (Bug M3) */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="terminal-header text-primary">DEFAULTS MITTENTE</div>
+            <p className="text-xs text-muted-foreground">Valori pre-compilati nel wizard campagne email</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">Nome mittente default</Label>
+                <Input
+                  value={values["sender_name_default"] || ""}
+                  onChange={(e) => setValues({ ...values, sender_name_default: e.target.value })}
+                  placeholder="La mia azienda"
+                  className="font-mono text-xs bg-accent border-border"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">Email mittente default</Label>
+                <Input
+                  value={values["sender_email_default"] || ""}
+                  onChange={(e) => setValues({ ...values, sender_email_default: e.target.value })}
+                  placeholder="outreach@miodominio.it"
+                  className="font-mono text-xs bg-accent border-border"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="font-mono text-xs text-muted-foreground">Reply-to default</Label>
+              <Input
+                value={values["reply_to_default"] || ""}
+                onChange={(e) => setValues({ ...values, reply_to_default: e.target.value })}
+                placeholder="info@miodominio.it"
+                className="font-mono text-xs bg-accent border-border"
+              />
+            </div>
           </div>
         </TabsContent>
 
