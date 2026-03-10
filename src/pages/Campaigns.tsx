@@ -7,6 +7,7 @@ import { CampaignsList } from "@/components/campaigns/CampaignsList";
 import { CampaignWizard } from "@/components/campaigns/CampaignWizard";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import type { Campaign } from "@/types";
 
