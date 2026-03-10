@@ -242,7 +242,6 @@ export default function ScraperWebsitesPage() {
         session_id: job.session_id,
         urls: [job.url],
         retry_job_id: job.id,
-        supabase_url: import.meta.env.VITE_SUPABASE_URL,
       });
     } catch (err: any) {
       toast.error(`Errore retry: ${err.message}`);
