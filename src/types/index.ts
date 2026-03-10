@@ -190,3 +190,26 @@ export interface ContactFilters {
   dateFrom?: string;
   dateTo?: string;
 }
+
+export interface CampaignTemplate {
+  id: string;
+  user_id: string;
+  nome: string;
+  tipo: CampaignTipo;
+  subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  template_whatsapp_id: string | null;
+  template_whatsapp_language: string;
+  template_whatsapp_variables: unknown[];
+  sender_email: string | null;
+  sender_name: string | null;
+  reply_to: string | null;
+  sending_rate_per_hour: number;
+  ai_personalization_enabled: boolean;
+  ai_model: string | null;
+  ai_context: string | null;
+  ai_objective: string | null;
+  utilizzi: number;
+  created_at: string;
+}
