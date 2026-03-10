@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Send, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/shared/KpiCard";
