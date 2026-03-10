@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { TerminalProgress } from "@/components/shared/TerminalProgress";
 import { CheckCircle, AlertTriangle, XCircle, Clock } from "lucide-react";
 import type { ScrapingSession } from "@/types";
@@ -7,8 +8,16 @@ interface Props {
 }
 
 export function MapsProgressBox({ session }: Props) {
+  const [now, setNow] = useState(Date.now());
+
+  // Real-time timer update every second
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const elapsed = session.started_at
-    ? Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000)
+    ? Math.round((now - new Date(session.started_at).getTime()) / 1000)
     : 0;
 
   const elapsedMin = Math.floor(elapsed / 60);
@@ -33,7 +42,7 @@ export function MapsProgressBox({ session }: Props) {
 
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
         <Clock className="h-3 w-3" />
-        <span>{elapsedMin}m {elapsedSec}s</span>
+        <span>{elapsedMin}m {elapsedSec.toString().padStart(2, "0")}s</span>
         {remaining > 0 && (
           <>
             <span className="text-muted-foreground/40">|</span>

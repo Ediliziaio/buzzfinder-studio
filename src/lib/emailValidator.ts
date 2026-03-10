@@ -9,8 +9,8 @@ const DISPOSABLE_DOMAINS = [
 ];
 
 const ROLE_PREFIXES = [
-  "noreply", "no-reply", "donotreply", "info", "admin", "webmaster",
-  "postmaster", "hostmaster", "abuse", "support", "sales",
+  "noreply", "no-reply", "donotreply", "webmaster",
+  "postmaster", "hostmaster", "abuse",
 ];
 
 /** Blacklist patterns for scraping-extracted emails — filters false positives */

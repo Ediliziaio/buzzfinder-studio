@@ -9,7 +9,7 @@ export const contactImportSchema = z.object({
   telefono: z.string().nullable().optional(),
   telefono_normalizzato: z
     .string()
-    .regex(/^\+39\d{9,12}$/, "Formato telefono non valido")
+    .regex(/^\+\d{7,15}$/, "Formato telefono non valido")
     .nullable()
     .optional(),
 
