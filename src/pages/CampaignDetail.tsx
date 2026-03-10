@@ -226,6 +226,17 @@ export default function CampaignDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Replica + Save as template (bozza or completata) */}
+          {(campaign.stato === "bozza" || campaign.stato === "completata") && (
+            <>
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => setShowReplica(true)}>
+                <ListChecks className="h-3 w-3 mr-1" /> Replica su liste
+              </Button>
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={handleSaveAsTemplate}>
+                <Save className="h-3 w-3 mr-1" /> Salva template
+              </Button>
+            </>
+          )}
           {campaign.stato === "in_corso" && (
             <>
               <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => handleStatusChange("pausa")}>
