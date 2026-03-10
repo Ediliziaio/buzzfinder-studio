@@ -1,11 +1,11 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Play, Pause, Square, ChevronDown } from "lucide-react";
+import { Play, Pause, Square, ChevronDown, X, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
 import type { MapsConfig } from "@/pages/ScraperMaps";
 import {
   Select,
@@ -35,6 +35,19 @@ const maxResultsOptions = [100, 500, 1000, 2500, 5000];
 
 export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onStart, onPause, onStop }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [cityInput, setCityInput] = useState("");
+
+  const addCity = () => {
+    const city = cityInput.trim();
+    if (city && !config.citta.includes(city)) {
+      onChange({ ...config, citta: [...config.citta, city] });
+      setCityInput("");
+    }
+  };
+
+  const removeCity = (city: string) => {
+    onChange({ ...config, citta: config.citta.filter((c) => c !== city) });
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -62,16 +75,62 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
         </div>
       </div>
 
-      {/* City */}
+      {/* Cities */}
       <div className="space-y-1.5">
-        <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Città o Area *</Label>
-        <Input
-          value={config.citta}
-          onChange={(e) => onChange({ ...config, citta: e.target.value })}
-          placeholder="es. Milano, Roma..."
-          className="font-mono text-sm bg-accent border-border"
-          disabled={isRunning}
-        />
+        <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
+          Città ({config.citta.length} selezionate) *
+        </Label>
+        <div className="flex gap-1.5">
+          <Input
+            value={cityInput}
+            onChange={(e) => setCityInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCity(); } }}
+            placeholder="es. Milano, Roma..."
+            className="font-mono text-sm bg-accent border-border flex-1"
+            disabled={isRunning}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addCity}
+            disabled={isRunning || !cityInput.trim()}
+            className="h-9 px-2"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {config.citta.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {config.citta.map((city) => (
+              <span
+                key={city}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary"
+              >
+                {city}
+                {!isRunning && (
+                  <button onClick={() => removeCity(city)} className="hover:text-destructive">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          {["Milano", "Roma", "Torino", "Bologna", "Firenze", "Napoli"].map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                if (!config.citta.includes(s)) onChange({ ...config, citta: [...config.citta, s] });
+              }}
+              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              disabled={isRunning || config.citta.includes(s)}
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Radius */}
@@ -171,7 +230,9 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
       <div className="rounded-md border border-border bg-accent p-3 space-y-1">
         <div className="terminal-header">STIMA COSTI API</div>
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs text-muted-foreground">Google Places: ~€2.50 / 1.000</span>
+          <span className="font-mono text-xs text-muted-foreground">
+            Google Places: ~€2.50 / 1.000 {config.citta.length > 1 ? `× ${config.citta.length} città` : ""}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground">⚡</span>
@@ -183,11 +244,14 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
       <div className="space-y-2">
         <Button
           onClick={onStart}
-          disabled={isRunning || !config.query || !config.citta}
+          disabled={isRunning || !config.query || config.citta.length === 0}
           className="w-full font-mono font-bold"
           size="lg"
         >
-          <Play className="h-4 w-4 mr-2" /> AVVIA SCRAPING
+          <Play className="h-4 w-4 mr-2" />
+          {config.citta.length > 1
+            ? `AVVIA SCRAPING (${config.citta.length} città)`
+            : "AVVIA SCRAPING"}
         </Button>
         {isRunning && (
           <div className="flex gap-2">

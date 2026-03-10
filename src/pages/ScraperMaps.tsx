@@ -28,7 +28,7 @@ import {
 
 export interface MapsConfig {
   query: string;
-  citta: string;
+  citta: string[];
   raggio: number;
   maxResults: number;
   soloConSito: boolean;
@@ -40,7 +40,7 @@ export interface MapsConfig {
 export default function ScraperMapsPage() {
   const [config, setConfig] = useState<MapsConfig>({
     query: "",
-    citta: "",
+    citta: [],
     raggio: 25,
     maxResults: 1000,
     soloConSito: true,
@@ -50,9 +50,11 @@ export default function ScraperMapsPage() {
   });
 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [allSessionIds, setAllSessionIds] = useState<string[]>([]);
   const [results, setResults] = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [currentCityIndex, setCurrentCityIndex] = useState(0);
   const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
 
   const activeSession = useScrapingSession(activeSessionId);
@@ -105,12 +107,11 @@ export default function ScraperMapsPage() {
   }, [activeSessionId]);
 
   const handleStart = async () => {
-    if (!config.query || !config.citta) {
-      toast.error("Inserisci categoria e città");
+    if (!config.query || config.citta.length === 0) {
+      toast.error("Inserisci categoria e almeno una città");
       return;
     }
 
-    // Check n8n health first
     const n8nOk = await checkN8nHealth();
     if (!n8nOk) {
       toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
@@ -120,35 +121,43 @@ export default function ScraperMapsPage() {
       return;
     }
 
+    const sessionIds: string[] = [];
+    setResults([]);
+    setCurrentCityIndex(0);
+
     try {
-      // Create session in DB
-      const { data: session, error } = await supabase
-        .from("scraping_sessions")
-        .insert({
-          tipo: "google_maps",
-          query: config.query,
-          citta: config.citta,
-          raggio: config.raggio,
-          max_results: config.maxResults,
-          status: "pending",
-        })
-        .select()
-        .single();
+      for (let i = 0; i < config.citta.length; i++) {
+        const city = config.citta[i];
+        setCurrentCityIndex(i);
 
-      if (error) throw error;
+        const { data: session, error } = await supabase
+          .from("scraping_sessions")
+          .insert({
+            tipo: "google_maps",
+            query: config.query,
+            citta: city,
+            raggio: config.raggio,
+            max_results: config.maxResults,
+            status: "pending",
+          })
+          .select()
+          .single();
 
-      setActiveSessionId(session.id);
+        if (error) throw error;
+        sessionIds.push(session.id);
 
-      // Get n8n settings
-      const settings = await getN8nSettings();
-      const webhookPath = settings.n8n_webhook_scrape_maps || "/webhook/scrape-maps";
+        // Set the first session as active for monitoring
+        if (i === 0) {
+          setActiveSessionId(session.id);
+        }
 
-      // Trigger n8n
-      await toast.promise(
-        triggerN8nWebhook(webhookPath, {
+        const settings = await getN8nSettings();
+        const webhookPath = settings.n8n_webhook_scrape_maps || "/webhook/scrape-maps";
+
+        await triggerN8nWebhook(webhookPath, {
           session_id: session.id,
           query: config.query,
-          citta: config.citta,
+          citta: city,
           raggio_km: config.raggio,
           max_results: config.maxResults,
           filtri: {
@@ -157,18 +166,15 @@ export default function ScraperMapsPage() {
             rating_min: config.ratingMin,
             recensioni_min: config.recensioniMin,
           },
-        }),
-        {
-          loading: "Avvio job scraping su n8n...",
-          success: "Job avviato! Monitoraggio in corso.",
-          error: (err) => `Errore: ${err.message}`,
-        }
-      );
+        });
 
+        toast.success(`Job avviato per ${city} (${i + 1}/${config.citta.length})`);
+      }
+
+      setAllSessionIds(sessionIds);
       refetchSessions();
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
-      // Cleanup: mark session as failed if it was created
       if (activeSessionId) {
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", activeSessionId);
       }
@@ -211,11 +217,10 @@ export default function ScraperMapsPage() {
   };
 
   const costEstimate = useMemo(() => {
-    // Google Places: ~$0.032 per Text Search + $0.017 per Place Details
-    // Approx €0.045 per result → €2.50 per 1000
     const costPer1000 = 2.5;
-    return ((config.maxResults / 1000) * costPer1000).toFixed(2);
-  }, [config.maxResults]);
+    const totalResults = config.maxResults * Math.max(config.citta.length, 1);
+    return ((totalResults / 1000) * costPer1000).toFixed(2);
+  }, [config.maxResults, config.citta.length]);
 
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
