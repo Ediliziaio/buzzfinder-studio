@@ -157,7 +157,6 @@ export default function ScraperMapsPage() {
             rating_min: config.ratingMin,
             recensioni_min: config.recensioniMin,
           },
-          supabase_url: import.meta.env.VITE_SUPABASE_URL,
         }),
         {
           loading: "Avvio job scraping su n8n...",
