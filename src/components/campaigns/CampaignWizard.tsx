@@ -101,6 +101,10 @@ const defaultData: WizardData = {
   recipientCount: 0,
   scheduled_at: null,
   scheduleTime: "09:00",
+  aiEnabled: false,
+  aiModel: "haiku",
+  aiContext: "",
+  aiObjective: "",
 };
 
 interface CampaignWizardProps {
