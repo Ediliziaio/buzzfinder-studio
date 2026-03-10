@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Eye, EyeOff, Loader2, Save, Plus, Trash2, Wifi, WifiOff } from "lucide-react";
+import { Settings, Eye, EyeOff, Loader2, Save, Plus, Trash2, Wifi, WifiOff, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,12 @@ const limitFields: SettingField[] = [
   { chiave: "budget_mensile", label: "Budget mensile (€)", placeholder: "500", categoria: "limiti" },
 ];
 
+const alertFields: SettingField[] = [
+  { chiave: "alert_email_eur", label: "Alert soglia Email (€/mese)", placeholder: "5.00", categoria: "limiti" },
+  { chiave: "alert_sms_eur", label: "Alert soglia SMS (€/mese)", placeholder: "100.00", categoria: "limiti" },
+  { chiave: "alert_whatsapp_eur", label: "Alert soglia WhatsApp (€/mese)", placeholder: "200.00", categoria: "limiti" },
+];
+
 export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
@@ -54,9 +60,7 @@ export default function SettingsPage() {
   const [newSender, setNewSender] = useState({ email: "", name: "" });
   const [exporting, setExporting] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
+  useEffect(() => { loadSettings(); }, []);
 
   const loadSettings = async () => {
     const { data } = await supabase.from("app_settings").select("*") as any;
@@ -65,7 +69,6 @@ export default function SettingsPage() {
       data.forEach((s: any) => { map[s.chiave] = s.valore || ""; });
       setValues(map);
       setBlocklist(map["email_blocklist"] || "");
-      // Load senders
       try {
         const sendersJson = map["email_senders"];
         if (sendersJson) setSenders(JSON.parse(sendersJson));
@@ -76,7 +79,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const allFields = [...apiKeyFields, ...limitFields];
+      const allFields = [...apiKeyFields, ...limitFields, ...alertFields];
       for (const field of allFields) {
         const val = values[field.chiave];
         if (val !== undefined) {
@@ -108,7 +111,7 @@ export default function SettingsPage() {
       const url = values["n8n_instance_url"];
       if (!url) { setN8nStatus("offline"); toast.error("URL n8n non configurato"); return; }
       const start = Date.now();
-      const response = await fetch(`${url.replace(/\/$/, "")}/healthz`, { mode: "no-cors", signal: AbortSignal.timeout(5000) });
+      await fetch(`${url.replace(/\/$/, "")}/healthz`, { mode: "no-cors", signal: AbortSignal.timeout(5000) });
       const ping = Date.now() - start;
       setN8nStatus("online");
       toast.success(`n8n raggiungibile (${ping}ms)`);
@@ -131,12 +134,56 @@ export default function SettingsPage() {
     try {
       if (type === "contacts") await exportContactsCsv();
       else if (type === "campaigns") await exportCampaignReport();
+      else if (type === "activities") await exportActivityLog();
+      else if (type === "backup") await exportFullBackup();
       toast.success("Esportazione completata");
     } catch (err: any) {
       toast.error(err.message || "Errore esportazione");
     } finally {
       setExporting(null);
     }
+  };
+
+  const exportActivityLog = async () => {
+    const { data, error } = await supabase.from("contact_activities").select("*").order("created_at", { ascending: false }).limit(10000);
+    if (error) throw error;
+    if (!data?.length) throw new Error("Nessuna attività da esportare");
+    const headers = ["tipo", "contact_id", "campaign_id", "descrizione", "created_at"];
+    const rows = [headers.join(","), ...data.map(r => headers.map(h => {
+      const v = (r as any)[h];
+      return v == null ? "" : String(v).includes(",") ? `"${v}"` : String(v);
+    }).join(","))];
+    downloadCsv(rows.join("\n"), `attivita_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const exportFullBackup = async () => {
+    const tables = ["contacts", "campaigns", "campaign_recipients", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs"] as const;
+    const backup: Record<string, unknown[]> = {};
+    for (const table of tables) {
+      const { data } = await supabase.from(table).select("*");
+      backup[table] = data || [];
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leadhunter_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadCsv = (csv: string, filename: string) => {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -225,18 +272,8 @@ export default function SettingsPage() {
               </div>
             ))}
             <div className="flex gap-2">
-              <Input
-                value={newSender.email}
-                onChange={(e) => setNewSender({ ...newSender, email: e.target.value })}
-                placeholder="email@dominio.it"
-                className="font-mono text-xs bg-accent border-border flex-1"
-              />
-              <Input
-                value={newSender.name}
-                onChange={(e) => setNewSender({ ...newSender, name: e.target.value })}
-                placeholder="Nome mittente"
-                className="font-mono text-xs bg-accent border-border flex-1"
-              />
+              <Input value={newSender.email} onChange={(e) => setNewSender({ ...newSender, email: e.target.value })} placeholder="email@dominio.it" className="font-mono text-xs bg-accent border-border flex-1" />
+              <Input value={newSender.name} onChange={(e) => setNewSender({ ...newSender, name: e.target.value })} placeholder="Nome mittente" className="font-mono text-xs bg-accent border-border flex-1" />
               <Button variant="outline" size="sm" onClick={addSender} className="font-mono text-xs shrink-0">
                 <Plus className="h-3 w-3 mr-1" /> Aggiungi
               </Button>
@@ -255,6 +292,25 @@ export default function SettingsPage() {
                   <Label className="font-mono text-xs text-muted-foreground">{field.label}</Label>
                   <Input
                     type="number"
+                    value={values[field.chiave] || ""}
+                    onChange={(e) => setValues({ ...values, [field.chiave]: e.target.value })}
+                    placeholder={field.placeholder}
+                    className="font-mono text-xs bg-accent border-border"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="terminal-header text-primary">ALERT SOGLIE COSTI</div>
+            <p className="text-xs text-muted-foreground">Ricevi una notifica se il costo mensile supera queste soglie</p>
+            <div className="grid grid-cols-3 gap-4">
+              {alertFields.map((field) => (
+                <div key={field.chiave} className="space-y-1">
+                  <Label className="font-mono text-xs text-muted-foreground">{field.label}</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
                     value={values[field.chiave] || ""}
                     onChange={(e) => setValues({ ...values, [field.chiave]: e.target.value })}
                     placeholder={field.placeholder}
@@ -286,12 +342,24 @@ export default function SettingsPage() {
           </div>
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="terminal-header text-primary">EXPORT</div>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start" onClick={() => handleExport("contacts")} disabled={exporting === "contacts"}>
-              {exporting === "contacts" ? "⏳ Esportazione..." : "↓ Esporta tutti i contatti CSV"}
-            </Button>
-            <Button variant="outline" size="sm" className="font-mono text-xs w-full justify-start" onClick={() => handleExport("campaigns")} disabled={exporting === "campaigns"}>
-              {exporting === "campaigns" ? "⏳ Esportazione..." : "↓ Esporta report campagne"}
-            </Button>
+            {[
+              { key: "contacts", label: "↓ Esporta tutti i contatti CSV" },
+              { key: "campaigns", label: "↓ Esporta report campagne" },
+              { key: "activities", label: "↓ Esporta log attività" },
+              { key: "backup", label: "↓ Backup completo database JSON" },
+            ].map(({ key, label }) => (
+              <Button
+                key={key}
+                variant="outline"
+                size="sm"
+                className="font-mono text-xs w-full justify-start gap-2"
+                onClick={() => handleExport(key)}
+                disabled={exporting === key}
+              >
+                {exporting === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                {exporting === key ? "Esportazione..." : label}
+              </Button>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
