@@ -77,14 +77,19 @@ export default function ScraperMapsPage() {
 
     loadResults();
 
-    // Subscribe to new contacts
+    // Subscribe to new contacts for live feed
     const channel = supabase
       .channel("new-contacts")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "contacts" },
         (payload) => {
-          setResults((prev) => [payload.new as unknown as Contact, ...prev]);
+          const c = payload.new as unknown as Contact;
+          setResults((prev) => [c, ...prev]);
+          setLastImported((prev) => [
+            { azienda: c.azienda, citta: c.citta, hasSito: !!c.sito_web, hasTel: !!c.telefono },
+            ...prev,
+          ].slice(0, 5));
         }
       )
       .subscribe();
