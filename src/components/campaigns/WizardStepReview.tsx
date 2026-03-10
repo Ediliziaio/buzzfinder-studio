@@ -1,4 +1,6 @@
-import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info } from "lucide-react";
+import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { calculateCost, type CostBreakdown } from "@/lib/costCalculator";
 import type { WizardData } from "./CampaignWizard";
