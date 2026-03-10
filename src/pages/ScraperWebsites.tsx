@@ -43,6 +43,7 @@ export default function ScraperWebsitesPage() {
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
 
   // Subscribe to session updates
   useEffect(() => {
