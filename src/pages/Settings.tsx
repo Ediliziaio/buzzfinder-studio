@@ -33,6 +33,7 @@ const apiKeyFields: SettingField[] = [
   { chiave: "meta_access_token", label: "Meta WhatsApp Access Token", placeholder: "EAAa...", isSecret: true, categoria: "api_keys" },
   { chiave: "meta_phone_number_id", label: "Meta Phone Number ID", placeholder: "1234567890123456", isSecret: false, categoria: "api_keys" },
   { chiave: "meta_waba_id", label: "WhatsApp Business Account ID", placeholder: "9876543210987654", isSecret: false, categoria: "api_keys" },
+  { chiave: "anthropic_api_key", label: "Anthropic API Key (AI Personalization)", placeholder: "sk-ant-...", isSecret: true, categoria: "api_keys" },
 ];
 
 const limitFields: SettingField[] = [
@@ -235,6 +236,7 @@ export default function SettingsPage() {
             { title: "RESEND", keys: apiKeyFields.filter(f => f.chiave.startsWith("resend")) },
             { title: "TELNYX", keys: apiKeyFields.filter(f => f.chiave.startsWith("telnyx")) },
             { title: "META WHATSAPP BUSINESS", keys: apiKeyFields.filter(f => f.chiave.startsWith("meta")) },
+            { title: "AI PERSONALIZATION", keys: apiKeyFields.filter(f => f.chiave.startsWith("anthropic")) },
           ].map((group) => (
             <div key={group.title} className="rounded-lg border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">

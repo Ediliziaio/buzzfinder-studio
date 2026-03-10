@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw } from "lucide-react";
+import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import {
@@ -162,6 +162,7 @@ export default function AnalyticsPage() {
         <KpiCard label="TASSO CLICK" value={`${clickRate}%`} trendUp={Number(clickRate) > 2} trend={Number(clickRate) > 2 ? "buono" : "da migliorare"} />
         <KpiCard label="SCRAPING SESSIONI" value={data.scrapingSessions} icon={<Globe className="h-4 w-4" />} />
         <KpiCard label="COSTO TOTALE" value={`€${data.totalCostEur.toFixed(2)}`} icon={<DollarSign className="h-4 w-4" />} />
+        <AiCostKpi />
       </div>
 
       {/* Cost Projection */}
@@ -320,5 +321,35 @@ function CostProjectionCard({ totalCostEur }: { totalCostEur: number }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function AiCostKpi() {
+  const [aiData, setAiData] = useState<{ cost: number; count: number }>({ cost: 0, count: 0 });
+
+  useEffect(() => {
+    supabase
+      .from("campaigns")
+      .select("ai_cost_eur, ai_personalization_processed")
+      .eq("ai_personalization_enabled", true)
+      .then(({ data }) => {
+        if (data) {
+          const cost = data.reduce((a: number, c: any) => a + Number(c.ai_cost_eur || 0), 0);
+          const count = data.reduce((a: number, c: any) => a + Number(c.ai_personalization_processed || 0), 0);
+          setAiData({ cost, count });
+        }
+      });
+  }, []);
+
+  if (aiData.cost === 0 && aiData.count === 0) return null;
+
+  return (
+    <KpiCard
+      label="COSTO AI"
+      value={`€${aiData.cost.toFixed(2)}`}
+      trend={`${aiData.count} msg`}
+      trendUp
+      icon={<Sparkles className="h-4 w-4" />}
+    />
   );
 }

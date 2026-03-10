@@ -53,7 +53,9 @@ export type Database = {
           errore: string | null
           id: string
           inviato_at: string | null
+          messaggio_personalizzato: string | null
           opened_at: string | null
+          soggetto_personalizzato: string | null
           stato: string | null
           triggered_at: string | null
         }
@@ -65,7 +67,9 @@ export type Database = {
           errore?: string | null
           id?: string
           inviato_at?: string | null
+          messaggio_personalizzato?: string | null
           opened_at?: string | null
+          soggetto_personalizzato?: string | null
           stato?: string | null
           triggered_at?: string | null
         }
@@ -77,7 +81,9 @@ export type Database = {
           errore?: string | null
           id?: string
           inviato_at?: string | null
+          messaggio_personalizzato?: string | null
           opened_at?: string | null
+          soggetto_personalizzato?: string | null
           stato?: string | null
           triggered_at?: string | null
         }
@@ -105,6 +111,14 @@ export type Database = {
           ab_test_split: number | null
           ab_winner: string | null
           ab_winner_selected_at: string | null
+          ai_context: string | null
+          ai_cost_eur: number | null
+          ai_model: string | null
+          ai_objective: string | null
+          ai_personalization_enabled: boolean | null
+          ai_personalization_processed: number | null
+          ai_personalization_status: string | null
+          ai_personalization_total: number | null
           aperti: number | null
           aperti_a: number | null
           aperti_b: number | null
@@ -148,6 +162,14 @@ export type Database = {
           ab_test_split?: number | null
           ab_winner?: string | null
           ab_winner_selected_at?: string | null
+          ai_context?: string | null
+          ai_cost_eur?: number | null
+          ai_model?: string | null
+          ai_objective?: string | null
+          ai_personalization_enabled?: boolean | null
+          ai_personalization_processed?: number | null
+          ai_personalization_status?: string | null
+          ai_personalization_total?: number | null
           aperti?: number | null
           aperti_a?: number | null
           aperti_b?: number | null
@@ -191,6 +213,14 @@ export type Database = {
           ab_test_split?: number | null
           ab_winner?: string | null
           ab_winner_selected_at?: string | null
+          ai_context?: string | null
+          ai_cost_eur?: number | null
+          ai_model?: string | null
+          ai_objective?: string | null
+          ai_personalization_enabled?: boolean | null
+          ai_personalization_processed?: number | null
+          ai_personalization_status?: string | null
+          ai_personalization_total?: number | null
           aperti?: number | null
           aperti_a?: number | null
           aperti_b?: number | null

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy } from "lucide-react";
+import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
 import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
+import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
@@ -136,6 +137,8 @@ export default function CampaignDetailPage() {
             // Bug C2: include supabase credentials for n8n
             supabase_url: import.meta.env.VITE_SUPABASE_URL,
             supabase_anon_key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            // AI personalization flag
+            use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
           });
 
           // Bug M5: save n8n execution ID
@@ -328,6 +331,11 @@ export default function CampaignDetailPage() {
             </p>
           )}
         </div>
+      )}
+
+      {/* AI Personalization Panel */}
+      {(campaign as any).ai_personalization_enabled && (
+        <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
       )}
 
       {/* Phase Progress */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
+import { WizardStepAI } from "./WizardStepAI";
 import { populateCampaignRecipients, htmlToPlainText, getSmsInfo } from "@/lib/campaignHelpers";
 import { calculateCost } from "@/lib/costCalculator";
 import type { CampaignTipo } from "@/types";
@@ -28,6 +29,7 @@ const STEPS = [
   { id: "tipo", label: "Canale", icon: Mail },
   { id: "destinatari", label: "Destinatari", icon: Users },
   { id: "contenuto", label: "Contenuto", icon: FileText },
+  { id: "ai", label: "AI ✨", icon: Sparkles },
   { id: "riepilogo", label: "Riepilogo", icon: Eye },
 ] as const;
 
@@ -68,6 +70,10 @@ export interface WizardData {
   recipientCount: number;
   scheduled_at: Date | null;
   scheduleTime: string;
+  aiEnabled: boolean;
+  aiModel: string;
+  aiContext: string;
+  aiObjective: string;
 }
 
 const defaultData: WizardData = {
@@ -95,6 +101,10 @@ const defaultData: WizardData = {
   recipientCount: 0,
   scheduled_at: null,
   scheduleTime: "09:00",
+  aiEnabled: false,
+  aiModel: "haiku",
+  aiContext: "",
+  aiObjective: "",
 };
 
 interface CampaignWizardProps {
@@ -161,6 +171,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         );
       }
     }
+    if (step === 3) return true; // AI step is optional
     return true;
   };
 
@@ -228,6 +239,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
         scheduled_at: scheduledAt,
+        ai_personalization_enabled: data.aiEnabled,
+        ai_model: data.aiEnabled ? data.aiModel : null,
+        ai_context: data.aiEnabled ? data.aiContext : null,
+        ai_objective: data.aiEnabled ? data.aiObjective : null,
+        ai_personalization_status: "none",
       } as any).select("id").single();
 
       if (error) throw error;
@@ -619,8 +635,13 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           </div>
         )}
 
-        {/* Step 3: Riepilogo */}
+        {/* Step 3: AI Personalization */}
         {step === 3 && (
+          <WizardStepAI data={data} update={update} />
+        )}
+
+        {/* Step 4: Riepilogo */}
+        {step === 4 && (
           <WizardStepReview data={data} costStimato={costStimato} canale={canale} />
         )}
 
@@ -635,7 +656,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
             <ChevronLeft className="mr-1 h-4 w-4" /> Indietro
           </Button>
 
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canNext()}

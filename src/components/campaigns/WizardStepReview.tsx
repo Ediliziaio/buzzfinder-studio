@@ -1,4 +1,4 @@
-import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon, Sparkles, Cpu } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -133,6 +133,43 @@ export function WizardStepReview({ data, costStimato, canale }: Props) {
               <span className="font-mono text-[10px] text-warning leading-relaxed">{w}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* AI Personalization summary */}
+      {data.aiEnabled && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="terminal-header text-primary">PERSONALIZZAZIONE AI</span>
+          </div>
+          <div className="space-y-1 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Modello</span>
+              <span className="text-foreground font-bold">{data.aiModel === "sonnet" ? "Claude Sonnet" : "Claude Haiku"}</span>
+            </div>
+            {data.aiContext && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Contesto</span>
+                <span className="text-foreground truncate max-w-[250px]">{data.aiContext}</span>
+              </div>
+            )}
+            {data.aiObjective && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Obiettivo</span>
+                <span className="text-foreground truncate max-w-[250px]">{data.aiObjective}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-border pt-1 mt-1">
+              <span className="text-muted-foreground">Costo AI stimato</span>
+              <span className="text-primary font-bold">
+                ~€{((data.recipientCount / 1000) * (data.aiModel === "sonnet" ? 1.5 : 0.3)).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            ⚡ La generazione avverrà dalla pagina dettaglio campagna, prima del lancio.
+          </p>
         </div>
       )}
 
