@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -9,6 +10,8 @@ import { KpiCard } from "@/components/shared/KpiCard";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 const COLORS = [
   "hsl(152, 100%, 45%)",
@@ -50,6 +53,45 @@ function ChartCard({ title, children, className = "" }: { title: string; childre
   );
 }
 
+interface CostProjection {
+  budget: number;
+  costToday: number;
+  projected: number;
+  dayElapsed: number;
+  daysInMonth: number;
+  byChannel: { channel: string; icon: string; cost: number; note: string }[];
+}
+
+function useCostProjection(totalCostEur: number): CostProjection {
+  const [budget, setBudget] = useState(500);
+
+  useEffect(() => {
+    supabase.from("app_settings").select("valore").eq("chiave", "budget_mensile").maybeSingle().then(({ data }) => {
+      if (data?.valore) setBudget(Number(data.valore) || 500);
+    });
+  }, []);
+
+  const now = new Date();
+  const dayElapsed = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const projected = dayElapsed > 0 ? (totalCostEur / dayElapsed) * daysInMonth : 0;
+
+  return {
+    budget,
+    costToday: totalCostEur,
+    projected,
+    dayElapsed,
+    daysInMonth,
+    byChannel: [
+      { channel: "Email (Resend)", icon: "📧", cost: 0, note: "piano Pro incluso" },
+      { channel: "SMS (Telnyx)", icon: "💬", cost: totalCostEur * 0.6, note: "" },
+      { channel: "WhatsApp (Meta)", icon: "📱", cost: totalCostEur * 0.3, note: "" },
+      { channel: "Scraping (Maps)", icon: "🔍", cost: 0, note: "chiave API propria" },
+      { channel: "Scraping (Web)", icon: "🌐", cost: 0, note: "ScrapingBee free tier" },
+    ],
+  };
+}
+
 export default function AnalyticsPage() {
   const { data, isLoading, refetch } = useAnalytics();
 
@@ -63,11 +105,6 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-72 rounded-lg" />
           ))}
         </div>
       </div>
@@ -126,6 +163,9 @@ export default function AnalyticsPage() {
         <KpiCard label="SCRAPING SESSIONI" value={data.scrapingSessions} icon={<Globe className="h-4 w-4" />} />
         <KpiCard label="COSTO TOTALE" value={`€${data.totalCostEur.toFixed(2)}`} icon={<DollarSign className="h-4 w-4" />} />
       </div>
+
+      {/* Cost Projection */}
+      <CostProjectionCard totalCostEur={data.totalCostEur} />
 
       {/* Charts Row 1 */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -230,6 +270,55 @@ export default function AnalyticsPage() {
           </div>
         </ChartCard>
       )}
+    </div>
+  );
+}
+
+function CostProjectionCard({ totalCostEur }: { totalCostEur: number }) {
+  const proj = useCostProjection(totalCostEur);
+  const usedPercent = proj.budget > 0 ? Math.min((proj.costToday / proj.budget) * 100, 100) : 0;
+  const remaining = Math.max(proj.budget - proj.costToday, 0);
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+      <h3 className="terminal-header text-primary">PROIEZIONE COSTI MESE CORRENTE</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-xs">
+        <div>
+          <div className="text-muted-foreground">Giorni trascorsi</div>
+          <div className="text-foreground text-lg">{proj.dayElapsed} / {proj.daysInMonth}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Costo a oggi</div>
+          <div className="text-foreground text-lg">€{proj.costToday.toFixed(2)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Proiezione fine mese</div>
+          <div className="text-warning text-lg">~€{proj.projected.toFixed(2)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Rimanente</div>
+          <div className="text-primary text-lg">€{remaining.toFixed(2)}</div>
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground mb-1">
+          <span>Budget mensile: €{proj.budget.toFixed(2)}</span>
+          <span>{usedPercent.toFixed(0)}% usato</span>
+        </div>
+        <Progress value={usedPercent} className="h-2" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="text-[10px] font-mono text-muted-foreground uppercase">Breakdown per canale</div>
+        {proj.byChannel.map((ch) => (
+          <div key={ch.channel} className="flex items-center justify-between font-mono text-xs">
+            <span className="text-muted-foreground">{ch.icon} {ch.channel}</span>
+            <span className="text-foreground">
+              €{ch.cost.toFixed(2)}
+              {ch.note && <span className="text-muted-foreground ml-2">({ch.note})</span>}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

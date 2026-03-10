@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmailPreviewDialog } from "./EmailPreviewDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,6 +77,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>({ ...defaultData });
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -130,6 +132,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -229,6 +232,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                     value={data.body_html}
                     onChange={(html) => update({ body_html: html })}
                   />
+                  <div className="flex gap-2 mt-2">
+                    <Button type="button" variant="outline" size="sm" className="font-mono text-xs" onClick={() => setShowPreview(true)}>
+                      <Eye className="h-3 w-3 mr-1" /> Preview Email
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
@@ -312,5 +320,14 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         </div>
       </DialogContent>
     </Dialog>
+    <EmailPreviewDialog
+      open={showPreview}
+      onOpenChange={setShowPreview}
+      subject={data.subject}
+      bodyHtml={data.body_html}
+      senderName={data.sender_name}
+      senderEmail={data.sender_email}
+    />
+    </>
   );
 }
