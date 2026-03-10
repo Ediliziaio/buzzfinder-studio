@@ -54,6 +54,11 @@ export function MapsPreviousSessions({ sessions, onLoad, hasMore, onLoadMore }: 
             </Button>
           </div>
         ))}
+        {hasMore && onLoadMore && (
+          <Button variant="ghost" size="sm" className="w-full h-7 text-xs font-mono text-muted-foreground" onClick={onLoadMore}>
+            Mostra precedenti...
+          </Button>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

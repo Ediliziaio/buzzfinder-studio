@@ -5,6 +5,7 @@ import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
 import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
+import { useScrapingSessions } from "@/hooks/useScrapingSession";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
 import {

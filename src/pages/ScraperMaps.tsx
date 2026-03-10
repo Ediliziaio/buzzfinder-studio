@@ -263,6 +263,8 @@ export default function ScraperMapsPage() {
         <MapsPreviousSessions
           sessions={previousSessions}
           onLoad={handleLoadSession}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
         />
       </div>
 

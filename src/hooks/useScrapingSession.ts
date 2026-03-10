@@ -46,21 +46,33 @@ export function useScrapingSession(sessionId: string | null) {
 export function useScrapingSessions() {
   const [sessions, setSessions] = useState<ScrapingSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 10;
 
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (loadMore = false) => {
+    const offset = loadMore ? sessions.length : 0;
     const { data } = await supabase
       .from("scraping_sessions")
       .select("*")
       .eq("tipo", "google_maps")
       .order("created_at", { ascending: false })
-      .limit(10);
-    setSessions((data as unknown as ScrapingSession[]) || []);
+      .range(offset, offset + PAGE_SIZE - 1);
+    const newSessions = (data as unknown as ScrapingSession[]) || [];
+    if (loadMore) {
+      setSessions((prev) => [...prev, ...newSessions]);
+    } else {
+      setSessions(newSessions);
+    }
+    setHasMore(newSessions.length === PAGE_SIZE);
     setLoading(false);
-  }, []);
+  }, [sessions.length]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    fetchSessions(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return { sessions, loading, refetch: fetchSessions };
+  const loadMore = useCallback(() => fetchSessions(true), [fetchSessions]);
+
+  return { sessions, loading, hasMore, loadMore, refetch: () => fetchSessions(false) };
 }

@@ -160,6 +160,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     setImportedCount(0);
     setInvalidRows([]);
     setShowInvalid(false);
+    setDuplicateHandling("skip");
+    setDefaultTags("");
     onClose();
   };
 

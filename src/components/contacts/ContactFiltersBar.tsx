@@ -134,6 +134,20 @@ export function ContactFiltersBar({ filters, onChange }: Props) {
           </SelectContent>
         </Select>
 
+        {/* Tags filter */}
+        <div className="relative min-w-[140px]">
+          <Input
+            placeholder="Filtra per tag..."
+            value={filters.tags?.join(", ") || ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              const tags = val ? val.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+              onChange({ ...filters, tags: tags?.length ? tags : undefined });
+            }}
+            className="h-8 text-xs font-mono bg-accent border-border pl-2"
+          />
+        </div>
+
         {/* Save as list */}
         {hasActiveFilters && (
           <Button variant="outline" size="sm" className="h-8 text-xs font-mono" onClick={() => setShowSaveDialog(true)}>
