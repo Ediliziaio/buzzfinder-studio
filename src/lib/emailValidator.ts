@@ -13,6 +13,29 @@ const ROLE_PREFIXES = [
   "postmaster", "hostmaster", "abuse", "support", "sales",
 ];
 
+/** Blacklist patterns for scraping-extracted emails — filters false positives */
+const SCRAPING_BLACKLIST_PATTERNS: RegExp[] = [
+  /\.(png|jpg|gif|svg|webp|css|js|woff|ttf)$/i,
+  /^example@/i,
+  /^test@/i,
+  /^noreply@/i,
+  /^no-reply@/i,
+  /^donotreply@/i,
+  /^webmaster@/i,
+  /sentry\./i,
+  /rollbar\./i,
+  /logwatch\./i,
+  /\d{10,}@/,
+  /@.*\.(png|jpg)/i,
+];
+
+/** Check if an email matches scraping blacklist patterns (false positive from HTML) */
+export function isScrapingBlacklisted(email: string): boolean {
+  const lower = email.toLowerCase();
+  return SCRAPING_BLACKLIST_PATTERNS.some((p) => p.test(lower));
+}
+
+
 export function isValidEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase());

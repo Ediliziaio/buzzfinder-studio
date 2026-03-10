@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
+import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import { MapsConfigPanel } from "@/components/scraper/MapsConfigPanel";
 import { MapsProgressBox } from "@/components/scraper/MapsProgressBox";
@@ -15,6 +15,16 @@ import { MapsResultsTable } from "@/components/scraper/MapsResultsTable";
 import { MapsPreviousSessions } from "@/components/scraper/MapsPreviousSessions";
 import { toast } from "sonner";
 import type { Contact, ScrapingSession } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface MapsConfig {
   query: string;
@@ -42,6 +52,8 @@ export default function ScraperMapsPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [results, setResults] = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [lastImported, setLastImported] = useState<{ azienda: string; citta: string | null; hasSito: boolean; hasTel: boolean }[]>([]);
 
   const activeSession = useScrapingSession(activeSessionId);
   const { sessions: previousSessions, refetch: refetchSessions } = useScrapingSessions();
@@ -65,14 +77,19 @@ export default function ScraperMapsPage() {
 
     loadResults();
 
-    // Subscribe to new contacts
+    // Subscribe to new contacts for live feed
     const channel = supabase
       .channel("new-contacts")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "contacts" },
         (payload) => {
-          setResults((prev) => [payload.new as unknown as Contact, ...prev]);
+          const c = payload.new as unknown as Contact;
+          setResults((prev) => [c, ...prev]);
+          setLastImported((prev) => [
+            { azienda: c.azienda, citta: c.citta, hasSito: !!c.sito_web, hasTel: !!c.telefono },
+            ...prev,
+          ].slice(0, 5));
         }
       )
       .subscribe();
@@ -85,6 +102,16 @@ export default function ScraperMapsPage() {
   const handleStart = async () => {
     if (!config.query || !config.citta) {
       toast.error("Inserisci categoria e città");
+      return;
+    }
+
+    // Check n8n health first
+    const n8nOk = await checkN8nHealth();
+    if (!n8nOk) {
+      toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
+        duration: 6000,
+        action: { label: "Impostazioni", onClick: () => window.location.assign("/settings") },
+      });
       return;
     }
 
@@ -150,6 +177,11 @@ export default function ScraperMapsPage() {
   };
 
   const handleStop = async () => {
+    setShowStopConfirm(true);
+  };
+
+  const confirmStop = async () => {
+    setShowStopConfirm(false);
     if (!activeSessionId) return;
     await supabase
       .from("scraping_sessions")
@@ -198,7 +230,25 @@ export default function ScraperMapsPage() {
 
         {/* Progress box */}
         {activeSession && (activeSession.status === "running" || activeSession.status === "pending") && (
-          <MapsProgressBox session={activeSession} />
+          <>
+            <MapsProgressBox session={activeSession} />
+            {/* Live feed */}
+            {lastImported.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+                <div className="terminal-header text-xs">ULTIMI IMPORTATI</div>
+                {lastImported.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                    <span className="text-primary">•</span>
+                    <span className="text-foreground truncate flex-1">{c.azienda}</span>
+                    {c.citta && <span className="text-muted-foreground">{c.citta}</span>}
+                    {c.hasSito && <span className="text-primary" title="Con sito">🌐</span>}
+                    {c.hasTel && <span className="text-info" title="Con telefono">📞</span>}
+                    {!c.hasSito && !c.hasTel && <span className="text-muted-foreground" title="Solo indirizzo">📍</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Previous sessions */}
@@ -219,6 +269,24 @@ export default function ScraperMapsPage() {
           duplicates={activeSession ? (activeSession.totale_trovati - activeSession.totale_importati) : 0}
         />
       </div>
+
+      {/* Stop confirmation dialog */}
+      <AlertDialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermare lo scraping?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Lo scraping verrà interrotto. I risultati già importati verranno mantenuti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

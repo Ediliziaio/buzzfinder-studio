@@ -4,9 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
-import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
+import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface WebScraperConfig {
   timeoutSec: number;
@@ -33,6 +43,7 @@ export default function ScraperWebsitesPage() {
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
 
   // Subscribe to session updates
   useEffect(() => {
@@ -120,6 +131,16 @@ export default function ScraperWebsitesPage() {
       return;
     }
 
+    // Check n8n health first
+    const n8nOk = await checkN8nHealth();
+    if (!n8nOk) {
+      toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
+        duration: 6000,
+        action: { label: "Impostazioni", onClick: () => window.location.assign("/settings") },
+      });
+      return;
+    }
+
     try {
       // Create session
       const { data: sess, error } = await supabase
@@ -197,9 +218,32 @@ export default function ScraperWebsitesPage() {
   };
 
   const handleStop = async () => {
+    setShowStopConfirm(true);
+  };
+
+  const confirmStop = async () => {
+    setShowStopConfirm(false);
     if (!sessionId) return;
     await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", sessionId);
     toast.info("Scraping fermato");
+  };
+
+  const handleRetryJob = async (job: ScrapingJob) => {
+    await supabase.from("scraping_jobs").update({ status: "queued", error_message: null, tentativo: (job.tentativo || 1) + 1 }).eq("id", job.id);
+    toast.info(`Riprova: ${job.url}`);
+    // Re-trigger n8n for single job retry
+    try {
+      const settings = await getN8nSettings();
+      const webhookPath = settings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
+      await triggerN8nWebhook(webhookPath, {
+        session_id: job.session_id,
+        urls: [job.url],
+        retry_job_id: job.id,
+        supabase_url: import.meta.env.VITE_SUPABASE_URL,
+      });
+    } catch (err: any) {
+      toast.error(`Errore retry: ${err.message}`);
+    }
   };
 
   const handleClearQueue = () => {
@@ -245,6 +289,7 @@ export default function ScraperWebsitesPage() {
           onStop={handleStop}
           onClearQueue={handleClearQueue}
           onJobClick={handleShowDetail}
+          onRetryJob={handleRetryJob}
           isRunning={isRunning}
           stats={queueStats}
         />
@@ -267,6 +312,23 @@ export default function ScraperWebsitesPage() {
           onClose={() => { setDetailJob(null); setDetailContact(null); }}
         />
       )}
+      {/* Stop confirmation dialog */}
+      <AlertDialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermare lo scraping?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Lo scraping verrà interrotto. I risultati già elaborati verranno mantenuti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Mail, MessageSquare, Smartphone, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
+import { checkN8nHealth } from "@/services/n8n";
 
 const breadcrumbMap: Record<string, string> = {
   "/scraper/maps": "Scraper Maps",
@@ -19,11 +20,10 @@ const breadcrumbMap: Record<string, string> = {
 export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { credits, n8nStatus, sidebarCollapsed, setCredits } = useAppStore();
+  const { credits, n8nStatus, sidebarCollapsed, setCredits, setN8nStatus } = useAppStore();
 
   const fetchCredits = useCallback(async () => {
     try {
-      // Fetch limits from app_settings
       const { data: settings } = await supabase
         .from("app_settings")
         .select("chiave, valore")
@@ -38,7 +38,6 @@ export function AppHeader() {
         if (s.chiave === "limite_whatsapp_giorno") limits.whatsapp = (Number(s.valore) || 250) * 30;
       });
 
-      // Fetch this month's usage
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
@@ -63,9 +62,21 @@ export function AppHeader() {
     }
   }, [setCredits]);
 
+  // Poll n8n health every 30s
+  useEffect(() => {
+    const poll = async () => {
+      setN8nStatus("checking");
+      const ok = await checkN8nHealth();
+      setN8nStatus(ok ? "online" : "offline");
+    };
+    poll();
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
+  }, [setN8nStatus]);
+
   useEffect(() => {
     fetchCredits();
-    const interval = setInterval(fetchCredits, 60000); // refresh every minute
+    const interval = setInterval(fetchCredits, 60000);
     return () => clearInterval(interval);
   }, [fetchCredits]);
 
