@@ -1,6 +1,26 @@
 import axios from "axios";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Check if n8n instance is reachable. Returns true if healthy, false otherwise.
+ */
+export async function checkN8nHealth(): Promise<boolean> {
+  try {
+    const settings = await getN8nSettings();
+    const baseUrl = settings.n8n_instance_url;
+    if (!baseUrl) return false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/healthz`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function getN8nSettings() {
   const { data } = await supabase
     .from("app_settings")
