@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
