@@ -257,8 +257,61 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                   <Input value={data.reply_to} onChange={(e) => update({ reply_to: e.target.value })} placeholder="info@tuodominio.it" className="font-mono text-sm" />
                 </div>
                 <div>
-                  <Label className="terminal-header mb-1.5 block">Oggetto *</Label>
-                  <Input value={data.subject} onChange={(e) => update({ subject: e.target.value })} placeholder="Scopri i nostri servizi" className="font-mono text-sm" />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="terminal-header">Oggetto *</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-muted-foreground">A/B Test</span>
+                      <Switch
+                        checked={data.ab_test_enabled}
+                        onCheckedChange={(v) => update({ ab_test_enabled: v })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      {data.ab_test_enabled && (
+                        <span className="shrink-0 w-5 h-5 rounded bg-primary/10 border border-primary/30 flex items-center justify-center font-mono text-[10px] text-primary font-bold">A</span>
+                      )}
+                      <Input value={data.subject} onChange={(e) => update({ subject: e.target.value })} placeholder="Scopri i nostri servizi" className="font-mono text-sm" />
+                    </div>
+                    {data.ab_test_enabled && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 w-5 h-5 rounded bg-secondary/50 border border-border flex items-center justify-center font-mono text-[10px] font-bold">B</span>
+                          <Input value={data.subject_b} onChange={(e) => update({ subject_b: e.target.value })} placeholder="Variante B dell'oggetto..." className="font-mono text-sm" />
+                        </div>
+                        <div className="rounded-md border border-border bg-accent p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-[10px] text-muted-foreground">Split A/B</span>
+                            <span className="font-mono text-xs font-medium">{data.ab_test_split}% / {100 - data.ab_test_split}%</span>
+                          </div>
+                          <Slider
+                            value={[data.ab_test_split]}
+                            onValueChange={([v]) => update({ ab_test_split: v })}
+                            min={10}
+                            max={90}
+                            step={5}
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-[10px] text-muted-foreground">Campione test</span>
+                            <span className="font-mono text-xs font-medium">
+                              {Math.min(data.ab_test_sample_size, data.recipientCount)} destinatari
+                            </span>
+                          </div>
+                          <Slider
+                            value={[data.ab_test_sample_size]}
+                            onValueChange={([v]) => update({ ab_test_sample_size: v })}
+                            min={20}
+                            max={Math.max(data.recipientCount, 100)}
+                            step={10}
+                          />
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            Il campione riceverà le 2 varianti. Dopo 4h, la variante con più aperture verrà inviata ai restanti.
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <p className="text-[10px] text-muted-foreground mt-1 font-mono">Variabili: {"{{nome}}"}, {"{{azienda}}"}, {"{{citta}}"}</p>
                 </div>
                 <div>
