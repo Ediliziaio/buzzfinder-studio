@@ -154,10 +154,12 @@ export default function ScraperWebsitesPage() {
     }
 
     try {
+      const user_id = await getCurrentUserId();
       // Create session
       const { data: sess, error } = await supabase
         .from("scraping_sessions")
         .insert({
+          user_id,
           tipo: "website",
           status: "pending",
           max_results: urls.length,

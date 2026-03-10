@@ -132,7 +132,9 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         scheduledAt = d.toISOString();
       }
 
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("campaigns").insert({
+        user_id,
         nome: data.nome.trim(),
         tipo: data.tipo,
         stato: scheduledAt ? "schedulata" : "bozza",

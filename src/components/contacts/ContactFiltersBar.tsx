@@ -42,7 +42,9 @@ export function ContactFiltersBar({ filters, onChange }: Props) {
     if (!listName.trim()) return;
     setSavingList(true);
     try {
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("lists").insert({
+        user_id,
         nome: listName.trim(),
         tipo: "dinamica",
         filtri: filters as any,

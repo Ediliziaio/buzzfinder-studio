@@ -88,7 +88,9 @@ export default function FollowUpSequencesPage() {
 
   const handleCreate = async () => {
     if (!newName.trim() || !newCampaignId) return;
+    const user_id = await getCurrentUserId();
     const { error } = await supabase.from("follow_up_sequences").insert({
+      user_id,
       nome: newName.trim(),
       campaign_id: newCampaignId,
       attiva: true,

@@ -70,7 +70,9 @@ export function CreateListDialog({ open, onClose, onCreated }: Props) {
         totale = count || 0;
       }
 
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("lists").insert([{
+        user_id,
         nome: nome.trim(),
         descrizione: descrizione.trim() || null,
         tipo,

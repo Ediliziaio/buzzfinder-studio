@@ -127,6 +127,7 @@ export default function ScraperMapsPage() {
     setCurrentCityIndex(0);
 
     try {
+      const user_id = await getCurrentUserId();
       for (let i = 0; i < config.citta.length; i++) {
         const city = config.citta[i];
         setCurrentCityIndex(i);
@@ -134,6 +135,7 @@ export default function ScraperMapsPage() {
         const { data: session, error } = await supabase
           .from("scraping_sessions")
           .insert({
+            user_id,
             tipo: "google_maps",
             query: config.query,
             citta: city,
