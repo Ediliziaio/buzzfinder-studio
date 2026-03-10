@@ -120,11 +120,13 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [data, setData] = useState<WizardData>({ ...defaultData });
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
 
   // Load sender defaults from app_settings when wizard opens (Bug M3)
   useEffect(() => {
     if (open) {
       setStep(0);
+      setTemplates([]);
       supabase
         .from("app_settings")
         .select("chiave, valore")
@@ -141,6 +143,17 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         });
     }
   }, [open]);
+
+  // Load templates when tipo changes
+  useEffect(() => {
+    if (!data.tipo || !open) return;
+    supabase.from("campaign_templates" as any)
+      .select("*")
+      .eq("tipo", data.tipo)
+      .order("utilizzi", { ascending: false })
+      .limit(6)
+      .then(({ data: tpl }) => setTemplates(tpl || []));
+  }, [data.tipo, open]);
 
   const update = (partial: Partial<WizardData>) => setData((d) => ({ ...d, ...partial }));
 
@@ -338,6 +351,47 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                 ))}
               </div>
             </div>
+
+            {/* Templates */}
+            {templates.length > 0 && (
+              <div>
+                <Label className="terminal-header mb-2 block">Parti da un template</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {templates.map((tpl: any) => (
+                    <button
+                      key={tpl.id}
+                      onClick={() => {
+                        update({
+                          subject: tpl.subject || "",
+                          body_html: tpl.body_html || "",
+                          body_text: tpl.body_text || "",
+                          template_whatsapp_id: tpl.template_whatsapp_id || "",
+                          sender_email: tpl.sender_email || data.sender_email,
+                          sender_name: tpl.sender_name || data.sender_name,
+                          reply_to: tpl.reply_to || data.reply_to,
+                          sending_rate_per_hour: tpl.sending_rate_per_hour || 500,
+                          aiEnabled: tpl.ai_personalization_enabled || false,
+                          aiModel: tpl.ai_model || "haiku",
+                          aiContext: tpl.ai_context || "",
+                          aiObjective: tpl.ai_objective || "",
+                        });
+                        supabase.from("campaign_templates" as any)
+                          .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
+                          .eq("id", tpl.id)
+                          .then(() => {});
+                        setStep(1);
+                      }}
+                      className="rounded-md border border-border bg-card p-2 text-left hover:border-primary/40 transition-colors"
+                    >
+                      <p className="font-mono text-xs font-medium truncate">{tpl.nome}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                        Usato {tpl.utilizzi || 0} volte{tpl.ai_personalization_enabled ? " · ✨ AI" : ""}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

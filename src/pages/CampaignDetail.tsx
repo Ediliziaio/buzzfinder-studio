@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles } from "lucide-react";
+import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -12,10 +12,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
 import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
+import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
@@ -35,6 +37,7 @@ export default function CampaignDetailPage() {
   const [recipientFilter, setRecipientFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showReplica, setShowReplica] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -68,6 +71,34 @@ export default function CampaignDetailPage() {
       .order("inviato_at", { ascending: false })
       .limit(500);
     setRecipients((data as unknown as RecipientWithContact[]) || []);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!campaign) return;
+    try {
+      const user_id = await getCurrentUserId();
+      const { error } = await supabase.from("campaign_templates" as any).insert({
+        user_id,
+        nome: `${campaign.nome} (template)`,
+        tipo: campaign.tipo,
+        subject: campaign.subject,
+        body_html: campaign.body_html,
+        body_text: campaign.body_text,
+        template_whatsapp_id: campaign.template_whatsapp_id,
+        sender_email: campaign.sender_email,
+        sender_name: campaign.sender_name,
+        reply_to: campaign.reply_to,
+        sending_rate_per_hour: campaign.sending_rate_per_hour,
+        ai_personalization_enabled: campaign.ai_personalization_enabled,
+        ai_model: campaign.ai_model,
+        ai_context: campaign.ai_context,
+        ai_objective: campaign.ai_objective,
+      } as any);
+      if (error) throw error;
+      toast.success("Template salvato!");
+    } catch (err: any) {
+      toast.error(`Errore: ${err.message}`);
+    }
   };
 
   const handleStatusChange = async (newStato: string) => {
@@ -223,6 +254,17 @@ export default function CampaignDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Replica + Save as template (bozza or completata) */}
+          {(campaign.stato === "bozza" || campaign.stato === "completata") && (
+            <>
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => setShowReplica(true)}>
+                <ListChecks className="h-3 w-3 mr-1" /> Replica su liste
+              </Button>
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={handleSaveAsTemplate}>
+                <Save className="h-3 w-3 mr-1" /> Salva template
+              </Button>
+            </>
+          )}
           {campaign.stato === "in_corso" && (
             <>
               <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => handleStatusChange("pausa")}>
@@ -430,6 +472,16 @@ export default function CampaignDetailPage() {
           </Table>
         </div>
       </div>
+
+      {/* Replica Dialog */}
+      {campaign && (
+        <ReplicaCampagnaDialog
+          campaign={campaign}
+          open={showReplica}
+          onOpenChange={setShowReplica}
+          onReplicated={() => { loadCampaign(); }}
+        />
+      )}
     </div>
   );
 }

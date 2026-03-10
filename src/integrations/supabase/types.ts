@@ -104,6 +104,75 @@ export type Database = {
           },
         ]
       }
+      campaign_templates: {
+        Row: {
+          ai_context: string | null
+          ai_model: string | null
+          ai_objective: string | null
+          ai_personalization_enabled: boolean | null
+          body_html: string | null
+          body_text: string | null
+          created_at: string | null
+          id: string
+          nome: string
+          reply_to: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sending_rate_per_hour: number | null
+          subject: string | null
+          template_whatsapp_id: string | null
+          template_whatsapp_language: string | null
+          template_whatsapp_variables: Json | null
+          tipo: string
+          user_id: string
+          utilizzi: number | null
+        }
+        Insert: {
+          ai_context?: string | null
+          ai_model?: string | null
+          ai_objective?: string | null
+          ai_personalization_enabled?: boolean | null
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string | null
+          id?: string
+          nome: string
+          reply_to?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sending_rate_per_hour?: number | null
+          subject?: string | null
+          template_whatsapp_id?: string | null
+          template_whatsapp_language?: string | null
+          template_whatsapp_variables?: Json | null
+          tipo: string
+          user_id: string
+          utilizzi?: number | null
+        }
+        Update: {
+          ai_context?: string | null
+          ai_model?: string | null
+          ai_objective?: string | null
+          ai_personalization_enabled?: boolean | null
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string | null
+          id?: string
+          nome?: string
+          reply_to?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sending_rate_per_hour?: number | null
+          subject?: string | null
+          template_whatsapp_id?: string | null
+          template_whatsapp_language?: string | null
+          template_whatsapp_variables?: Json | null
+          tipo?: string
+          user_id?: string
+          utilizzi?: number | null
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           ab_test_enabled: boolean | null
