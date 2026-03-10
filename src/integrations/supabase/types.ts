@@ -331,6 +331,127 @@ export type Database = {
           },
         ]
       }
+      follow_up_log: {
+        Row: {
+          created_at: string | null
+          id: string
+          recipient_id: string
+          scheduled_at: string | null
+          sent_at: string | null
+          stato: string | null
+          step_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          recipient_id: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          stato?: string | null
+          step_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          recipient_id?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          stato?: string | null
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_log_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_log_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_up_sequences: {
+        Row: {
+          attiva: boolean | null
+          campaign_id: string
+          created_at: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          attiva?: boolean | null
+          campaign_id: string
+          created_at?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          attiva?: boolean | null
+          campaign_id?: string
+          created_at?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_sequences_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_up_steps: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          condizione: string
+          created_at: string | null
+          delay_giorni: number
+          id: string
+          ordine: number
+          sequence_id: string
+          subject: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          condizione?: string
+          created_at?: string | null
+          delay_giorni?: number
+          id?: string
+          ordine?: number
+          sequence_id: string
+          subject?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          condizione?: string
+          created_at?: string | null
+          delay_giorni?: number
+          id?: string
+          ordine?: number
+          sequence_id?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_contacts: {
         Row: {
           contact_id: string
@@ -510,6 +631,38 @@ export type Database = {
           totale_trovati?: number | null
         }
         Relationships: []
+      }
+      suppression_list: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          email: string
+          id: string
+          motivo: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          motivo?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          motivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppression_list_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usage_log: {
         Row: {
