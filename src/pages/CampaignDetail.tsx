@@ -73,6 +73,34 @@ export default function CampaignDetailPage() {
     setRecipients((data as unknown as RecipientWithContact[]) || []);
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (!campaign) return;
+    try {
+      const user_id = await getCurrentUserId();
+      const { error } = await supabase.from("campaign_templates" as any).insert({
+        user_id,
+        nome: `${campaign.nome} (template)`,
+        tipo: campaign.tipo,
+        subject: campaign.subject,
+        body_html: campaign.body_html,
+        body_text: campaign.body_text,
+        template_whatsapp_id: campaign.template_whatsapp_id,
+        sender_email: campaign.sender_email,
+        sender_name: campaign.sender_name,
+        reply_to: campaign.reply_to,
+        sending_rate_per_hour: campaign.sending_rate_per_hour,
+        ai_personalization_enabled: campaign.ai_personalization_enabled,
+        ai_model: campaign.ai_model,
+        ai_context: campaign.ai_context,
+        ai_objective: campaign.ai_objective,
+      } as any);
+      if (error) throw error;
+      toast.success("Template salvato!");
+    } catch (err: any) {
+      toast.error(`Errore: ${err.message}`);
+    }
+  };
+
   const handleStatusChange = async (newStato: string) => {
     if (!campaign) return;
 

@@ -3,6 +3,7 @@ import { it } from "date-fns/locale";
 import { Mail, MessageSquare, Phone, MoreVertical, Copy, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { Campaign } from "@/types";
@@ -13,17 +14,20 @@ const tipoIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageSquare className="h-4 w-4" />,
 };
 
-// StatusBadge uses the `status` prop directly with its internal mapping
-
 interface CampaignsListProps {
   campaigns: Campaign[];
   isLoading: boolean;
   onEdit: (campaign: Campaign) => void;
   onDuplicate: (campaign: Campaign) => void;
   onDelete: (campaign: Campaign) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDelete }: CampaignsListProps) {
+export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDelete, selectedIds, onSelectionChange }: CampaignsListProps) {
+  const bozzaCampaigns = campaigns.filter(c => c.stato === "bozza");
+  const hasSelection = !!selectedIds && !!onSelectionChange;
+
   if (isLoading) {
     return (
       <div className="rounded-lg border border-border bg-card p-12 text-center">
@@ -47,6 +51,18 @@ export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDel
       <Table>
         <TableHeader>
           <TableRow>
+            {hasSelection && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={bozzaCampaigns.length > 0 && bozzaCampaigns.every(c => selectedIds.has(c.id))}
+                  onCheckedChange={(checked) => {
+                    const next = new Set<string>();
+                    if (checked) bozzaCampaigns.forEach(c => next.add(c.id));
+                    onSelectionChange(next);
+                  }}
+                />
+              </TableHead>
+            )}
             <TableHead className="terminal-header">Tipo</TableHead>
             <TableHead className="terminal-header">Nome</TableHead>
             <TableHead className="terminal-header">Stato</TableHead>
@@ -65,6 +81,20 @@ export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDel
             const clickRate = c.inviati > 0 ? ((c.cliccati / c.inviati) * 100).toFixed(1) : "—";
             return (
               <TableRow key={c.id} className="cursor-pointer hover:bg-accent/50" onClick={() => onEdit(c)}>
+                {hasSelection && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {c.stato === "bozza" ? (
+                      <Checkbox
+                        checked={selectedIds.has(c.id)}
+                        onCheckedChange={(checked) => {
+                          const next = new Set(selectedIds);
+                          checked ? next.add(c.id) : next.delete(c.id);
+                          onSelectionChange(next);
+                        }}
+                      />
+                    ) : null}
+                  </TableCell>
+                )}
                 <TableCell>
                   <span className="text-primary">{tipoIcons[c.tipo]}</span>
                 </TableCell>
