@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
+import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import { MapsConfigPanel } from "@/components/scraper/MapsConfigPanel";
 import { MapsProgressBox } from "@/components/scraper/MapsProgressBox";
@@ -15,6 +15,16 @@ import { MapsResultsTable } from "@/components/scraper/MapsResultsTable";
 import { MapsPreviousSessions } from "@/components/scraper/MapsPreviousSessions";
 import { toast } from "sonner";
 import type { Contact, ScrapingSession } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface MapsConfig {
   query: string;
