@@ -444,6 +444,16 @@ export default function CampaignDetailPage() {
           </Table>
         </div>
       </div>
+
+      {/* Replica Dialog */}
+      {campaign && (
+        <ReplicaCampagnaDialog
+          campaign={campaign}
+          open={showReplica}
+          onOpenChange={setShowReplica}
+          onReplicated={() => { loadCampaign(); }}
+        />
+      )}
     </div>
   );
 }
