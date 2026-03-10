@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw } from "lucide-react";
+import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import {
