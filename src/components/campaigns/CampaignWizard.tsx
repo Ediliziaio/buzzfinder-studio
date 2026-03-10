@@ -323,6 +323,64 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                 <span>2000/h (aggressivo)</span>
               </div>
             </div>
+
+            {/* Scheduling */}
+            <div className="rounded-lg border border-border bg-accent p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                <Label className="terminal-header">SCHEDULAZIONE (opzionale)</Label>
+              </div>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                Lascia vuoto per salvare come bozza, oppure scegli data e ora per programmare l'invio.
+              </p>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-mono text-xs h-8",
+                          !data.scheduled_at && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {data.scheduled_at ? format(data.scheduled_at, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={data.scheduled_at || undefined}
+                        onSelect={(date) => update({ scheduled_at: date || null })}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="w-[100px]">
+                  <Input
+                    type="time"
+                    value={data.scheduleTime}
+                    onChange={(e) => update({ scheduleTime: e.target.value })}
+                    className="h-8 font-mono text-xs"
+                    disabled={!data.scheduled_at}
+                  />
+                </div>
+                {data.scheduled_at && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs font-mono text-muted-foreground"
+                    onClick={() => update({ scheduled_at: null })}
+                  >
+                    Rimuovi
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
