@@ -6,6 +6,7 @@ import { MapsProgressBox } from "@/components/scraper/MapsProgressBox";
 import { MapsResultsTable } from "@/components/scraper/MapsResultsTable";
 import { MapsPreviousSessions } from "@/components/scraper/MapsPreviousSessions";
 import { toast } from "sonner";
+import { getCurrentUserId } from "@/lib/auth";
 import type { Contact } from "@/types";
 import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import {
