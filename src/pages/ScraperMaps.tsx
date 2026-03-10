@@ -61,7 +61,7 @@ export default function ScraperMapsPage() {
   const isRunning = activeSession?.status === "running";
   const isPending = activeSession?.status === "pending";
 
-  // Load results for active session
+  // Load results for active session (filtered by scraping_session_id)
   useEffect(() => {
     if (!activeSessionId) return;
 
@@ -69,7 +69,7 @@ export default function ScraperMapsPage() {
       const { data } = await supabase
         .from("contacts")
         .select("*")
-        .eq("fonte", "google_maps")
+        .eq("scraping_session_id", activeSessionId)
         .order("created_at", { ascending: false })
         .limit(5000);
       setResults((data as unknown as Contact[]) || []);
@@ -77,12 +77,17 @@ export default function ScraperMapsPage() {
 
     loadResults();
 
-    // Subscribe to new contacts for live feed
+    // Subscribe to new contacts for this session only
     const channel = supabase
-      .channel("new-contacts")
+      .channel(`new-contacts-${activeSessionId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "contacts" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "contacts",
+          filter: `scraping_session_id=eq.${activeSessionId}`,
+        },
         (payload) => {
           const c = payload.new as unknown as Contact;
           setResults((prev) => [c, ...prev]);
