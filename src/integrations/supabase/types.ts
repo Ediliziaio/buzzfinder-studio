@@ -21,6 +21,7 @@ export type Database = {
           id: string
           tipo: string | null
           updated_at: string | null
+          user_id: string | null
           valore: string | null
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           id?: string
           tipo?: string | null
           updated_at?: string | null
+          user_id?: string | null
           valore?: string | null
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           id?: string
           tipo?: string | null
           updated_at?: string | null
+          user_id?: string | null
           valore?: string | null
         }
         Relationships: []
@@ -124,6 +127,7 @@ export type Database = {
           template_whatsapp_id: string | null
           tipo: string
           totale_destinatari: number | null
+          user_id: string | null
         }
         Insert: {
           ab_test_enabled?: boolean | null
@@ -162,6 +166,7 @@ export type Database = {
           template_whatsapp_id?: string | null
           tipo: string
           totale_destinatari?: number | null
+          user_id?: string | null
         }
         Update: {
           ab_test_enabled?: boolean | null
@@ -200,6 +205,7 @@ export type Database = {
           template_whatsapp_id?: string | null
           tipo?: string
           totale_destinatari?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -282,6 +288,7 @@ export type Database = {
           telefono_normalizzato: string | null
           ultima_attivita: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           azienda: string
@@ -316,6 +323,7 @@ export type Database = {
           telefono_normalizzato?: string | null
           ultima_attivita?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           azienda?: string
@@ -350,6 +358,7 @@ export type Database = {
           telefono_normalizzato?: string | null
           ultima_attivita?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -413,6 +422,7 @@ export type Database = {
           created_at: string | null
           id: string
           nome: string
+          user_id: string | null
         }
         Insert: {
           attiva?: boolean | null
@@ -420,6 +430,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome: string
+          user_id?: string | null
         }
         Update: {
           attiva?: boolean | null
@@ -427,6 +438,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -521,6 +533,7 @@ export type Database = {
           nome: string
           tipo: string | null
           totale_contatti: number | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -530,6 +543,7 @@ export type Database = {
           nome: string
           tipo?: string | null
           totale_contatti?: number | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -539,6 +553,7 @@ export type Database = {
           nome?: string
           tipo?: string | null
           totale_contatti?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -623,6 +638,7 @@ export type Database = {
           totale_errori: number | null
           totale_importati: number | null
           totale_trovati: number | null
+          user_id: string | null
         }
         Insert: {
           citta?: string | null
@@ -641,6 +657,7 @@ export type Database = {
           totale_errori?: number | null
           totale_importati?: number | null
           totale_trovati?: number | null
+          user_id?: string | null
         }
         Update: {
           citta?: string | null
@@ -659,6 +676,7 @@ export type Database = {
           totale_errori?: number | null
           totale_importati?: number | null
           totale_trovati?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -669,6 +687,7 @@ export type Database = {
           email: string
           id: string
           motivo: string | null
+          user_id: string | null
         }
         Insert: {
           campaign_id?: string | null
@@ -676,6 +695,7 @@ export type Database = {
           email: string
           id?: string
           motivo?: string | null
+          user_id?: string | null
         }
         Update: {
           campaign_id?: string | null
@@ -683,6 +703,7 @@ export type Database = {
           email?: string
           id?: string
           motivo?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -704,6 +725,7 @@ export type Database = {
           provider: string | null
           quantita: number | null
           tipo: string
+          user_id: string | null
         }
         Insert: {
           campaign_id?: string | null
@@ -714,6 +736,7 @@ export type Database = {
           provider?: string | null
           quantita?: number | null
           tipo: string
+          user_id?: string | null
         }
         Update: {
           campaign_id?: string | null
@@ -724,6 +747,7 @@ export type Database = {
           provider?: string | null
           quantita?: number | null
           tipo?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -740,7 +764,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_campaign: { Args: { _campaign_id: string }; Returns: boolean }
+      user_owns_contact: { Args: { _contact_id: string }; Returns: boolean }
+      user_owns_list: { Args: { _list_id: string }; Returns: boolean }
+      user_owns_scraping_session: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
+      user_owns_sequence: { Args: { _sequence_id: string }; Returns: boolean }
+      user_owns_step: { Args: { _step_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
