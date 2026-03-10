@@ -1,18 +1,29 @@
 
 
-## Creazione Account Superadmin
+# Fix: Scraper Google Maps RLS Error
 
-Per creare l'account con le credenziali specificate, servono due passaggi:
+## Problem
 
-### Passaggio 1 — Abilitare auto-conferma email
-Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
+The scraper fails with a **403 RLS error** when clicking "AVVIA SCRAPING":
 
-### Passaggio 2 — Registrazione
-Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
-- **Email**: `f.andriciuc@overthemol.com`
-- **Password**: `Password2025!`
+```
+"new row violates row-level security policy for table \"scraping_sessions\""
+```
 
-L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
+The `handleStart` function in `ScraperMaps.tsx` inserts into `scraping_sessions` without including `user_id`. The RLS policy requires `user_id = auth.uid()`.
 
-> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
+## Fix
+
+**File: `src/pages/ScraperMaps.tsx`**
+
+1. Import `getCurrentUserId` from `@/lib/auth`
+2. In `handleStart()`, call `const user_id = await getCurrentUserId()` before the insert
+3. Add `user_id` to the insert object
+
+This follows the exact same pattern already used in `ScraperWebsites.tsx`, `CampaignWizard.tsx`, `Campaigns.tsx`, etc.
+
+Single-line change in the insert at line 140:
+```typescript
+.insert({ user_id, tipo: "google_maps", query: config.query, ... })
+```
 
