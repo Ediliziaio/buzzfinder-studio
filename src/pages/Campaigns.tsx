@@ -13,6 +13,7 @@ import type { Campaign } from "@/types";
 export default function CampaignsPage() {
   const { campaigns, isLoading, refetch } = useCampaigns();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const navigate = useNavigate();
 
   const totInviati = campaigns.reduce((a, c) => a + c.inviati, 0);
   const totAperti = campaigns.reduce((a, c) => a + c.aperti, 0);
