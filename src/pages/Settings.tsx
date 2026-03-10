@@ -98,6 +98,16 @@ export default function SettingsPage() {
         { chiave: "email_senders", valore: JSON.stringify(senders), categoria: "mittenti", updated_at: new Date().toISOString() } as any,
         { onConflict: "chiave" }
       );
+      // Save sender defaults
+      for (const key of ["sender_name_default", "sender_email_default", "reply_to_default"]) {
+        const val = values[key];
+        if (val !== undefined) {
+          await supabase.from("app_settings").upsert(
+            { chiave: key, valore: val, categoria: "mittenti", updated_at: new Date().toISOString() } as any,
+            { onConflict: "chiave" }
+          );
+        }
+      }
       toast.success("Impostazioni salvate");
     } catch {
       toast.error("Errore salvataggio impostazioni");
