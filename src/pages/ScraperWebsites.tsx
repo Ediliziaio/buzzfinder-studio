@@ -131,6 +131,16 @@ export default function ScraperWebsitesPage() {
       return;
     }
 
+    // Check n8n health first
+    const n8nOk = await checkN8nHealth();
+    if (!n8nOk) {
+      toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
+        duration: 6000,
+        action: { label: "Impostazioni", onClick: () => window.location.assign("/settings") },
+      });
+      return;
+    }
+
     try {
       // Create session
       const { data: sess, error } = await supabase
