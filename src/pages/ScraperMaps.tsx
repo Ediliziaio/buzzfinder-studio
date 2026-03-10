@@ -172,6 +172,11 @@ export default function ScraperMapsPage() {
   };
 
   const handleStop = async () => {
+    setShowStopConfirm(true);
+  };
+
+  const confirmStop = async () => {
+    setShowStopConfirm(false);
     if (!activeSessionId) return;
     await supabase
       .from("scraping_sessions")
