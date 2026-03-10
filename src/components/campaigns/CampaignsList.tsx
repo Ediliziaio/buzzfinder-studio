@@ -61,7 +61,6 @@ export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDel
         </TableHeader>
         <TableBody>
           {campaigns.map((c) => {
-            const stato = statoMap[c.stato] || statoMap.bozza;
             const openRate = c.inviati > 0 ? ((c.aperti / c.inviati) * 100).toFixed(1) : "—";
             const clickRate = c.inviati > 0 ? ((c.cliccati / c.inviati) * 100).toFixed(1) : "—";
             return (
@@ -71,7 +70,7 @@ export function CampaignsList({ campaigns, isLoading, onEdit, onDuplicate, onDel
                 </TableCell>
                 <TableCell className="font-mono text-sm font-medium">{c.nome}</TableCell>
                 <TableCell>
-                  <StatusBadge variant={stato.variant}>{stato.label}</StatusBadge>
+                  <StatusBadge status={c.stato} />
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">{c.totale_destinatari.toLocaleString()}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{c.inviati.toLocaleString()}</TableCell>
