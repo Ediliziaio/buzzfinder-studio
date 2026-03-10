@@ -33,6 +33,7 @@ export default function CampaignDetailPage() {
   const [recipients, setRecipients] = useState<RecipientWithContact[]>([]);
   const [recipientFilter, setRecipientFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -49,8 +50,12 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   const loadCampaign = async () => {
-    const { data } = await supabase.from("campaigns").select("*").eq("id", id!).single();
-    if (data) setCampaign(data as unknown as Campaign);
+    const { data, error } = await supabase.from("campaigns").select("*").eq("id", id!).single();
+    if (data) {
+      setCampaign(data as unknown as Campaign);
+    } else {
+      setNotFound(true);
+    }
     setLoading(false);
   };
 
@@ -82,14 +87,31 @@ export default function CampaignDetailPage() {
     const updates: Record<string, unknown> = { stato: newStato };
     if (newStato === "in_corso" && !campaign.started_at) updates.started_at = new Date().toISOString();
     if (newStato === "completata" && !campaign.completed_at) updates.completed_at = new Date().toISOString();
+    if (newStato === "pausa") updates.paused_at = new Date().toISOString();
+    if (newStato === "completata") updates.stopped_at = new Date().toISOString();
 
     const { error } = await supabase.from("campaigns").update(updates as any).eq("id", campaign.id);
     if (error) { toast.error("Errore aggiornamento stato"); return; }
 
     toast.success(`Campagna ${newStato}`);
-    loadCampaign();
 
-    // Trigger n8n webhook on launch
+    // Send control webhooks for pause/stop (Bug C5)
+    if (["pausa", "completata"].includes(newStato)) {
+      try {
+        const settings = await getN8nSettings();
+        const controlWebhook = settings.n8n_webhook_campaign_control;
+        if (controlWebhook) {
+          await triggerN8nWebhook(controlWebhook, {
+            campaign_id: campaign.id,
+            action: newStato === "pausa" ? "pause" : "stop",
+          });
+        }
+      } catch (err) {
+        console.warn("n8n control webhook failed:", err);
+      }
+    }
+
+    // Trigger n8n webhook on launch (Bug C2 + M5)
     if (newStato === "in_corso") {
       try {
         const settings = await getN8nSettings();
@@ -100,7 +122,7 @@ export default function CampaignDetailPage() {
         };
         const webhookPath = webhookMap[campaign.tipo];
         if (webhookPath) {
-          await triggerN8nWebhook(webhookPath, {
+          const webhookResponse = await triggerN8nWebhook(webhookPath, {
             campaign_id: campaign.id,
             tipo: campaign.tipo,
             subject: campaign.subject,
@@ -111,21 +133,51 @@ export default function CampaignDetailPage() {
             reply_to: campaign.reply_to,
             template_whatsapp_id: campaign.template_whatsapp_id,
             rate_per_hour: campaign.sending_rate_per_hour,
+            // Bug C2: include supabase credentials for n8n
+            supabase_url: import.meta.env.VITE_SUPABASE_URL,
+            supabase_anon_key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           });
+
+          // Bug M5: save n8n execution ID
+          const executionId = webhookResponse?.executionId || webhookResponse?.id || null;
+          if (executionId) {
+            await supabase.from("campaigns")
+              .update({ n8n_webhook_id: String(executionId) } as any)
+              .eq("id", campaign.id);
+          }
+
           toast.success("Job di invio avviato su n8n");
         } else {
           toast.warning("Webhook n8n non configurato — configura in Impostazioni");
         }
       } catch (err: any) {
+        // Rollback to bozza on n8n error
+        await supabase.from("campaigns")
+          .update({ stato: "bozza" } as any)
+          .eq("id", campaign.id);
         toast.error(`Errore trigger n8n: ${err.message}`);
       }
     }
+
+    loadCampaign();
   };
 
-  if (loading || !campaign) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
         <span className="font-mono text-sm text-muted-foreground">Caricamento...</span>
+      </div>
+    );
+  }
+
+  // Bug mi2: show not found state
+  if (notFound || !campaign) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 gap-4">
+        <p className="font-mono text-sm text-muted-foreground">Campagna non trovata.</p>
+        <Button variant="outline" onClick={() => navigate("/campaigns")} className="font-mono text-xs">
+          <ArrowLeft className="h-3 w-3 mr-1" /> Torna alle campagne
+        </Button>
       </div>
     );
   }

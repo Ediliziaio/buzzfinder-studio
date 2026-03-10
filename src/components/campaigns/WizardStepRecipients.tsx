@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useLists } from "@/hooks/useLists";
+import { applyChannelFilter, applyDynamicFilters } from "@/lib/campaignHelpers";
 import type { WizardData } from "./CampaignWizard";
-import type { ContactList } from "@/types";
 
 const STATI = [
   { value: "nuovo", label: "Nuovo" },
@@ -27,37 +27,6 @@ const SOURCES = [
 interface Props {
   data: WizardData;
   update: (partial: Partial<WizardData>) => void;
-}
-
-function applyChannelFilter(query: any, tipo: string) {
-  if (tipo === "email") {
-    return query.not("email", "is", null);
-  } else if (tipo === "sms" || tipo === "whatsapp") {
-    return query.not("telefono", "is", null);
-  }
-  return query;
-}
-
-function applyDynamicFilters(query: any, filtri: Record<string, unknown>) {
-  if (Array.isArray(filtri.stato) && filtri.stato.length > 0) {
-    query = query.in("stato", filtri.stato);
-  }
-  if (Array.isArray(filtri.fonte) && filtri.fonte.length > 0) {
-    query = query.in("fonte", filtri.fonte);
-  }
-  if (Array.isArray(filtri.citta) && filtri.citta.length > 0) {
-    query = query.in("citta", filtri.citta);
-  }
-  if (typeof filtri.citta === "string" && filtri.citta) {
-    query = query.eq("citta", filtri.citta);
-  }
-  if (filtri.hasEmail) {
-    query = query.not("email", "is", null);
-  }
-  if (filtri.hasTelefono) {
-    query = query.not("telefono", "is", null);
-  }
-  return query;
 }
 
 function describeDynamicFilters(filtri: Record<string, unknown>): string {
@@ -87,7 +56,6 @@ export function WizardStepRecipients({ data, update }: Props) {
       try {
         if (data.recipientSource === "list" && data.selectedListId && selectedList) {
           if (selectedList.tipo === "dinamica") {
-            // Dynamic list: apply saved filtri + channel filter
             let query = supabase.from("contacts").select("id", { count: "exact", head: true });
             const filtri = (selectedList.filtri || {}) as Record<string, unknown>;
             query = applyDynamicFilters(query, filtri);
@@ -95,7 +63,6 @@ export function WizardStepRecipients({ data, update }: Props) {
             const { count } = await query;
             update({ recipientCount: count || 0 });
           } else {
-            // Static list: get contact IDs from join table, then filter by channel
             const { data: lcData } = await supabase
               .from("list_contacts")
               .select("contact_id")
