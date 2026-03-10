@@ -7,6 +7,7 @@ import {
   Users,
   List,
   Send,
+  GitBranch,
   BarChart3,
   Settings,
   ChevronLeft,
