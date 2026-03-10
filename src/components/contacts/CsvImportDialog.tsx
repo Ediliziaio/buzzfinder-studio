@@ -20,7 +20,7 @@ interface Props {
   onComplete: () => void;
 }
 
-type Step = "upload" | "mapping" | "options" | "importing";
+type Step = "upload" | "mapping" | "options" | "importing" | "done";
 
 const contactFields = [
   { value: "skip", label: "— Salta —" },
