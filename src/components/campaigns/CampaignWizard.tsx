@@ -239,6 +239,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
         scheduled_at: scheduledAt,
+        ai_personalization_enabled: data.aiEnabled,
+        ai_model: data.aiEnabled ? data.aiModel : null,
+        ai_context: data.aiEnabled ? data.aiContext : null,
+        ai_objective: data.aiEnabled ? data.aiObjective : null,
+        ai_personalization_status: "none",
       } as any).select("id").single();
 
       if (error) throw error;
