@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
 import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
+import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
