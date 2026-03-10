@@ -236,6 +236,7 @@ export default function SettingsPage() {
             { title: "RESEND", keys: apiKeyFields.filter(f => f.chiave.startsWith("resend")) },
             { title: "TELNYX", keys: apiKeyFields.filter(f => f.chiave.startsWith("telnyx")) },
             { title: "META WHATSAPP BUSINESS", keys: apiKeyFields.filter(f => f.chiave.startsWith("meta")) },
+            { title: "AI PERSONALIZATION", keys: apiKeyFields.filter(f => f.chiave.startsWith("anthropic")) },
           ].map((group) => (
             <div key={group.title} className="rounded-lg border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
