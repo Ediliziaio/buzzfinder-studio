@@ -319,5 +319,14 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         </div>
       </DialogContent>
     </Dialog>
+    <EmailPreviewDialog
+      open={showPreview}
+      onOpenChange={setShowPreview}
+      subject={data.subject}
+      bodyHtml={data.body_html}
+      senderName={data.sender_name}
+      senderEmail={data.sender_email}
+    />
+    </>
   );
 }
