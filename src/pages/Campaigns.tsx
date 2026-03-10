@@ -39,6 +39,8 @@ export default function CampaignsPage() {
         sender_name: campaign.sender_name,
         reply_to: campaign.reply_to,
         sending_rate_per_hour: campaign.sending_rate_per_hour,
+        totale_destinatari: campaign.totale_destinatari,
+        costo_stimato_eur: campaign.costo_stimato_eur,
       });
       if (error) throw error;
       toast({ title: "Campagna duplicata" });

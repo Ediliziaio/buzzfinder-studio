@@ -27,6 +27,7 @@ const apiKeyFields: SettingField[] = [
   { chiave: "n8n_webhook_send_emails", label: "n8n Webhook — Invia Email", placeholder: "/webhook/send-emails", isSecret: false, categoria: "api_keys" },
   { chiave: "n8n_webhook_send_sms", label: "n8n Webhook — Invia SMS", placeholder: "/webhook/send-sms", isSecret: false, categoria: "api_keys" },
   { chiave: "n8n_webhook_send_whatsapp", label: "n8n Webhook — Invia WhatsApp", placeholder: "/webhook/send-whatsapp", isSecret: false, categoria: "api_keys" },
+  { chiave: "n8n_webhook_campaign_control", label: "n8n Webhook — Controllo Campagna", placeholder: "/webhook/campaign-control", isSecret: false, categoria: "api_keys" },
   { chiave: "resend_api_key", label: "Resend API Key", placeholder: "re_...", isSecret: true, categoria: "api_keys" },
   { chiave: "telnyx_api_key", label: "Telnyx API Key v2", placeholder: "KEY01...", isSecret: true, categoria: "api_keys" },
   { chiave: "meta_access_token", label: "Meta WhatsApp Access Token", placeholder: "EAAa...", isSecret: true, categoria: "api_keys" },

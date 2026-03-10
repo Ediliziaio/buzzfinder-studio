@@ -25,7 +25,7 @@ export async function getN8nSettings() {
   const { data } = await supabase
     .from("app_settings")
     .select("chiave, valore")
-    .in("chiave", ["n8n_instance_url", "n8n_api_key", "n8n_webhook_scrape_maps", "n8n_webhook_scrape_websites", "n8n_webhook_send_emails", "n8n_webhook_send_sms", "n8n_webhook_send_whatsapp"]);
+    .in("chiave", ["n8n_instance_url", "n8n_api_key", "n8n_webhook_scrape_maps", "n8n_webhook_scrape_websites", "n8n_webhook_send_emails", "n8n_webhook_send_sms", "n8n_webhook_send_whatsapp", "n8n_webhook_campaign_control"]);
 
   const settings: Record<string, string> = {};
   data?.forEach((s) => {
