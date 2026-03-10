@@ -76,16 +76,62 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
         </div>
       </div>
 
-      {/* City */}
+      {/* Cities */}
       <div className="space-y-1.5">
-        <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Città o Area *</Label>
-        <Input
-          value={config.citta}
-          onChange={(e) => onChange({ ...config, citta: e.target.value })}
-          placeholder="es. Milano, Roma..."
-          className="font-mono text-sm bg-accent border-border"
-          disabled={isRunning}
-        />
+        <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
+          Città ({config.citta.length} selezionate) *
+        </Label>
+        <div className="flex gap-1.5">
+          <Input
+            value={cityInput}
+            onChange={(e) => setCityInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCity(); } }}
+            placeholder="es. Milano, Roma..."
+            className="font-mono text-sm bg-accent border-border flex-1"
+            disabled={isRunning}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addCity}
+            disabled={isRunning || !cityInput.trim()}
+            className="h-9 px-2"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {config.citta.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {config.citta.map((city) => (
+              <span
+                key={city}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-mono text-primary"
+              >
+                {city}
+                {!isRunning && (
+                  <button onClick={() => removeCity(city)} className="hover:text-destructive">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          {["Milano", "Roma", "Torino", "Bologna", "Firenze", "Napoli"].map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                if (!config.citta.includes(s)) onChange({ ...config, citta: [...config.citta, s] });
+              }}
+              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              disabled={isRunning || config.citta.includes(s)}
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Radius */}
