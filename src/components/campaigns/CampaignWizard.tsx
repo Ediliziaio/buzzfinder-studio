@@ -135,6 +135,10 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         tipo: data.tipo,
         stato: scheduledAt ? "schedulata" : "bozza",
         subject: data.subject || null,
+        subject_b: data.ab_test_enabled ? (data.subject_b || null) : null,
+        ab_test_enabled: data.ab_test_enabled,
+        ab_test_split: data.ab_test_split,
+        ab_test_sample_size: data.ab_test_sample_size,
         body_html: data.body_html || null,
         body_text: data.body_text || null,
         template_whatsapp_id: data.template_whatsapp_id || null,
@@ -145,7 +149,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
         scheduled_at: scheduledAt,
-      });
+      } as any);
       if (error) throw error;
       toast({
         title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
