@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "sonner";
 import { Upload, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import Papa from "papaparse";
