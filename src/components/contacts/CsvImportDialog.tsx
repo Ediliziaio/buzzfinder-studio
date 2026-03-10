@@ -146,6 +146,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
     setMapping({});
     setImportProgress(0);
     setImportedCount(0);
+    setInvalidRows([]);
+    setShowInvalid(false);
     onClose();
   };
 
