@@ -16,6 +16,7 @@ import CampaignsPage from "@/pages/Campaigns";
 import AnalyticsPage from "@/pages/Analytics";
 import SettingsPage from "@/pages/Settings";
 import CampaignDetailPage from "@/pages/CampaignDetail";
+import FollowUpSequencesPage from "@/pages/FollowUpSequences";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
