@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
