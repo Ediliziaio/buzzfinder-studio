@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Download, ListPlus, Globe, Star, ExternalLink, Mail } from "lucide-react";
+import { Download, ListPlus, Globe, Star, ExternalLink, Mail, Search } from "lucide-react";
 import type { Contact } from "@/types";
 
 interface Props {
