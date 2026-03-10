@@ -116,6 +116,14 @@ export interface Campaign {
   aperti_b: number;
   inviati_a: number;
   inviati_b: number;
+  ai_personalization_enabled: boolean;
+  ai_model: string | null;
+  ai_context: string | null;
+  ai_objective: string | null;
+  ai_personalization_status: string;
+  ai_personalization_processed: number;
+  ai_personalization_total: number;
+  ai_cost_eur: number;
   created_at: string;
 }
 
