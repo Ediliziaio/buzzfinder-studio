@@ -14,6 +14,7 @@ import ListsPage from "@/pages/Lists";
 import CampaignsPage from "@/pages/Campaigns";
 import AnalyticsPage from "@/pages/Analytics";
 import SettingsPage from "@/pages/Settings";
+import CampaignDetailPage from "@/pages/CampaignDetail";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
