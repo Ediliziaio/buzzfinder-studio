@@ -51,6 +51,7 @@ function AppRoutes() {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
         <Route path="/follow-up" element={<FollowUpSequencesPage />} />
+        <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

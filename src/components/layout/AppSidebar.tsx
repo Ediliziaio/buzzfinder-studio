@@ -23,6 +23,7 @@ const navItems = [
   { title: "Liste", path: "/lists", icon: List },
   { title: "Campagne", path: "/campaigns", icon: Send },
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
+  { title: "Suppression", path: "/suppression", icon: ShieldOff },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
   { title: "Impostazioni", path: "/settings", icon: Settings },
 ];
