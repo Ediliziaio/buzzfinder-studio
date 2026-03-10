@@ -650,7 +650,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
             <ChevronLeft className="mr-1 h-4 w-4" /> Indietro
           </Button>
 
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canNext()}
