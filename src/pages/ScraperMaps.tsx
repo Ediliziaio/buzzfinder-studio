@@ -107,12 +107,11 @@ export default function ScraperMapsPage() {
   }, [activeSessionId]);
 
   const handleStart = async () => {
-    if (!config.query || !config.citta) {
-      toast.error("Inserisci categoria e città");
+    if (!config.query || config.citta.length === 0) {
+      toast.error("Inserisci categoria e almeno una città");
       return;
     }
 
-    // Check n8n health first
     const n8nOk = await checkN8nHealth();
     if (!n8nOk) {
       toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
@@ -122,35 +121,43 @@ export default function ScraperMapsPage() {
       return;
     }
 
+    const sessionIds: string[] = [];
+    setResults([]);
+    setCurrentCityIndex(0);
+
     try {
-      // Create session in DB
-      const { data: session, error } = await supabase
-        .from("scraping_sessions")
-        .insert({
-          tipo: "google_maps",
-          query: config.query,
-          citta: config.citta,
-          raggio: config.raggio,
-          max_results: config.maxResults,
-          status: "pending",
-        })
-        .select()
-        .single();
+      for (let i = 0; i < config.citta.length; i++) {
+        const city = config.citta[i];
+        setCurrentCityIndex(i);
 
-      if (error) throw error;
+        const { data: session, error } = await supabase
+          .from("scraping_sessions")
+          .insert({
+            tipo: "google_maps",
+            query: config.query,
+            citta: city,
+            raggio: config.raggio,
+            max_results: config.maxResults,
+            status: "pending",
+          })
+          .select()
+          .single();
 
-      setActiveSessionId(session.id);
+        if (error) throw error;
+        sessionIds.push(session.id);
 
-      // Get n8n settings
-      const settings = await getN8nSettings();
-      const webhookPath = settings.n8n_webhook_scrape_maps || "/webhook/scrape-maps";
+        // Set the first session as active for monitoring
+        if (i === 0) {
+          setActiveSessionId(session.id);
+        }
 
-      // Trigger n8n
-      await toast.promise(
-        triggerN8nWebhook(webhookPath, {
+        const settings = await getN8nSettings();
+        const webhookPath = settings.n8n_webhook_scrape_maps || "/webhook/scrape-maps";
+
+        await triggerN8nWebhook(webhookPath, {
           session_id: session.id,
           query: config.query,
-          citta: config.citta,
+          citta: city,
           raggio_km: config.raggio,
           max_results: config.maxResults,
           filtri: {
@@ -159,18 +166,15 @@ export default function ScraperMapsPage() {
             rating_min: config.ratingMin,
             recensioni_min: config.recensioniMin,
           },
-        }),
-        {
-          loading: "Avvio job scraping su n8n...",
-          success: "Job avviato! Monitoraggio in corso.",
-          error: (err) => `Errore: ${err.message}`,
-        }
-      );
+        });
 
+        toast.success(`Job avviato per ${city} (${i + 1}/${config.citta.length})`);
+      }
+
+      setAllSessionIds(sessionIds);
       refetchSessions();
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
-      // Cleanup: mark session as failed if it was created
       if (activeSessionId) {
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", activeSessionId);
       }
