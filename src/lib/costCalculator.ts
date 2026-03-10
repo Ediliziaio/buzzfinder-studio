@@ -28,15 +28,6 @@ export function calculateEmailCost(recipientCount: number): CostBreakdown {
 }
 
 export function calculateSmsCost(recipientCount: number, messageLength: number): CostBreakdown {
-  // GSM7 vs UCS-2 aware SMS counting
-  const { isGsm7Only } = require("@/lib/campaignHelpers");
-  // We can't import dynamically, so inline the logic
-  const GSM7 = new Set(
-    "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ !\"#¤%&'()*+,-./:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-    "ÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà0123456789{}"
-  );
-  // For cost calculation we don't have the actual text, just the length
-  // The caller should pass accurate smsCount if needed; here we use 160 as default
   const smsCount = messageLength === 0 ? 0 : messageLength > 160 ? Math.ceil(messageLength / 153) : 1;
   const unitCost = 0.0085;
   const totalCost = recipientCount * unitCost * (smsCount || 1);
