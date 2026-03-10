@@ -1,4 +1,6 @@
-import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info } from "lucide-react";
+import { Mail, Phone, MessageSquare, Clock, Users, Euro, Zap, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { calculateCost, type CostBreakdown } from "@/lib/costCalculator";
 import type { WizardData } from "./CampaignWizard";
@@ -21,6 +23,9 @@ export function WizardStepReview({ data, costStimato, canale }: Props) {
     { icon: Users, label: "Destinatari", value: data.recipientCount.toLocaleString() },
     { icon: Zap, label: "Velocità", value: `${data.sending_rate_per_hour}/ora` },
     { icon: Clock, label: "Tempo stimato", value: etaLabel },
+    ...(data.scheduled_at
+      ? [{ icon: CalendarIcon, label: "Programmata per", value: format(data.scheduled_at, "dd MMM yyyy 'alle' HH:mm", { locale: it }) }]
+      : []),
   ];
 
   return (
@@ -133,7 +138,10 @@ export function WizardStepReview({ data, costStimato, canale }: Props) {
 
       <div className="rounded-lg border border-border bg-muted/50 p-3">
         <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-          ⚠️ La campagna verrà salvata come <strong>bozza</strong>. Potrai avviarla dalla pagina di dettaglio campagna.
+          {data.scheduled_at
+            ? `📅 La campagna verrà salvata come **schedulata** e inviata automaticamente il ${format(data.scheduled_at, "dd MMM yyyy", { locale: it })}.`
+            : "⚠️ La campagna verrà salvata come **bozza**. Potrai avviarla dalla pagina di dettaglio campagna."
+          }
         </p>
       </div>
     </div>

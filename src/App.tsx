@@ -16,6 +16,7 @@ import CampaignsPage from "@/pages/Campaigns";
 import AnalyticsPage from "@/pages/Analytics";
 import SettingsPage from "@/pages/Settings";
 import CampaignDetailPage from "@/pages/CampaignDetail";
+import FollowUpSequencesPage from "@/pages/FollowUpSequences";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ function AppRoutes() {
         <Route path="/lists" element={<ListsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+        <Route path="/follow-up" element={<FollowUpSequencesPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

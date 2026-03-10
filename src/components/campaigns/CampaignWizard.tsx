@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
-import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye } from "lucide-react";
+import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmailPreviewDialog } from "./EmailPreviewDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmailEditor } from "./EmailEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
@@ -46,6 +50,8 @@ export interface WizardData {
   filterHasTelefono: boolean;
   sending_rate_per_hour: number;
   recipientCount: number;
+  scheduled_at: Date | null;
+  scheduleTime: string;
 }
 
 const defaultData: WizardData = {
@@ -65,6 +71,8 @@ const defaultData: WizardData = {
   filterHasTelefono: false,
   sending_rate_per_hour: 500,
   recipientCount: 0,
+  scheduled_at: null,
+  scheduleTime: "09:00",
 };
 
 interface CampaignWizardProps {
@@ -105,10 +113,19 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const handleCreate = async () => {
     setSaving(true);
     try {
+      // Compute scheduled_at by combining date + time
+      let scheduledAt: string | null = null;
+      if (data.scheduled_at) {
+        const d = new Date(data.scheduled_at);
+        const [h, m] = data.scheduleTime.split(":").map(Number);
+        d.setHours(h, m, 0, 0);
+        scheduledAt = d.toISOString();
+      }
+
       const { error } = await supabase.from("campaigns").insert({
         nome: data.nome.trim(),
         tipo: data.tipo,
-        stato: "bozza",
+        stato: scheduledAt ? "schedulata" : "bozza",
         subject: data.subject || null,
         body_html: data.body_html || null,
         body_text: data.body_text || null,
@@ -119,9 +136,15 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         totale_destinatari: data.recipientCount,
         sending_rate_per_hour: data.sending_rate_per_hour,
         costo_stimato_eur: costStimato,
+        scheduled_at: scheduledAt,
       });
       if (error) throw error;
-      toast({ title: "Campagna creata", description: `"${data.nome}" salvata come bozza` });
+      toast({
+        title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
+        description: scheduledAt
+          ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })}`
+          : `"${data.nome}" salvata come bozza`,
+      });
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
@@ -298,6 +321,64 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1">
                 <span>50/h (sicuro)</span>
                 <span>2000/h (aggressivo)</span>
+              </div>
+            </div>
+
+            {/* Scheduling */}
+            <div className="rounded-lg border border-border bg-accent p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                <Label className="terminal-header">SCHEDULAZIONE (opzionale)</Label>
+              </div>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                Lascia vuoto per salvare come bozza, oppure scegli data e ora per programmare l'invio.
+              </p>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-mono text-xs h-8",
+                          !data.scheduled_at && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {data.scheduled_at ? format(data.scheduled_at, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={data.scheduled_at || undefined}
+                        onSelect={(date) => update({ scheduled_at: date || null })}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="w-[100px]">
+                  <Input
+                    type="time"
+                    value={data.scheduleTime}
+                    onChange={(e) => update({ scheduleTime: e.target.value })}
+                    className="h-8 font-mono text-xs"
+                    disabled={!data.scheduled_at}
+                  />
+                </div>
+                {data.scheduled_at && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs font-mono text-muted-foreground"
+                    onClick={() => update({ scheduled_at: null })}
+                  >
+                    Rimuovi
+                  </Button>
+                )}
               </div>
             </div>
           </div>
