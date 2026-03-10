@@ -31,7 +31,7 @@ interface Props {
 
 export function WebScraperQueue({
   urls, jobs, config, onConfigChange, onAddUrls, onImportFromMaps, onImportFromContacts,
-  onStart, onPause, onStop, onClearQueue, onJobClick, isRunning, stats,
+  onStart, onPause, onStop, onClearQueue, onJobClick, onRetryJob, isRunning, stats,
 }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
