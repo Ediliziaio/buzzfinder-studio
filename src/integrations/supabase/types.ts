@@ -14,7 +14,533 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_settings: {
+        Row: {
+          categoria: string | null
+          chiave: string
+          id: string
+          tipo: string | null
+          updated_at: string | null
+          valore: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          chiave: string
+          id?: string
+          tipo?: string | null
+          updated_at?: string | null
+          valore?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          chiave?: string
+          id?: string
+          tipo?: string | null
+          updated_at?: string | null
+          valore?: string | null
+        }
+        Relationships: []
+      }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string | null
+          canale_id: string | null
+          contact_id: string | null
+          errore: string | null
+          id: string
+          inviato_at: string | null
+          stato: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          canale_id?: string | null
+          contact_id?: string | null
+          errore?: string | null
+          id?: string
+          inviato_at?: string | null
+          stato?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          canale_id?: string | null
+          contact_id?: string | null
+          errore?: string | null
+          id?: string
+          inviato_at?: string | null
+          stato?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          aperti: number | null
+          body_html: string | null
+          body_text: string | null
+          cliccati: number | null
+          completed_at: string | null
+          consegnati: number | null
+          costo_reale_eur: number | null
+          costo_stimato_eur: number | null
+          created_at: string | null
+          errori: number | null
+          id: string
+          inviati: number | null
+          n8n_webhook_id: string | null
+          nome: string
+          provider: string | null
+          reply_to: string | null
+          scheduled_at: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sending_rate_per_hour: number | null
+          started_at: string | null
+          stato: string | null
+          subject: string | null
+          template_whatsapp_id: string | null
+          tipo: string
+          totale_destinatari: number | null
+        }
+        Insert: {
+          aperti?: number | null
+          body_html?: string | null
+          body_text?: string | null
+          cliccati?: number | null
+          completed_at?: string | null
+          consegnati?: number | null
+          costo_reale_eur?: number | null
+          costo_stimato_eur?: number | null
+          created_at?: string | null
+          errori?: number | null
+          id?: string
+          inviati?: number | null
+          n8n_webhook_id?: string | null
+          nome: string
+          provider?: string | null
+          reply_to?: string | null
+          scheduled_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sending_rate_per_hour?: number | null
+          started_at?: string | null
+          stato?: string | null
+          subject?: string | null
+          template_whatsapp_id?: string | null
+          tipo: string
+          totale_destinatari?: number | null
+        }
+        Update: {
+          aperti?: number | null
+          body_html?: string | null
+          body_text?: string | null
+          cliccati?: number | null
+          completed_at?: string | null
+          consegnati?: number | null
+          costo_reale_eur?: number | null
+          costo_stimato_eur?: number | null
+          created_at?: string | null
+          errori?: number | null
+          id?: string
+          inviati?: number | null
+          n8n_webhook_id?: string | null
+          nome?: string
+          provider?: string | null
+          reply_to?: string | null
+          scheduled_at?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sending_rate_per_hour?: number | null
+          started_at?: string | null
+          stato?: string | null
+          subject?: string | null
+          template_whatsapp_id?: string | null
+          tipo?: string
+          totale_destinatari?: number | null
+        }
+        Relationships: []
+      }
+      contact_activities: {
+        Row: {
+          campaign_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          descrizione: string | null
+          id: string
+          metadata: Json | null
+          tipo: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          descrizione?: string | null
+          id?: string
+          metadata?: Json | null
+          tipo: string
+        }
+        Update: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          descrizione?: string | null
+          id?: string
+          metadata?: Json | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_activities_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          azienda: string
+          cap: string | null
+          citta: string | null
+          cognome: string | null
+          created_at: string | null
+          email: string | null
+          email_confidence: number | null
+          email_valid: boolean | null
+          facebook_url: string | null
+          fonte: string | null
+          google_categories: string[] | null
+          google_maps_place_id: string | null
+          google_rating: number | null
+          google_reviews_count: number | null
+          id: string
+          indirizzo: string | null
+          instagram_url: string | null
+          lat: number | null
+          linkedin_url: string | null
+          lng: number | null
+          nome: string | null
+          note: string | null
+          provincia: string | null
+          regione: string | null
+          sito_web: string | null
+          stato: string | null
+          tags: string[] | null
+          telefono: string | null
+          telefono_normalizzato: string | null
+          ultima_attivita: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          azienda: string
+          cap?: string | null
+          citta?: string | null
+          cognome?: string | null
+          created_at?: string | null
+          email?: string | null
+          email_confidence?: number | null
+          email_valid?: boolean | null
+          facebook_url?: string | null
+          fonte?: string | null
+          google_categories?: string[] | null
+          google_maps_place_id?: string | null
+          google_rating?: number | null
+          google_reviews_count?: number | null
+          id?: string
+          indirizzo?: string | null
+          instagram_url?: string | null
+          lat?: number | null
+          linkedin_url?: string | null
+          lng?: number | null
+          nome?: string | null
+          note?: string | null
+          provincia?: string | null
+          regione?: string | null
+          sito_web?: string | null
+          stato?: string | null
+          tags?: string[] | null
+          telefono?: string | null
+          telefono_normalizzato?: string | null
+          ultima_attivita?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          azienda?: string
+          cap?: string | null
+          citta?: string | null
+          cognome?: string | null
+          created_at?: string | null
+          email?: string | null
+          email_confidence?: number | null
+          email_valid?: boolean | null
+          facebook_url?: string | null
+          fonte?: string | null
+          google_categories?: string[] | null
+          google_maps_place_id?: string | null
+          google_rating?: number | null
+          google_reviews_count?: number | null
+          id?: string
+          indirizzo?: string | null
+          instagram_url?: string | null
+          lat?: number | null
+          linkedin_url?: string | null
+          lng?: number | null
+          nome?: string | null
+          note?: string | null
+          provincia?: string | null
+          regione?: string | null
+          sito_web?: string | null
+          stato?: string | null
+          tags?: string[] | null
+          telefono?: string | null
+          telefono_normalizzato?: string | null
+          ultima_attivita?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      list_contacts: {
+        Row: {
+          contact_id: string
+          list_id: string
+        }
+        Insert: {
+          contact_id: string
+          list_id: string
+        }
+        Update: {
+          contact_id?: string
+          list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "list_contacts_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lists: {
+        Row: {
+          created_at: string | null
+          descrizione: string | null
+          filtri: Json | null
+          id: string
+          nome: string
+          tipo: string | null
+          totale_contatti: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          descrizione?: string | null
+          filtri?: Json | null
+          id?: string
+          nome: string
+          tipo?: string | null
+          totale_contatti?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          descrizione?: string | null
+          filtri?: Json | null
+          id?: string
+          nome?: string
+          tipo?: string | null
+          totale_contatti?: number | null
+        }
+        Relationships: []
+      }
+      scraping_jobs: {
+        Row: {
+          contact_id: string | null
+          created_at: string | null
+          emails_found: string[] | null
+          error_message: string | null
+          id: string
+          phones_found: string[] | null
+          processing_time_ms: number | null
+          session_id: string | null
+          social_found: Json | null
+          status: string | null
+          tentativo: number | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string | null
+          emails_found?: string[] | null
+          error_message?: string | null
+          id?: string
+          phones_found?: string[] | null
+          processing_time_ms?: number | null
+          session_id?: string | null
+          social_found?: Json | null
+          status?: string | null
+          tentativo?: number | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string | null
+          emails_found?: string[] | null
+          error_message?: string | null
+          id?: string
+          phones_found?: string[] | null
+          processing_time_ms?: number | null
+          session_id?: string | null
+          social_found?: Json | null
+          status?: string | null
+          tentativo?: number | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_jobs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraping_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scraping_sessions: {
+        Row: {
+          citta: string | null
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          max_results: number | null
+          n8n_webhook_id: string | null
+          progress_percent: number | null
+          query: string | null
+          raggio: number | null
+          started_at: string | null
+          status: string | null
+          tipo: string
+          totale_errori: number | null
+          totale_importati: number | null
+          totale_trovati: number | null
+        }
+        Insert: {
+          citta?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_results?: number | null
+          n8n_webhook_id?: string | null
+          progress_percent?: number | null
+          query?: string | null
+          raggio?: number | null
+          started_at?: string | null
+          status?: string | null
+          tipo: string
+          totale_errori?: number | null
+          totale_importati?: number | null
+          totale_trovati?: number | null
+        }
+        Update: {
+          citta?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_results?: number | null
+          n8n_webhook_id?: string | null
+          progress_percent?: number | null
+          query?: string | null
+          raggio?: number | null
+          started_at?: string | null
+          status?: string | null
+          tipo?: string
+          totale_errori?: number | null
+          totale_importati?: number | null
+          totale_trovati?: number | null
+        }
+        Relationships: []
+      }
+      usage_log: {
+        Row: {
+          campaign_id: string | null
+          costo_totale_eur: number | null
+          costo_unitario_eur: number | null
+          created_at: string | null
+          id: string
+          provider: string | null
+          quantita: number | null
+          tipo: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          costo_totale_eur?: number | null
+          costo_unitario_eur?: number | null
+          created_at?: string | null
+          id?: string
+          provider?: string | null
+          quantita?: number | null
+          tipo: string
+        }
+        Update: {
+          campaign_id?: string | null
+          costo_totale_eur?: number | null
+          costo_unitario_eur?: number | null
+          created_at?: string | null
+          id?: string
+          provider?: string | null
+          quantita?: number | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
