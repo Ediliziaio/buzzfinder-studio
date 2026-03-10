@@ -39,7 +39,7 @@ export function EmailEditor({ value, onChange }: Props) {
 
   useEffect(() => {
     if (editor && value && editor.getHTML() !== value && !editor.isFocused) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value);
     }
   }, [value, editor]);
 
