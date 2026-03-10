@@ -8,6 +8,8 @@ import type { ScrapingSession } from "@/types";
 interface Props {
   sessions: ScrapingSession[];
   onLoad: (sessionId: string) => void;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function MapsPreviousSessions({ sessions, onLoad }: Props) {
