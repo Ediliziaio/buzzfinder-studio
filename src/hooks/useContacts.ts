@@ -2,19 +2,30 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Contact, ContactFilters } from "@/types";
 
-export function useContacts(filters: ContactFilters) {
+const DEFAULT_PAGE_SIZE = 50;
+
+export function useContacts(filters: ContactFilters, pageSize = DEFAULT_PAGE_SIZE) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [filters]);
 
   const fetchContacts = useCallback(async () => {
     setIsLoading(true);
     try {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("contacts")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
-        .limit(500);
+        .range(from, to);
 
       if (filters.search) {
         query = query.or(
@@ -46,11 +57,22 @@ export function useContacts(filters: ContactFilters) {
     } finally {
       setIsLoading(false);
     }
-  }, [filters]);
+  }, [filters, page, pageSize]);
 
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
 
-  return { contacts, totalCount, isLoading, refetch: fetchContacts };
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  return {
+    contacts,
+    totalCount,
+    isLoading,
+    refetch: fetchContacts,
+    page,
+    setPage,
+    totalPages,
+    pageSize,
+  };
 }

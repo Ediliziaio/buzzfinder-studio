@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -6,8 +6,10 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import type { Contact } from "@/types";
-import { ExternalLink, Star } from "lucide-react";
+import { Star } from "lucide-react";
 
 interface Props {
   contacts: Contact[];
@@ -15,9 +17,13 @@ interface Props {
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   onContactClick: (contact: Contact) => void;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
 }
 
-export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionChange, onContactClick }: Props) {
+export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionChange, onContactClick, page, totalPages, totalCount, onPageChange }: Props) {
   const columns = useMemo<ColumnDef<Contact>[]>(() => [
     {
       id: "select",
@@ -137,7 +143,7 @@ export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionCha
     );
   }
 
-  if (contacts.length === 0) {
+  if (contacts.length === 0 && page === 0) {
     return (
       <div className="rounded-lg border border-border bg-card p-12 text-center">
         <div className="font-mono text-sm text-muted-foreground">Nessun contatto trovato</div>
@@ -147,42 +153,65 @@ export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionCha
   }
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="bg-accent">
-                {hg.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="terminal-header px-3 py-2 text-left"
-                    style={{ width: header.getSize() }}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row, i) => (
-              <tr
-                key={row.id}
-                className={`border-t border-border cursor-pointer transition-colors hover:bg-primary/5 hover:border-l-2 hover:border-l-primary ${
-                  i % 2 === 0 ? "bg-card" : "bg-background"
-                }`}
-                onClick={() => onContactClick(row.original)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-3">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="bg-accent">
+                  {hg.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="terminal-header px-3 py-2 text-left"
+                      style={{ width: header.getSize() }}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row, i) => (
+                <tr
+                  key={row.id}
+                  className={`border-t border-border cursor-pointer transition-colors hover:bg-primary/5 hover:border-l-2 hover:border-l-primary ${
+                    i % 2 === 0 ? "bg-card" : "bg-background"
+                  }`}
+                  onClick={() => onContactClick(row.original)}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-xs text-muted-foreground">
+          Pagina {page + 1} di {totalPages || 1} — {totalCount.toLocaleString()} contatti totali
+        </span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => onPageChange(0)}>
+            <ChevronsLeft className="h-3 w-3" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => onPageChange(page - 1)}>
+            <ChevronLeft className="h-3 w-3" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)}>
+            <ChevronRight className="h-3 w-3" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)}>
+            <ChevronsRight className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
     </div>
   );

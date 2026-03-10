@@ -40,6 +40,7 @@ export interface Contact {
   tags: string[];
   note: string | null;
   ultima_attivita: string | null;
+  scraping_session_id: string | null;
   created_at: string;
   updated_at: string;
 }

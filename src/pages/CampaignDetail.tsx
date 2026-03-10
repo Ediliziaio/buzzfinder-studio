@@ -66,6 +66,19 @@ export default function CampaignDetailPage() {
 
   const handleStatusChange = async (newStato: string) => {
     if (!campaign) return;
+
+    // Validate recipients before launch
+    if (newStato === "in_corso") {
+      const { count } = await supabase
+        .from("campaign_recipients")
+        .select("*", { count: "exact", head: true })
+        .eq("campaign_id", campaign.id);
+      if (!count || count === 0) {
+        toast.error("Aggiungi almeno un destinatario prima di lanciare la campagna");
+        return;
+      }
+    }
+
     const updates: Record<string, unknown> = { stato: newStato };
     if (newStato === "in_corso" && !campaign.started_at) updates.started_at = new Date().toISOString();
     if (newStato === "completata" && !campaign.completed_at) updates.completed_at = new Date().toISOString();

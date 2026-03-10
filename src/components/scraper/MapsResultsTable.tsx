@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,6 +8,13 @@ import {
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Download, ListPlus, Globe, Star, ExternalLink, Mail, Search } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportContactsCsv } from "@/lib/csvExporter";
+import { useLists } from "@/hooks/useLists";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { Contact } from "@/types";
 
 interface Props {
@@ -17,9 +24,48 @@ interface Props {
   sessionId: string | null;
   totalFound: number;
   duplicates: number;
+  onScrapeEmails?: (contacts: Contact[]) => void;
 }
 
-export function MapsResultsTable({ results, selectedIds, onSelectionChange, sessionId, totalFound, duplicates }: Props) {
+export function MapsResultsTable({ results, selectedIds, onSelectionChange, sessionId, totalFound, duplicates, onScrapeEmails }: Props) {
+  const { lists } = useLists();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    if (results.length === 0) { toast.error("Nessun risultato da esportare"); return; }
+    setExporting(true);
+    try {
+      await exportContactsCsv({});
+      toast.success(`${results.length} contatti esportati`);
+    } catch (err: any) {
+      toast.error(err.message || "Errore esportazione");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleAddToList = async (listId: string, listName: string) => {
+    const ids = selectedIds.size > 0 ? Array.from(selectedIds) : results.map((r) => r.id);
+    const inserts = ids.map((contact_id) => ({ list_id: listId, contact_id }));
+    const { error } = await supabase.from("list_contacts").upsert(inserts, { onConflict: "list_id,contact_id" });
+    if (error) { toast.error("Errore aggiunta a lista"); return; }
+    const { count } = await supabase.from("list_contacts").select("*", { count: "exact", head: true }).eq("list_id", listId);
+    await supabase.from("lists").update({ totale_contatti: count || 0 }).eq("id", listId);
+    toast.success(`${ids.length} contatti aggiunti a "${listName}"`);
+  };
+
+  const handleScrapeEmails = () => {
+    const selected = results.filter((r) => selectedIds.has(r.id) && r.sito_web);
+    if (selected.length === 0) { toast.error("Seleziona contatti con sito web"); return; }
+    if (onScrapeEmails) {
+      onScrapeEmails(selected);
+    } else {
+      // Navigate to web scraper with URLs
+      const urls = selected.map((c) => c.sito_web!).filter(Boolean);
+      toast.info(`${urls.length} URL pronti per lo scraping. Vai a Scraper → Siti Web.`);
+    }
+  };
+
   const columns = useMemo<ColumnDef<Contact>[]>(() => [
     {
       id: "select",
@@ -168,11 +214,6 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
               </Button>
             </a>
           )}
-          {row.original.sito_web && (
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Scrapa email">
-              <Mail className="h-3 w-3" />
-            </Button>
-          )}
         </div>
       ),
       size: 80,
@@ -204,14 +245,29 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="font-mono text-xs h-7">
-            <Download className="h-3 w-3 mr-1" /> ESPORTA CSV
+          <Button variant="outline" size="sm" className="font-mono text-xs h-7" onClick={handleExportCsv} disabled={exporting}>
+            <Download className="h-3 w-3 mr-1" /> {exporting ? "ESPORTA..." : "ESPORTA CSV"}
           </Button>
-          <Button variant="outline" size="sm" className="font-mono text-xs h-7">
-            <ListPlus className="h-3 w-3 mr-1" /> AGGIUNGI A LISTA
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="font-mono text-xs h-7">
+                <ListPlus className="h-3 w-3 mr-1" /> AGGIUNGI A LISTA
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {lists.length === 0 ? (
+                <DropdownMenuItem disabled className="font-mono text-xs text-muted-foreground">Nessuna lista</DropdownMenuItem>
+              ) : (
+                lists.map((l) => (
+                  <DropdownMenuItem key={l.id} onClick={() => handleAddToList(l.id, l.nome)} className="font-mono text-xs">
+                    {l.nome}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {selectedIds.size > 0 && (
-            <Button size="sm" className="font-mono text-xs h-7">
+            <Button size="sm" className="font-mono text-xs h-7" onClick={handleScrapeEmails}>
               <Mail className="h-3 w-3 mr-1" /> SCRAPA EMAIL ({selectedIds.size})
             </Button>
           )}
@@ -268,4 +324,3 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
     </div>
   );
 }
-

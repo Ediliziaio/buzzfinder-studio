@@ -244,6 +244,7 @@ export type Database = {
           note: string | null
           provincia: string | null
           regione: string | null
+          scraping_session_id: string | null
           sito_web: string | null
           stato: string | null
           tags: string[] | null
@@ -277,6 +278,7 @@ export type Database = {
           note?: string | null
           provincia?: string | null
           regione?: string | null
+          scraping_session_id?: string | null
           sito_web?: string | null
           stato?: string | null
           tags?: string[] | null
@@ -310,6 +312,7 @@ export type Database = {
           note?: string | null
           provincia?: string | null
           regione?: string | null
+          scraping_session_id?: string | null
           sito_web?: string | null
           stato?: string | null
           tags?: string[] | null
@@ -318,7 +321,15 @@ export type Database = {
           ultima_attivita?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_scraping_session_id_fkey"
+            columns: ["scraping_session_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       list_contacts: {
         Row: {

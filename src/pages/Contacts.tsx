@@ -20,13 +20,13 @@ export default function ContactsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const { contacts, totalCount, isLoading, refetch } = useContacts(filters);
+  const { contacts, totalCount, isLoading, refetch, page, setPage, totalPages } = useContacts(filters);
 
   const handleExport = async () => {
     setExporting(true);
     try {
       await exportContactsCsv(filters as Record<string, unknown>);
-      toast.success(`${contacts.length} contatti esportati`);
+      toast.success(`Contatti esportati`);
     } catch (err: any) {
       toast.error(err.message || "Errore esportazione");
     } finally {
@@ -58,7 +58,6 @@ export default function ContactsPage() {
       {/* Stats */}
       <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
         <span>Totale: <span className="text-foreground">{totalCount.toLocaleString()}</span></span>
-        <span>Filtrati: <span className="text-foreground">{contacts.length.toLocaleString()}</span></span>
         <span>Selezionati: <span className="text-foreground">{selectedIds.size}</span></span>
       </div>
 
@@ -72,13 +71,19 @@ export default function ContactsPage() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         onContactClick={setDetailContact}
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={setPage}
       />
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
         <BulkActionBar
           count={selectedIds.size}
+          selectedIds={selectedIds}
           onClear={() => setSelectedIds(new Set())}
+          onRefresh={refetch}
         />
       )}
 
