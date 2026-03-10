@@ -23,6 +23,7 @@ const navItems = [
   { title: "Campagne", path: "/campaigns", icon: Send },
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
+  { title: "Impostazioni", path: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
