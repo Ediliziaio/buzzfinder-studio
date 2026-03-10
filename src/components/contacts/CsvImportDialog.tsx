@@ -45,6 +45,8 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [importProgress, setImportProgress] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
+  const [invalidRows, setInvalidRows] = useState<{ row: Record<string, unknown>; errors: string }[]>([]);
+  const [showInvalid, setShowInvalid] = useState(false);
 
   const handleFile = (file: File) => {
     Papa.parse(file, {
@@ -54,7 +56,6 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
         const headers = results.meta.fields || [];
         setCsvHeaders(headers);
         setCsvData(results.data as Record<string, string>[]);
-        // Auto-map by name similarity
         const autoMap: Record<string, string> = {};
         headers.forEach((h) => {
           const lower = h.toLowerCase().trim();
@@ -81,38 +82,61 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
   const handleImport = async () => {
     setStep("importing");
-    const batch: any[] = [];
+    const rawBatch: Record<string, unknown>[] = [];
 
     for (const row of csvData) {
-      const contact: Record<string, string> = {};
+      const contact: Record<string, unknown> = {};
       for (const [csvCol, field] of Object.entries(mapping)) {
         if (field !== "skip" && row[csvCol]) {
           contact[field] = row[csvCol];
         }
       }
       if (!contact.azienda) contact.azienda = "Senza nome";
+      // Normalize before validation
+      if (typeof contact.telefono === "string") {
+        contact.telefono_normalizzato = normalizeItalianPhone(contact.telefono);
+      }
+      if (typeof contact.email === "string") {
+        contact.email = contact.email.toLowerCase().trim();
+      }
+      if (typeof contact.sito_web === "string" && !(contact.sito_web as string).startsWith("http")) {
+        contact.sito_web = `https://${contact.sito_web}`;
+      }
       contact.fonte = "csv_import";
       contact.stato = "nuovo";
-      batch.push(contact);
+      rawBatch.push(contact);
     }
 
-    // Insert in chunks of 100
+    // Validate with Zod
+    const { valid, invalid } = validateContactBatch(rawBatch);
+    setInvalidRows(invalid);
+
+    if (valid.length === 0) {
+      toast.error(`Nessuna riga valida su ${rawBatch.length}. Controlla i dati.`);
+      setStep("done");
+      return;
+    }
+
+    // Insert valid rows in chunks of 100
     const chunkSize = 100;
     let imported = 0;
-    for (let i = 0; i < batch.length; i += chunkSize) {
-      const chunk = batch.slice(i, i + chunkSize);
+    for (let i = 0; i < valid.length; i += chunkSize) {
+      const chunk = valid.slice(i, i + chunkSize);
       const { error } = await supabase.from("contacts").insert(chunk as any);
       if (error) {
         console.error("Import error:", error);
       }
       imported += chunk.length;
       setImportedCount(imported);
-      setImportProgress(Math.round((imported / batch.length) * 100));
+      setImportProgress(Math.round((imported / valid.length) * 100));
     }
 
-    toast.success(`${imported} contatti importati con successo`);
+    const msg = invalid.length > 0
+      ? `${imported} contatti importati, ${invalid.length} scartati per errori di validazione`
+      : `${imported} contatti importati con successo`;
+    toast.success(msg);
     onComplete();
-    resetAndClose();
+    setStep("done");
   };
 
   const resetAndClose = () => {
