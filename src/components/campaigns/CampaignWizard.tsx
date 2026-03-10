@@ -70,6 +70,10 @@ export interface WizardData {
   recipientCount: number;
   scheduled_at: Date | null;
   scheduleTime: string;
+  aiEnabled: boolean;
+  aiModel: string;
+  aiContext: string;
+  aiObjective: string;
 }
 
 const defaultData: WizardData = {
