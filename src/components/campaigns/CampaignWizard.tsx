@@ -29,6 +29,7 @@ const STEPS = [
   { id: "tipo", label: "Canale", icon: Mail },
   { id: "destinatari", label: "Destinatari", icon: Users },
   { id: "contenuto", label: "Contenuto", icon: FileText },
+  { id: "ai", label: "AI ✨", icon: Sparkles },
   { id: "riepilogo", label: "Riepilogo", icon: Eye },
 ] as const;
 
