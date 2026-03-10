@@ -25,7 +25,7 @@ const sampleVars: Record<string, string> = {
 function replaceVariables(html: string): string {
   let result = html;
   for (const [key, val] of Object.entries(sampleVars)) {
-    result = result.replaceAll(key, val);
+    result = result.split(key).join(val);
   }
   return result;
 }
