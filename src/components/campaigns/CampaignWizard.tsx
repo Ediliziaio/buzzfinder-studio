@@ -231,6 +231,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                     value={data.body_html}
                     onChange={(html) => update({ body_html: html })}
                   />
+                  <div className="flex gap-2 mt-2">
+                    <Button type="button" variant="outline" size="sm" className="font-mono text-xs" onClick={() => setShowPreview(true)}>
+                      <Eye className="h-3 w-3 mr-1" /> Preview Email
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
