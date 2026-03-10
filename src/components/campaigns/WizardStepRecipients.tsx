@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Users, ListFilter, Database } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useLists } from "@/hooks/useLists";
 import type { WizardData } from "./CampaignWizard";
+import type { ContactList } from "@/types";
 
 const STATI = [
   { value: "nuovo", label: "Nuovo" },
@@ -27,15 +29,94 @@ interface Props {
   update: (partial: Partial<WizardData>) => void;
 }
 
+function applyChannelFilter(query: any, tipo: string) {
+  if (tipo === "email") {
+    return query.not("email", "is", null);
+  } else if (tipo === "sms" || tipo === "whatsapp") {
+    return query.not("telefono", "is", null);
+  }
+  return query;
+}
+
+function applyDynamicFilters(query: any, filtri: Record<string, unknown>) {
+  if (Array.isArray(filtri.stato) && filtri.stato.length > 0) {
+    query = query.in("stato", filtri.stato);
+  }
+  if (Array.isArray(filtri.fonte) && filtri.fonte.length > 0) {
+    query = query.in("fonte", filtri.fonte);
+  }
+  if (Array.isArray(filtri.citta) && filtri.citta.length > 0) {
+    query = query.in("citta", filtri.citta);
+  }
+  if (typeof filtri.citta === "string" && filtri.citta) {
+    query = query.eq("citta", filtri.citta);
+  }
+  if (filtri.hasEmail) {
+    query = query.not("email", "is", null);
+  }
+  if (filtri.hasTelefono) {
+    query = query.not("telefono", "is", null);
+  }
+  return query;
+}
+
+function describeDynamicFilters(filtri: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (Array.isArray(filtri.stato) && filtri.stato.length > 0) parts.push(`Stato: ${filtri.stato.join(", ")}`);
+  if (Array.isArray(filtri.fonte) && filtri.fonte.length > 0) parts.push(`Fonte: ${filtri.fonte.join(", ")}`);
+  const citta = Array.isArray(filtri.citta) ? filtri.citta.join(", ") : filtri.citta;
+  if (citta) parts.push(`Città: ${citta}`);
+  if (filtri.hasEmail) parts.push("Con email");
+  if (filtri.hasTelefono) parts.push("Con telefono");
+  return parts.length > 0 ? parts.join(" · ") : "Nessun filtro configurato";
+}
+
 export function WizardStepRecipients({ data, update }: Props) {
   const { lists } = useLists();
   const [counting, setCounting] = useState(false);
+
+  const selectedList = useMemo(
+    () => lists.find((l) => l.id === data.selectedListId) || null,
+    [lists, data.selectedListId]
+  );
 
   // Count recipients based on selection
   useEffect(() => {
     const countRecipients = async () => {
       setCounting(true);
       try {
+        if (data.recipientSource === "list" && data.selectedListId && selectedList) {
+          if (selectedList.tipo === "dinamica") {
+            // Dynamic list: apply saved filtri + channel filter
+            let query = supabase.from("contacts").select("id", { count: "exact", head: true });
+            const filtri = (selectedList.filtri || {}) as Record<string, unknown>;
+            query = applyDynamicFilters(query, filtri);
+            query = applyChannelFilter(query, data.tipo);
+            const { count } = await query;
+            update({ recipientCount: count || 0 });
+          } else {
+            // Static list: get contact IDs from join table, then filter by channel
+            const { data: lcData } = await supabase
+              .from("list_contacts")
+              .select("contact_id")
+              .eq("list_id", data.selectedListId);
+            const contactIds = (lcData || []).map((r) => r.contact_id);
+            if (contactIds.length === 0) {
+              update({ recipientCount: 0 });
+            } else {
+              let query = supabase
+                .from("contacts")
+                .select("id", { count: "exact", head: true })
+                .in("id", contactIds);
+              query = applyChannelFilter(query, data.tipo);
+              const { count } = await query;
+              update({ recipientCount: count || 0 });
+            }
+          }
+          setCounting(false);
+          return;
+        }
+
         let query = supabase.from("contacts").select("id", { count: "exact", head: true });
 
         if (data.recipientSource === "filter") {
@@ -49,20 +130,7 @@ export function WizardStepRecipients({ data, update }: Props) {
             query = query.not("telefono", "is", null);
           }
         } else if (data.recipientSource === "all") {
-          // For email, only count those with email; for sms/whatsapp, those with phone
-          if (data.tipo === "email") {
-            query = query.not("email", "is", null);
-          } else {
-            query = query.not("telefono", "is", null);
-          }
-        } else if (data.recipientSource === "list" && data.selectedListId) {
-          const { count } = await supabase
-            .from("list_contacts")
-            .select("contact_id", { count: "exact", head: true })
-            .eq("list_id", data.selectedListId);
-          update({ recipientCount: count || 0 });
-          setCounting(false);
-          return;
+          query = applyChannelFilter(query, data.tipo);
         }
 
         const { count } = await query;
@@ -75,7 +143,7 @@ export function WizardStepRecipients({ data, update }: Props) {
     };
 
     countRecipients();
-  }, [data.recipientSource, data.selectedListId, data.filterStato, data.filterHasEmail, data.filterHasTelefono, data.tipo]);
+  }, [data.recipientSource, data.selectedListId, data.filterStato, data.filterHasEmail, data.filterHasTelefono, data.tipo, selectedList]);
 
   const toggleStato = (stato: string) => {
     const current = data.filterStato;
@@ -109,7 +177,7 @@ export function WizardStepRecipients({ data, update }: Props) {
       </div>
 
       {data.recipientSource === "list" && (
-        <div>
+        <div className="space-y-2">
           <Label className="terminal-header mb-1.5 block">Seleziona lista</Label>
           <Select value={data.selectedListId} onValueChange={(v) => update({ selectedListId: v })}>
             <SelectTrigger className="font-mono text-sm">
@@ -118,11 +186,23 @@ export function WizardStepRecipients({ data, update }: Props) {
             <SelectContent>
               {lists.map((l) => (
                 <SelectItem key={l.id} value={l.id} className="font-mono text-sm">
-                  {l.nome} ({l.totale_contatti} contatti)
+                  <span className="flex items-center gap-2">
+                    {l.nome} ({l.totale_contatti})
+                    <Badge variant={l.tipo === "dinamica" ? "secondary" : "outline"} className="text-[9px] px-1.5 py-0">
+                      {l.tipo === "dinamica" ? "Dinamica" : "Statica"}
+                    </Badge>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectedList?.tipo === "dinamica" && (
+            <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
+              <span className="font-mono text-[10px] text-muted-foreground">
+                Filtri: {describeDynamicFilters((selectedList.filtri || {}) as Record<string, unknown>)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
