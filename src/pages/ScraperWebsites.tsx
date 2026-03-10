@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
@@ -153,10 +154,12 @@ export default function ScraperWebsitesPage() {
     }
 
     try {
+      const user_id = await getCurrentUserId();
       // Create session
       const { data: sess, error } = await supabase
         .from("scraping_sessions")
         .insert({
+          user_id,
           tipo: "website",
           status: "pending",
           max_results: urls.length,

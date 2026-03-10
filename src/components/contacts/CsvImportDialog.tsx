@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "sonner";
 import { Upload, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import Papa from "papaparse";
@@ -85,6 +86,7 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
 
   const handleImport = async () => {
     setStep("importing");
+    const user_id = await getCurrentUserId();
     const rawBatch: Record<string, unknown>[] = [];
 
     for (const row of csvData) {
@@ -107,6 +109,7 @@ export function CsvImportDialog({ open, onClose, onComplete }: Props) {
       }
       contact.fonte = "csv_import";
       contact.stato = "nuovo";
+      contact.user_id = user_id;
       // Apply default tags
       const tagsArr = defaultTags.split(",").map((t) => t.trim()).filter(Boolean);
       if (tagsArr.length > 0) {

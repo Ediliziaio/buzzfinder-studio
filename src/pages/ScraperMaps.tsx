@@ -7,6 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { useScrapingSession, useScrapingSessions } from "@/hooks/useScrapingSession";
 import { MapsConfigPanel } from "@/components/scraper/MapsConfigPanel";
@@ -126,6 +127,7 @@ export default function ScraperMapsPage() {
     setCurrentCityIndex(0);
 
     try {
+      const user_id = await getCurrentUserId();
       for (let i = 0; i < config.citta.length; i++) {
         const city = config.citta[i];
         setCurrentCityIndex(i);
@@ -133,6 +135,7 @@ export default function ScraperMapsPage() {
         const { data: session, error } = await supabase
           .from("scraping_sessions")
           .insert({
+            user_id,
             tipo: "google_maps",
             query: config.query,
             citta: city,

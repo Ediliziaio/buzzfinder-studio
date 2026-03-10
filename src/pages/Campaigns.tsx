@@ -7,6 +7,7 @@ import { CampaignsList } from "@/components/campaigns/CampaignsList";
 import { CampaignWizard } from "@/components/campaigns/CampaignWizard";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import type { Campaign } from "@/types";
 
@@ -24,7 +25,9 @@ export default function CampaignsPage() {
 
   const handleDuplicate = async (campaign: Campaign) => {
     try {
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("campaigns").insert({
+        user_id,
         nome: `${campaign.nome} (copia)`,
         tipo: campaign.tipo,
         stato: "bozza",

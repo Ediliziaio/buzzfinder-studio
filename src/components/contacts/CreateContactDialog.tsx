@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getCurrentUserId } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,8 +45,10 @@ export function CreateContactDialog({ open, onClose, onCreated }: Props) {
     }
     setSaving(true);
     try {
+      const user_id = await getCurrentUserId();
       const telefono_normalizzato = normalizeItalianPhone(form.telefono);
       const { error } = await supabase.from("contacts").insert({
+        user_id,
         azienda: form.azienda.trim(),
         nome: form.nome.trim() || null,
         cognome: form.cognome.trim() || null,

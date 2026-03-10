@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "sonner";
 import type { ContactFilters, ContactStato, ContactFonte } from "@/types";
 
@@ -41,7 +42,9 @@ export function ContactFiltersBar({ filters, onChange }: Props) {
     if (!listName.trim()) return;
     setSavingList(true);
     try {
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("lists").insert({
+        user_id,
         nome: listName.trim(),
         tipo: "dinamica",
         filtri: filters as any,

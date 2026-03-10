@@ -1,30 +1,26 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactList } from "@/types";
 
+async function fetchLists() {
+  const { data, error } = await supabase
+    .from("lists")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as ContactList[]) || [];
+}
+
 export function useLists() {
-  const [lists, setLists] = useState<ContactList[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const query = useQuery({
+    queryKey: ["lists"],
+    queryFn: fetchLists,
+    staleTime: 30_000,
+  });
 
-  const fetchLists = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("lists")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setLists((data as unknown as ContactList[]) || []);
-    } catch (err) {
-      console.error("Error fetching lists:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLists();
-  }, [fetchLists]);
-
-  return { lists, isLoading, refetch: fetchLists };
+  return {
+    lists: query.data || [],
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
 }

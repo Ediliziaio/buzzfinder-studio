@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "sonner";
 import type { ListTipo, ContactStato, ContactFonte } from "@/types";
 
@@ -69,7 +70,9 @@ export function CreateListDialog({ open, onClose, onCreated }: Props) {
         totale = count || 0;
       }
 
+      const user_id = await getCurrentUserId();
       const { error } = await supabase.from("lists").insert([{
+        user_id,
         nome: nome.trim(),
         descrizione: descrizione.trim() || null,
         tipo,
