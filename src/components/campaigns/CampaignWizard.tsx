@@ -120,11 +120,13 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [data, setData] = useState<WizardData>({ ...defaultData });
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
 
   // Load sender defaults from app_settings when wizard opens (Bug M3)
   useEffect(() => {
     if (open) {
       setStep(0);
+      setTemplates([]);
       supabase
         .from("app_settings")
         .select("chiave, valore")
@@ -141,6 +143,17 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         });
     }
   }, [open]);
+
+  // Load templates when tipo changes
+  useEffect(() => {
+    if (!data.tipo || !open) return;
+    supabase.from("campaign_templates" as any)
+      .select("*")
+      .eq("tipo", data.tipo)
+      .order("utilizzi", { ascending: false })
+      .limit(6)
+      .then(({ data: tpl }) => setTemplates(tpl || []));
+  }, [data.tipo, open]);
 
   const update = (partial: Partial<WizardData>) => setData((d) => ({ ...d, ...partial }));
 
