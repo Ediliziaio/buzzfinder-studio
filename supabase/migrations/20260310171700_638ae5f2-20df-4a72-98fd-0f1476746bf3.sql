@@ -1,0 +1,1 @@
+ALTER TABLE public.contacts ADD COLUMN scraping_session_id UUID REFERENCES public.scraping_sessions(id) ON DELETE SET NULL;
