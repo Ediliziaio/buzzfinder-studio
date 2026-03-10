@@ -135,6 +135,8 @@ export interface CampaignRecipient {
   canale_id: string | null;
   inviato_at: string | null;
   errore: string | null;
+  messaggio_personalizzato: string | null;
+  soggetto_personalizzato: string | null;
 }
 
 export interface ContactActivity {
