@@ -264,6 +264,24 @@ export default function ScraperMapsPage() {
           duplicates={activeSession ? (activeSession.totale_trovati - activeSession.totale_importati) : 0}
         />
       </div>
+
+      {/* Stop confirmation dialog */}
+      <AlertDialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermare lo scraping?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Lo scraping verrà interrotto. I risultati già importati verranno mantenuti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
