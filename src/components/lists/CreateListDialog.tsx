@@ -69,13 +69,13 @@ export function CreateListDialog({ open, onClose, onCreated }: Props) {
         totale = count || 0;
       }
 
-      const { error } = await supabase.from("lists").insert({
+      const { error } = await supabase.from("lists").insert([{
         nome: nome.trim(),
         descrizione: descrizione.trim() || null,
         tipo,
         filtri,
         totale_contatti: totale,
-      });
+      }]);
       if (error) throw error;
       toast.success("Lista creata");
       reset();
