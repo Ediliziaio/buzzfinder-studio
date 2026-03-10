@@ -650,9 +650,11 @@ export type Database = {
           id: string
           max_results: number | null
           n8n_webhook_id: string | null
+          paused_at: string | null
           progress_percent: number | null
           query: string | null
           raggio: number | null
+          resumed_at: string | null
           started_at: string | null
           status: string | null
           tipo: string
@@ -669,9 +671,11 @@ export type Database = {
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
+          paused_at?: string | null
           progress_percent?: number | null
           query?: string | null
           raggio?: number | null
+          resumed_at?: string | null
           started_at?: string | null
           status?: string | null
           tipo: string
@@ -688,9 +692,11 @@ export type Database = {
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
+          paused_at?: string | null
           progress_percent?: number | null
           query?: string | null
           raggio?: number | null
+          resumed_at?: string | null
           started_at?: string | null
           status?: string | null
           tipo?: string
