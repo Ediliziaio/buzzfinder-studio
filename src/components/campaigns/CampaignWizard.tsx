@@ -50,6 +50,8 @@ export interface WizardData {
   filterHasTelefono: boolean;
   sending_rate_per_hour: number;
   recipientCount: number;
+  scheduled_at: Date | null;
+  scheduleTime: string;
 }
 
 const defaultData: WizardData = {
@@ -69,6 +71,8 @@ const defaultData: WizardData = {
   filterHasTelefono: false,
   sending_rate_per_hour: 500,
   recipientCount: 0,
+  scheduled_at: null,
+  scheduleTime: "09:00",
 };
 
 interface CampaignWizardProps {
