@@ -171,6 +171,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         );
       }
     }
+    if (step === 3) return true; // AI step is optional
     return true;
   };
 
