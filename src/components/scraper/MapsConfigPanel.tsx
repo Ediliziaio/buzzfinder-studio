@@ -230,7 +230,9 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, onS
       <div className="rounded-md border border-border bg-accent p-3 space-y-1">
         <div className="terminal-header">STIMA COSTI API</div>
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs text-muted-foreground">Google Places: ~€2.50 / 1.000</span>
+          <span className="font-mono text-xs text-muted-foreground">
+            Google Places: ~€2.50 / 1.000 {config.citta.length > 1 ? `× ${config.citta.length} città` : ""}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground">⚡</span>
