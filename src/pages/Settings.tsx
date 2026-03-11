@@ -68,6 +68,10 @@ export default function SettingsPage() {
   const [senders, setSenders] = useState<{ email: string; name: string }[]>([]);
   const [newSender, setNewSender] = useState({ email: "", name: "" });
   const [exporting, setExporting] = useState<string | null>(null);
+  const [senderTipoFilter, setSenderTipoFilter] = useState<"email" | "whatsapp" | "sms" | undefined>(undefined);
+  const { senders: poolSenders, loading: poolLoading, fetchSenders: refetchPool, toggleActive: togglePoolActive, deleteSender: deletePoolSender } = useSenderPool(senderTipoFilter);
+  const [editingSender, setEditingSender] = useState<SenderPool | null>(null);
+  const [senderDialogOpen, setSenderDialogOpen] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
 
