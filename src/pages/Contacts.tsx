@@ -46,6 +46,9 @@ export default function ContactsPage() {
           <h1 className="font-display text-xl font-bold text-foreground">CONTATTI</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowValidation(true)}>
+            <ShieldCheck className="h-4 w-4 mr-1" /> VERIFICA EMAIL
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="h-4 w-4 mr-1" /> IMPORTA CSV
           </Button>
