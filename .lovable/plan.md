@@ -1,42 +1,18 @@
 
 
-# Drag-and-Drop Kanban + Weekly Deliverability Report
+## Creazione Account Superadmin
 
-## Part 1: Drag-and-Drop Pipeline
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-Use native HTML5 Drag and Drop API (no new dependencies needed).
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-### LeadCard changes
-- Add `draggable="true"`, `onDragStart` handler that sets `dataTransfer` with `lead.id`
-- Add visual feedback class during drag (`opacity-50`)
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-### KanbanColumn changes
-- Add `onDragOver` (preventDefault to allow drop), `onDrop` handler that reads lead ID and calls `onMoveStage(leadId, stage.id)`
-- Add visual highlight on drag-over state (e.g. `bg-primary/10` ring)
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-### Pipeline.tsx
-- No changes needed — `moveStage` already handles any stage-to-stage movement
-
-### Files changed
-| File | Action |
-|------|--------|
-| `src/components/pipeline/LeadCard.tsx` | Add draggable + onDragStart |
-| `src/components/pipeline/KanbanColumn.tsx` | Add onDragOver + onDrop with highlight |
-
-## Part 2: Weekly Deliverability Report Edge Function
-
-Create `supabase/functions/weekly-report/index.ts` that:
-1. Queries all active senders per user from `sender_pool`
-2. Queries recent `blacklist_checks`
-3. Builds an HTML email summary with health scores, bounce/spam rates, blacklist status
-4. Sends via Resend (using first active email sender's API key) or logs if no sender configured
-
-Schedule via `pg_cron` to run weekly (Sundays at 9am).
-
-### Files changed
-| File | Action |
-|------|--------|
-| `supabase/functions/weekly-report/index.ts` | Create edge function |
-| `supabase/config.toml` | Add `[functions.weekly-report]` |
-| SQL (non-migration) | Schedule pg_cron job |
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 

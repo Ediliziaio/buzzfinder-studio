@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { LeadCard, type PipelineLeadWithRelations } from "./LeadCard";
 
@@ -16,8 +17,30 @@ interface Props {
 }
 
 export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => setDragOver(false);
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const leadId = e.dataTransfer.getData("text/plain");
+    if (leadId) onMoveStage(leadId, stage.id);
+  };
+
   return (
-    <div className={`flex-shrink-0 w-72 border-t-2 ${stage.colorClass} rounded-xl bg-muted/30`}>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex-shrink-0 w-72 border-t-2 ${stage.colorClass} rounded-xl transition-colors ${dragOver ? "bg-primary/10 ring-2 ring-primary/30" : "bg-muted/30"}`}
+    >
       <div className="p-3 flex items-center justify-between">
         <span className="font-mono text-sm font-semibold text-foreground">{stage.label}</span>
         <Badge variant="outline" className="font-mono text-xs">{leads.length}</Badge>
