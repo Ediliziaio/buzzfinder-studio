@@ -179,6 +179,47 @@ export interface ContactList {
   created_at: string;
 }
 
+export interface SenderPool {
+  id: string;
+  user_id: string;
+  nome: string;
+  tipo: 'email' | 'whatsapp' | 'sms';
+  attivo: boolean;
+  stato: 'active' | 'warming' | 'paused' | 'banned';
+  note?: string;
+  email_from?: string;
+  email_nome?: string;
+  reply_to?: string;
+  dominio?: string;
+  resend_api_key?: string;
+  spf_ok: boolean;
+  dkim_ok: boolean;
+  dmarc_ok: boolean;
+  wa_phone_number_id?: string;
+  wa_access_token?: string;
+  wa_numero?: string;
+  wa_tier: string;
+  wa_quality: string;
+  sms_from?: string;
+  sms_provider: string;
+  sms_api_key?: string;
+  sms_api_secret?: string;
+  max_per_day: number;
+  inviati_oggi: number;
+  ultimo_reset: string;
+  bounce_rate: number;
+  spam_rate: number;
+  health_score: number;
+  warmup_attivo: boolean;
+  warmup_giorno: number;
+  warmup_iniziato?: string;
+  totale_inviati: number;
+  totale_bounce: number;
+  totale_spam: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ContactFilters {
   search?: string;
   stato?: ContactStato[];

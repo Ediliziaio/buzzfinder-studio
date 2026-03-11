@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
+import { AssignmentResultDialog, type AssignmentResult } from "@/components/senders/AssignmentResultDialog";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
@@ -38,6 +39,10 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showReplica, setShowReplica] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignmentResult, setAssignmentResult] = useState<AssignmentResult | null>(null);
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [confirmingLaunch, setConfirmingLaunch] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +104,39 @@ export default function CampaignDetailPage() {
     } catch (err: any) {
       toast.error(`Errore: ${err.message}`);
     }
+  };
+
+  const handleLaunchCampaign = async () => {
+    if (!campaign) return;
+    setIsAssigning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assign-senders", {
+        body: { campaign_id: campaign.id },
+      });
+      if (error) throw error;
+      if (data.assigned === 0 && data.warnings?.length > 0) {
+        toast.error(data.warnings[0]);
+        return;
+      }
+      setAssignmentResult(data as AssignmentResult);
+      setShowAssignmentDialog(true);
+    } catch (err: any) {
+      // If edge function not deployed, skip assignment and launch directly
+      if (err.message?.includes("not found") || err.message?.includes("404")) {
+        handleStatusChange("in_corso");
+      } else {
+        toast.error("Errore assegnazione mittenti: " + err.message);
+      }
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const confirmLaunchAfterAssignment = async () => {
+    setConfirmingLaunch(true);
+    await handleStatusChange("in_corso");
+    setConfirmingLaunch(false);
+    setShowAssignmentDialog(false);
   };
 
   const handleStatusChange = async (newStato: string) => {
@@ -281,27 +319,9 @@ export default function CampaignDetailPage() {
             </Button>
           )}
           {campaign.stato === "bozza" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" className="font-mono text-xs">
-                  <Send className="h-3 w-3 mr-1" /> LANCIA
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="font-mono">Lancia campagna?</AlertDialogTitle>
-                  <AlertDialogDescription className="font-mono text-xs">
-                    Stai per lanciare "{campaign.nome}" verso {campaign.totale_destinatari.toLocaleString()} destinatari via {campaign.tipo}. Questa azione avvierà l'invio tramite n8n.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="font-mono text-xs">Annulla</AlertDialogCancel>
-                  <AlertDialogAction className="font-mono text-xs" onClick={() => handleStatusChange("in_corso")}>
-                    <Send className="h-3 w-3 mr-1" /> Conferma invio
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button size="sm" className="font-mono text-xs" onClick={handleLaunchCampaign} disabled={isAssigning}>
+              <Send className="h-3 w-3 mr-1" /> {isAssigning ? "Assegnazione..." : "LANCIA"}
+            </Button>
           )}
         </div>
       </div>
@@ -482,6 +502,15 @@ export default function CampaignDetailPage() {
           onReplicated={() => { loadCampaign(); }}
         />
       )}
+
+      {/* Assignment Result Dialog */}
+      <AssignmentResultDialog
+        open={showAssignmentDialog}
+        onOpenChange={setShowAssignmentDialog}
+        result={assignmentResult}
+        onConfirm={confirmLaunchAfterAssignment}
+        confirming={confirmingLaunch}
+      />
     </div>
   );
 }
