@@ -19,6 +19,7 @@ import CampaignDetailPage from "@/pages/CampaignDetail";
 import FollowUpSequencesPage from "@/pages/FollowUpSequences";
 import SuppressionListPage from "@/pages/SuppressionList";
 import UniboxPage from "@/pages/Unibox";
+import PipelinePage from "@/pages/Pipeline";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
