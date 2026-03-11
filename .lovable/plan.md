@@ -1,14 +1,18 @@
 
 
-## Piano: Fix Critici Edge Functions — Schema DB
+## Creazione Account Superadmin
 
-Analizzo i file delle Edge Functions per applicare i fix corretti al schema DB (chiave/valore, contact_id, rimozione n8n_settings).
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-### File da modificare:
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-| File | Azione |
-|------|--------|
-| `supabase/functions/process-sequence/index.ts` | Sovrascrivere con nuova versione |
-| `supabase/functions/handle-reply/index.ts` | Fix: `key`→`chiave`, `contatto_id`→`contact_id` |
-| `supabase/functions/validate-emails/index.ts` | Fix: `key`→`chiave`, `value`→`valore` |
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
+
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
+
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 
