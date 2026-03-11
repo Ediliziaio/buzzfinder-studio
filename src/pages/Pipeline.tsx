@@ -14,7 +14,7 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-  const { leads, isLoading, moveStage, updateNote } = usePipeline();
+  const { leads, isLoading, moveStage, updateNote, updateValue } = usePipeline();
 
   const totaleValore = leads
     .filter((l) => l.pipeline_stage !== "perso")
