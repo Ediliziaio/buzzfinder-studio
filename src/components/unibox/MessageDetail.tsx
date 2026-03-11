@@ -26,6 +26,7 @@ interface Props {
 }
 
 export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsUnread, onSaveNote }: Props) {
+  const [showReply, setShowReply] = useState(false);
   const canaleIcon = message.canale === "email" ? "📧" : message.canale === "whatsapp" ? "💬" : "📱";
 
   const handleAddToPipeline = async () => {
