@@ -93,6 +93,10 @@ export type Database = {
           inviato_at: string | null
           messaggio_personalizzato: string | null
           opened_at: string | null
+          pipeline_note: string | null
+          pipeline_stage: string | null
+          pipeline_updated: string | null
+          risposta_at: string | null
           sender_id: string | null
           soggetto_personalizzato: string | null
           stato: string | null
@@ -108,6 +112,10 @@ export type Database = {
           inviato_at?: string | null
           messaggio_personalizzato?: string | null
           opened_at?: string | null
+          pipeline_note?: string | null
+          pipeline_stage?: string | null
+          pipeline_updated?: string | null
+          risposta_at?: string | null
           sender_id?: string | null
           soggetto_personalizzato?: string | null
           stato?: string | null
@@ -123,6 +131,10 @@ export type Database = {
           inviato_at?: string | null
           messaggio_personalizzato?: string | null
           opened_at?: string | null
+          pipeline_note?: string | null
+          pipeline_stage?: string | null
+          pipeline_updated?: string | null
+          risposta_at?: string | null
           sender_id?: string | null
           soggetto_personalizzato?: string | null
           stato?: string | null
@@ -402,6 +414,7 @@ export type Database = {
           costo_reale_eur: number | null
           costo_stimato_eur: number | null
           created_at: string | null
+          custom_tracking_domain: string | null
           errori: number | null
           id: string
           inviati: number | null
@@ -421,6 +434,7 @@ export type Database = {
           solo_lavorativi: boolean
           started_at: string | null
           stato: string | null
+          stop_su_disiscrizione: boolean | null
           stop_su_risposta: boolean
           stopped_at: string | null
           subject: string | null
@@ -433,6 +447,7 @@ export type Database = {
           tipo_campagna: string
           totale_destinatari: number | null
           tracking_aperture: boolean
+          tracking_click: boolean | null
           user_id: string | null
         }
         Insert: {
@@ -460,6 +475,7 @@ export type Database = {
           costo_reale_eur?: number | null
           costo_stimato_eur?: number | null
           created_at?: string | null
+          custom_tracking_domain?: string | null
           errori?: number | null
           id?: string
           inviati?: number | null
@@ -479,6 +495,7 @@ export type Database = {
           solo_lavorativi?: boolean
           started_at?: string | null
           stato?: string | null
+          stop_su_disiscrizione?: boolean | null
           stop_su_risposta?: boolean
           stopped_at?: string | null
           subject?: string | null
@@ -491,6 +508,7 @@ export type Database = {
           tipo_campagna?: string
           totale_destinatari?: number | null
           tracking_aperture?: boolean
+          tracking_click?: boolean | null
           user_id?: string | null
         }
         Update: {
@@ -518,6 +536,7 @@ export type Database = {
           costo_reale_eur?: number | null
           costo_stimato_eur?: number | null
           created_at?: string | null
+          custom_tracking_domain?: string | null
           errori?: number | null
           id?: string
           inviati?: number | null
@@ -537,6 +556,7 @@ export type Database = {
           solo_lavorativi?: boolean
           started_at?: string | null
           stato?: string | null
+          stop_su_disiscrizione?: boolean | null
           stop_su_risposta?: boolean
           stopped_at?: string | null
           subject?: string | null
@@ -549,6 +569,7 @@ export type Database = {
           tipo_campagna?: string
           totale_destinatari?: number | null
           tracking_aperture?: boolean
+          tracking_click?: boolean | null
           user_id?: string | null
         }
         Relationships: []
@@ -600,6 +621,9 @@ export type Database = {
       }
       contacts: {
         Row: {
+          ai_intro: string | null
+          ai_modello: string | null
+          ai_personalizzato_at: string | null
           azienda: string
           cap: string | null
           citta: string | null
@@ -609,6 +633,8 @@ export type Database = {
           email_confidence: number | null
           email_quality: string | null
           email_valid: boolean | null
+          email_validato: boolean | null
+          email_validato_at: string | null
           facebook_url: string | null
           fonte: string | null
           google_categories: string[] | null
@@ -636,6 +662,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          ai_intro?: string | null
+          ai_modello?: string | null
+          ai_personalizzato_at?: string | null
           azienda: string
           cap?: string | null
           citta?: string | null
@@ -645,6 +674,8 @@ export type Database = {
           email_confidence?: number | null
           email_quality?: string | null
           email_valid?: boolean | null
+          email_validato?: boolean | null
+          email_validato_at?: string | null
           facebook_url?: string | null
           fonte?: string | null
           google_categories?: string[] | null
@@ -672,6 +703,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          ai_intro?: string | null
+          ai_modello?: string | null
+          ai_personalizzato_at?: string | null
           azienda?: string
           cap?: string | null
           citta?: string | null
@@ -681,6 +715,8 @@ export type Database = {
           email_confidence?: number | null
           email_quality?: string | null
           email_valid?: boolean | null
+          email_validato?: boolean | null
+          email_validato_at?: string | null
           facebook_url?: string | null
           fonte?: string | null
           google_categories?: string[] | null
@@ -713,6 +749,44 @@ export type Database = {
             columns: ["scraping_session_id"]
             isOneToOne: false
             referencedRelation: "scraping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_events: {
+        Row: {
+          created_at: string | null
+          execution_id: string
+          id: string
+          ip: string | null
+          tipo: string
+          url: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          execution_id: string
+          id?: string
+          ip?: string | null
+          tipo: string
+          url?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          execution_id?: string
+          id?: string
+          ip?: string | null
+          tipo?: string
+          url?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_events_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_step_executions"
             referencedColumns: ["id"]
           },
         ]
@@ -1124,6 +1198,7 @@ export type Database = {
           id: string
           max_results: number | null
           n8n_webhook_id: string | null
+          pausa_motivo: string | null
           paused_at: string | null
           progress_percent: number | null
           query: string | null
@@ -1145,6 +1220,7 @@ export type Database = {
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
+          pausa_motivo?: string | null
           paused_at?: string | null
           progress_percent?: number | null
           query?: string | null
@@ -1166,6 +1242,7 @@ export type Database = {
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
+          pausa_motivo?: string | null
           paused_at?: string | null
           progress_percent?: number | null
           query?: string | null
@@ -1180,6 +1257,47 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      sender_daily_stats: {
+        Row: {
+          aperti: number | null
+          bounce: number | null
+          cliccati: number | null
+          giorno: string
+          id: string
+          inviati: number | null
+          sender_id: string
+          spam: number | null
+        }
+        Insert: {
+          aperti?: number | null
+          bounce?: number | null
+          cliccati?: number | null
+          giorno?: string
+          id?: string
+          inviati?: number | null
+          sender_id: string
+          spam?: number | null
+        }
+        Update: {
+          aperti?: number | null
+          bounce?: number | null
+          cliccati?: number | null
+          giorno?: string
+          id?: string
+          inviati?: number | null
+          sender_id?: string
+          spam?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sender_daily_stats_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "sender_pool"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sender_pool: {
         Row: {
@@ -1339,6 +1457,44 @@ export type Database = {
           },
         ]
       }
+      unsubscribes: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          motivo: string | null
+          telefono: string | null
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          motivo?: string | null
+          telefono?: string | null
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          motivo?: string | null
+          telefono?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unsubscribes_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_log: {
         Row: {
           campaign_id: string | null
@@ -1388,6 +1544,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_health_score: {
+        Args: { p_bounce_rate: number; p_spam_rate: number }
+        Returns: number
+      }
+      increment_step_stat: {
+        Args: { p_amount?: number; p_column: string; p_step_id: string }
+        Returns: undefined
+      }
       user_owns_campaign: { Args: { _campaign_id: string }; Returns: boolean }
       user_owns_contact: { Args: { _contact_id: string }; Returns: boolean }
       user_owns_list: { Args: { _list_id: string }; Returns: boolean }
