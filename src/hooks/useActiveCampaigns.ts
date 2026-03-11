@@ -10,7 +10,7 @@ export function useActiveCampaigns() {
       const { data } = await supabase
         .from("campaigns")
         .select("*")
-        .in("stato", ["in_corso", "pausa"])
+        .in("stato", ["in_corso", "in_pausa"])
         .order("started_at", { ascending: false });
       setActiveCampaigns((data as unknown as Campaign[]) || []);
     };

@@ -19,7 +19,7 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const activeCampaigns = campaigns.filter(c => c.stato === "in_corso" || c.stato === "pausa").length;
+  const activeCampaigns = campaigns.filter(c => c.stato === "in_corso" || c.stato === "in_pausa").length;
   const openRate = analytics && analytics.totalSent > 0 ? ((analytics.totalOpened / analytics.totalSent) * 100).toFixed(1) : "0";
   const recentCampaigns = campaigns.slice(0, 5);
 
