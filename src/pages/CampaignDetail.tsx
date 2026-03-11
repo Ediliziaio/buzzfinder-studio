@@ -457,6 +457,17 @@ export default function CampaignDetailPage() {
         <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
       )}
 
+      {/* Sequence Progress */}
+      {isSequence && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-primary" />
+            <span className="terminal-header text-primary">PROGRESSO SEQUENZA</span>
+          </div>
+          <SequenceProgress campaignId={campaign.id} />
+        </div>
+      )}
+
       {/* Phase Progress */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center gap-2">
@@ -473,7 +484,7 @@ export default function CampaignDetailPage() {
             </div>
           ))}
         </div>
-        {campaign.stato === "in_corso" && (
+        {campaign.stato === "in_corso" && !isSequence && (
           <div className="mt-3">
             <TerminalProgress
               percent={progress}
