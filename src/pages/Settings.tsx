@@ -275,11 +275,11 @@ function BlocklistEditor() {
 function AiModelSelector() {
   const [model, setModel] = useState("haiku");
 
-  useState(() => {
+  useEffect(() => {
     supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").maybeSingle().then(({ data }) => {
       if (data?.valore) setModel(data.valore);
     });
-  });
+  }, []);
 
   const save = async (val: string) => {
     setModel(val);
