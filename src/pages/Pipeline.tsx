@@ -19,10 +19,11 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-  const { leads, isLoading, moveStage, updateNote, updateValue } = usePipeline();
+  const { leads, isLoading, moveStage, updateNote, updateValue, addLead } = usePipeline();
   const { campaigns } = useCampaigns();
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [filterCampaign, setFilterCampaign] = useState<string>("all");
   const [filterMinValue, setFilterMinValue] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
