@@ -473,11 +473,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                           reply_to: tpl.reply_to || data.reply_to,
                           sending_rate_per_hour: tpl.sending_rate_per_hour || 500,
                           aiEnabled: tpl.ai_personalization_enabled || false,
-                          aiModel: tpl.ai_model || "haiku",
+                          aiModel: tpl.ai_model || "gemini-flash",
                           aiContext: tpl.ai_context || "",
                           aiObjective: tpl.ai_objective || "",
                         });
-                        supabase.from("campaign_templates" as any)
+                        supabase.from("campaign_templates")
                           .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
                           .eq("id", tpl.id)
                           .then(() => {});
