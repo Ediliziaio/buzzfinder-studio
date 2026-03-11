@@ -227,12 +227,6 @@ export default function SettingsPage() {
           <TabsTrigger value="mittenti" className="font-mono text-xs">Mittenti</TabsTrigger>
           <TabsTrigger value="limiti" className="font-mono text-xs">Limiti</TabsTrigger>
           <TabsTrigger value="import_export" className="font-mono text-xs">Import/Export</TabsTrigger>
-          <TabsTrigger value="sender_pool" className="font-mono text-xs">
-            <Shield className="h-3 w-3 mr-1" /> Pool Mittenti
-          </TabsTrigger>
-          <TabsTrigger value="deliverability" className="font-mono text-xs">
-            <ShieldCheck className="h-3 w-3 mr-1" /> Deliverability
-          </TabsTrigger>
         </TabsList>
 
         {/* API Keys Tab */}
