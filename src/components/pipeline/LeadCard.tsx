@@ -45,12 +45,24 @@ interface Props {
 
 export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const nextStages = NEXT_STAGES[currentStage] || [];
 
+  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData("text/plain", lead.id);
+    e.dataTransfer.effectAllowed = "move";
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = () => setIsDragging(false);
+
   return (
     <div
-      className="bg-card border border-border rounded-lg p-3 hover:shadow-sm transition-shadow cursor-pointer"
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      className={`bg-card border border-border rounded-lg p-3 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing ${isDragging ? "opacity-40 scale-95" : ""}`}
       onClick={() => setExpanded(!expanded)}
     >
       <div className="font-mono font-semibold text-sm text-foreground">
