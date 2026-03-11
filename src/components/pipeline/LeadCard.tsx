@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { Euro } from "lucide-react";
 
 export interface PipelineLeadWithRelations {
   id: string;
@@ -38,9 +40,10 @@ interface Props {
   currentStage: string;
   onMoveStage: (leadId: string, newStage: string) => void;
   onUpdateNote: (leadId: string, note: string) => void;
+  onUpdateValue: (leadId: string, value: number) => void;
 }
 
-export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote }: Props) {
+export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const nextStages = NEXT_STAGES[currentStage] || [];
@@ -63,6 +66,20 @@ export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote }: Prop
 
       {expanded && (
         <div className="mt-3 space-y-2 border-t border-border pt-2" onClick={(e) => e.stopPropagation()}>
+          {/* Editable value */}
+          <div className="flex items-center gap-2">
+            <Euro className="h-3 w-3 text-muted-foreground" />
+            <Input
+              type="number"
+              placeholder="Valore stimato €"
+              className="text-xs font-mono h-7"
+              defaultValue={lead.valore_stimato || ""}
+              onBlur={(e) => {
+                const val = parseFloat(e.target.value) || 0;
+                if (val !== lead.valore_stimato) onUpdateValue(lead.id, val);
+              }}
+            />
+          </div>
           <Textarea
             placeholder="Aggiungi nota..."
             className="text-xs font-mono"

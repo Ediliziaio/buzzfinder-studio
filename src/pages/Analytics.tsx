@@ -198,6 +198,9 @@ export default function AnalyticsPage() {
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1 font-mono text-xs ml-2">
             <RefreshCw className="h-3 w-3" /> Aggiorna
           </Button>
+          <Button variant="outline" size="sm" onClick={() => exportAnalyticsCsv(data, periodoGiorni)} className="gap-1 font-mono text-xs">
+            <Download className="h-3 w-3" /> CSV
+          </Button>
         </div>
       </div>
 

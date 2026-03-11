@@ -105,6 +105,7 @@ export function usePipeline() {
     isLoading: query.isLoading,
     moveStage: (id: string, stage: string) => moveStage.mutate({ id, stage }),
     updateNote: (id: string, note: string) => updateNote.mutate({ id, note }),
+    updateValue: (id: string, value: number) => updateValue.mutate({ id, value }),
     addLead: addLead.mutate,
   };
 }
