@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
+import { AppSettingsProvider } from "@/hooks/useAppSettings";
 import AuthPage from "@/pages/Auth";
 import IndexPage from "@/pages/Index";
 import ContactsPage from "@/pages/Contacts";
