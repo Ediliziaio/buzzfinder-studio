@@ -8,6 +8,7 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import AuthPage from "@/pages/Auth";
+import IndexPage from "@/pages/Index";
 import ContactsPage from "@/pages/Contacts";
 import ScraperMapsPage from "@/pages/ScraperMaps";
 import ScraperWebsitesPage from "@/pages/ScraperWebsites";
