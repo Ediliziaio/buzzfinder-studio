@@ -22,6 +22,7 @@ import {
   AtSign,
   ShieldCheck,
   Kanban,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -29,6 +30,7 @@ const navItems = [
   { title: "Contatti", path: "/contacts", icon: Users },
   { title: "Liste", path: "/lists", icon: List },
   { title: "Campagne", path: "/campaigns", icon: Send },
+  { title: "Template", path: "/templates", icon: FileText },
   { title: "Unibox", path: "/unibox", icon: MessageSquare, badgeKey: "unibox" as const },
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
