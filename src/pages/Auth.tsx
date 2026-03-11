@@ -40,9 +40,9 @@ export default function AuthPage() {
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-2">
             <Crosshair className="h-8 w-8 text-primary" />
-            <h1 className="font-display text-2xl font-bold text-foreground">LeadHunter</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">BuzzFinder</h1>
           </div>
-          <p className="font-mono text-xs text-muted-foreground">B2B LEAD GENERATION PLATFORM</p>
+          <p className="font-mono text-xs text-muted-foreground">LEAD GENERATION STUDIO</p>
         </div>
 
         {/* Form */}
