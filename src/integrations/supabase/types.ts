@@ -114,6 +114,161 @@ export type Database = {
           },
         ]
       }
+      campaign_step_executions: {
+        Row: {
+          campaign_id: string
+          clicked_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          opened_at: string | null
+          recipient_id: string
+          replied_at: string | null
+          scheduled_at: string | null
+          sender_id: string | null
+          sent_at: string | null
+          stato: string
+          step_id: string
+        }
+        Insert: {
+          campaign_id: string
+          clicked_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          opened_at?: string | null
+          recipient_id: string
+          replied_at?: string | null
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          stato?: string
+          step_id: string
+        }
+        Update: {
+          campaign_id?: string
+          clicked_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          opened_at?: string | null
+          recipient_id?: string
+          replied_at?: string | null
+          scheduled_at?: string | null
+          sender_id?: string | null
+          sent_at?: string | null
+          stato?: string
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_step_executions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_step_executions_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_step_executions_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "sender_pool"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_step_executions_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_steps: {
+        Row: {
+          ab_nome: string | null
+          ab_padre_id: string | null
+          ab_peso: number
+          campaign_id: string
+          condizione: string
+          corpo_html: string | null
+          created_at: string
+          delay_giorni: number
+          delay_ore: number
+          id: string
+          messaggio: string | null
+          soggetto: string | null
+          stat_aperti: number
+          stat_cliccati: number
+          stat_inviati: number
+          stat_risposte: number
+          step_number: number
+          tipo: string
+        }
+        Insert: {
+          ab_nome?: string | null
+          ab_padre_id?: string | null
+          ab_peso?: number
+          campaign_id: string
+          condizione?: string
+          corpo_html?: string | null
+          created_at?: string
+          delay_giorni?: number
+          delay_ore?: number
+          id?: string
+          messaggio?: string | null
+          soggetto?: string | null
+          stat_aperti?: number
+          stat_cliccati?: number
+          stat_inviati?: number
+          stat_risposte?: number
+          step_number?: number
+          tipo?: string
+        }
+        Update: {
+          ab_nome?: string | null
+          ab_padre_id?: string | null
+          ab_peso?: number
+          campaign_id?: string
+          condizione?: string
+          corpo_html?: string | null
+          created_at?: string
+          delay_giorni?: number
+          delay_ore?: number
+          id?: string
+          messaggio?: string | null
+          soggetto?: string | null
+          stat_aperti?: number
+          stat_cliccati?: number
+          stat_inviati?: number
+          stat_risposte?: number
+          step_number?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_steps_ab_padre_id_fkey"
+            columns: ["ab_padre_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_templates: {
         Row: {
           ai_context: string | null
@@ -216,6 +371,8 @@ export type Database = {
           inviati_b: number | null
           n8n_webhook_id: string | null
           nome: string
+          ora_fine_invio: string
+          ora_inizio_invio: string
           paused_at: string | null
           provider: string | null
           reply_to: string | null
@@ -223,16 +380,21 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           sending_rate_per_hour: number | null
+          solo_lavorativi: boolean
           started_at: string | null
           stato: string | null
+          stop_su_risposta: boolean
           stopped_at: string | null
           subject: string | null
           subject_b: string | null
           template_whatsapp_id: string | null
           template_whatsapp_language: string | null
           template_whatsapp_variables: Json | null
+          timezone: string
           tipo: string
+          tipo_campagna: string
           totale_destinatari: number | null
+          tracking_aperture: boolean
           user_id: string | null
         }
         Insert: {
@@ -267,6 +429,8 @@ export type Database = {
           inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome: string
+          ora_fine_invio?: string
+          ora_inizio_invio?: string
           paused_at?: string | null
           provider?: string | null
           reply_to?: string | null
@@ -274,16 +438,21 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sending_rate_per_hour?: number | null
+          solo_lavorativi?: boolean
           started_at?: string | null
           stato?: string | null
+          stop_su_risposta?: boolean
           stopped_at?: string | null
           subject?: string | null
           subject_b?: string | null
           template_whatsapp_id?: string | null
           template_whatsapp_language?: string | null
           template_whatsapp_variables?: Json | null
+          timezone?: string
           tipo: string
+          tipo_campagna?: string
           totale_destinatari?: number | null
+          tracking_aperture?: boolean
           user_id?: string | null
         }
         Update: {
@@ -318,6 +487,8 @@ export type Database = {
           inviati_b?: number | null
           n8n_webhook_id?: string | null
           nome?: string
+          ora_fine_invio?: string
+          ora_inizio_invio?: string
           paused_at?: string | null
           provider?: string | null
           reply_to?: string | null
@@ -325,16 +496,21 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           sending_rate_per_hour?: number | null
+          solo_lavorativi?: boolean
           started_at?: string | null
           stato?: string | null
+          stop_su_risposta?: boolean
           stopped_at?: string | null
           subject?: string | null
           subject_b?: string | null
           template_whatsapp_id?: string | null
           template_whatsapp_language?: string | null
           template_whatsapp_variables?: Json | null
+          timezone?: string
           tipo?: string
+          tipo_campagna?: string
           totale_destinatari?: number | null
+          tracking_aperture?: boolean
           user_id?: string | null
         }
         Relationships: []
