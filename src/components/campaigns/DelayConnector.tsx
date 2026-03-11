@@ -4,7 +4,7 @@ interface Props {
   giorni: number;
   ore: number;
   condizione: string;
-  onChange: (updates: { delay_giorni?: number; delay_ore?: number; condizione?: string }) => void;
+  onChange: (updates: { delay_giorni?: number; delay_ore?: number; condizione?: 'always' | 'if_no_reply' | 'if_no_open' | 'if_opened' }) => void;
 }
 
 export function DelayConnector({ giorni, ore, condizione, onChange }: Props) {
