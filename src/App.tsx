@@ -47,7 +47,7 @@ function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route path="/" element={<Navigate to="/contacts" />} />
+        <Route path="/" element={<IndexPage />} />
         <Route path="/scraper/maps" element={<ScraperMapsPage />} />
         <Route path="/scraper/websites" element={<ScraperWebsitesPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
