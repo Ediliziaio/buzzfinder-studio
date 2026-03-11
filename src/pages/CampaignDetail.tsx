@@ -113,7 +113,7 @@ export default function CampaignDetailPage() {
   const initializeSequence = async (campaignId: string) => {
     // Get step 1
     const { data: step1 } = await supabase
-      .from("campaign_steps" as any)
+      .from("campaign_steps")
       .select("id")
       .eq("campaign_id", campaignId)
       .eq("step_number", 1)
