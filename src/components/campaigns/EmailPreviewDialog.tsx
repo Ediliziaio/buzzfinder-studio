@@ -59,7 +59,7 @@ export function EmailPreviewDialog({ open, onOpenChange, subject, bodyHtml, send
         <div className="rounded-lg border border-border bg-accent p-3 space-y-1 font-mono text-xs">
           <div className="flex gap-2">
             <span className="text-muted-foreground w-12">Da:</span>
-            <span className="text-foreground">{senderName || "LeadHunter"} &lt;{senderEmail || "noreply@dominio.it"}&gt;</span>
+            <span className="text-foreground">{senderName || "BuzzFinder"} &lt;{senderEmail || "noreply@dominio.it"}&gt;</span>
           </div>
           <div className="flex gap-2">
             <span className="text-muted-foreground w-12">A:</span>
