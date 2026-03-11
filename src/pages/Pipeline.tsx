@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanColumn, type PipelineStage } from "@/components/pipeline/KanbanColumn";
 import { usePipeline } from "@/hooks/usePipeline";
 
+
 const STAGES: PipelineStage[] = [
   { id: "interessato", label: "Interessati 🔥", colorClass: "border-destructive" },
   { id: "richiesta_info", label: "Richiedono info 📋", colorClass: "border-info" },
