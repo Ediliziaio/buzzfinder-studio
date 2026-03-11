@@ -382,7 +382,7 @@ export default function CampaignDetailPage() {
 
   // Phase progress
   const phases = [
-    { label: "Preparazione", active: campaign.stato === "bozza" || campaign.stato === "schedulata", done: ["in_corso", "completata", "pausa"].includes(campaign.stato) },
+    { label: "Preparazione", active: campaign.stato === "bozza" || campaign.stato === "schedulata", done: ["in_corso", "completata", "in_pausa"].includes(campaign.stato) },
     { label: "Invio", active: campaign.stato === "in_corso", done: campaign.stato === "completata" },
     { label: "Completata", active: campaign.stato === "completata", done: false },
   ];
