@@ -60,12 +60,6 @@ Deno.serve(async (req) => {
     }
 
     // Log activity
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("email", email.toLowerCase().trim())
-      .maybeSingle();
-
     if (contact) {
       await supabase.from("contact_activities").insert({
         contact_id: contact.id,
