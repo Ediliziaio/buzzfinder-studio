@@ -6,6 +6,7 @@ import { Bold, Italic, Underline, Link as LinkIcon, Heading1, Heading2, List, Li
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
+import { SpintaxHelper } from "@/components/campaigns/SpintaxHelper";
 
 interface Props {
   value: string;
@@ -122,6 +123,9 @@ export function EmailEditor({ value, onChange }: Props) {
           </button>
         ))}
       </div>
+
+      {/* Spintax Helper */}
+      <SpintaxHelper onInsert={(text) => editor.chain().focus().insertContent(text).run()} />
 
       {/* Editor */}
       <EditorContent editor={editor} />

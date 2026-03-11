@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, Upload, Download } from "lucide-react";
+import { Users, Plus, Upload, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContactDetailDrawer } from "@/components/contacts/ContactDetailDrawer";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
@@ -7,6 +7,7 @@ import { ContactFiltersBar } from "@/components/contacts/ContactFiltersBar";
 import { CsvImportDialog } from "@/components/contacts/CsvImportDialog";
 import { CreateContactDialog } from "@/components/contacts/CreateContactDialog";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
+import { EmailValidationPanel } from "@/components/contacts/EmailValidationPanel";
 import { useContacts } from "@/hooks/useContacts";
 import { exportContactsCsv } from "@/lib/csvExporter";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export default function ContactsPage() {
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -44,6 +46,9 @@ export default function ContactsPage() {
           <h1 className="font-display text-xl font-bold text-foreground">CONTATTI</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowValidation(true)}>
+            <ShieldCheck className="h-4 w-4 mr-1" /> VERIFICA EMAIL
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="h-4 w-4 mr-1" /> IMPORTA CSV
           </Button>
@@ -102,6 +107,14 @@ export default function ContactsPage() {
         open={showImport}
         onClose={() => setShowImport(false)}
         onComplete={refetch}
+      />
+
+      {/* Email Validation */}
+      <EmailValidationPanel
+        open={showValidation}
+        onClose={() => setShowValidation(false)}
+        onComplete={refetch}
+        totalContacts={totalCount}
       />
 
       {/* Create Contact */}

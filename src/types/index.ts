@@ -20,6 +20,7 @@ export interface Contact {
   email: string | null;
   email_confidence: number;
   email_valid: boolean;
+  email_quality: 'valid' | 'risky' | 'invalid' | null;
   sito_web: string | null;
   indirizzo: string | null;
   citta: string | null;

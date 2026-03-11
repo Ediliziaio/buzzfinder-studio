@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      blacklist_checks: {
+        Row: {
+          blacklists: string[]
+          checked_at: string
+          dominio: string
+          id: string
+          in_blacklist: boolean
+          sender_id: string | null
+          user_id: string
+        }
+        Insert: {
+          blacklists?: string[]
+          checked_at?: string
+          dominio: string
+          id?: string
+          in_blacklist?: boolean
+          sender_id?: string | null
+          user_id: string
+        }
+        Update: {
+          blacklists?: string[]
+          checked_at?: string
+          dominio?: string
+          id?: string
+          in_blacklist?: boolean
+          sender_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blacklist_checks_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "sender_pool"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_recipients: {
         Row: {
           campaign_id: string | null
@@ -569,6 +607,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           email_confidence: number | null
+          email_quality: string | null
           email_valid: boolean | null
           facebook_url: string | null
           fonte: string | null
@@ -604,6 +643,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           email_confidence?: number | null
+          email_quality?: string | null
           email_valid?: boolean | null
           facebook_url?: string | null
           fonte?: string | null
@@ -639,6 +679,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           email_confidence?: number | null
+          email_quality?: string | null
           email_valid?: boolean | null
           facebook_url?: string | null
           fonte?: string | null

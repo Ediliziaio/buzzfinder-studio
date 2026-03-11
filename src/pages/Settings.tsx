@@ -13,7 +13,8 @@ import { SenderCard } from "@/components/senders/SenderCard";
 import { SenderDialog } from "@/components/senders/SenderDialog";
 import { SenderHealthDashboard } from "@/components/senders/SenderHealthDashboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Shield } from "lucide-react";
+import { AlertTriangle, Shield, ShieldCheck } from "lucide-react";
+import { BlacklistMonitor } from "@/components/senders/BlacklistMonitor";
 import type { SenderPool } from "@/types";
 
 interface SettingField {
@@ -230,6 +231,9 @@ export default function SettingsPage() {
           <TabsTrigger value="import_export" className="font-mono text-xs">Import/Export</TabsTrigger>
           <TabsTrigger value="sender_pool" className="font-mono text-xs">
             <Shield className="h-3 w-3 mr-1" /> Pool Mittenti
+          </TabsTrigger>
+          <TabsTrigger value="deliverability" className="font-mono text-xs">
+            <ShieldCheck className="h-3 w-3 mr-1" /> Deliverability
           </TabsTrigger>
         </TabsList>
 
@@ -518,6 +522,53 @@ export default function SettingsPage() {
             sender={editingSender}
             onSaved={refetchPool}
           />
+        </TabsContent>
+
+        {/* Deliverability Tab */}
+        <TabsContent value="deliverability" className="space-y-4">
+          <BlacklistMonitor senders={poolSenders} />
+
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="terminal-header text-primary">SOGLIE DI ALLERTA DELIVERABILITY</div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
+                <div>
+                  <p className="font-mono text-xs font-medium text-foreground">Bounce rate</p>
+                  <p className="font-mono text-[10px] text-muted-foreground">Avviso: &gt;2% • Critico: &gt;5%</p>
+                </div>
+                <p className="font-mono text-[10px] text-destructive">Google/Yahoo bloccano a &gt;10%</p>
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
+                <div>
+                  <p className="font-mono text-xs font-medium text-foreground">Spam rate</p>
+                  <p className="font-mono text-[10px] text-muted-foreground">Avviso: &gt;0.1% • Critico: &gt;0.3%</p>
+                </div>
+                <p className="font-mono text-[10px] text-destructive">Gmail blocca a &gt;0.3%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div className="terminal-header text-primary">API VALIDATORE EMAIL</div>
+            <p className="text-xs text-muted-foreground">Configura un validatore esterno per verifiche avanzate (MX, SMTP)</p>
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">MillionVerifier / ZeroBounce API Key</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type={visibility["email_validator_key"] ? "text" : "password"}
+                    value={values["email_validator_key"] || ""}
+                    onChange={(e) => setValues({ ...values, email_validator_key: e.target.value })}
+                    placeholder="Inserisci API key..."
+                    className="font-mono text-xs bg-accent border-border"
+                  />
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setVisibility({ ...visibility, email_validator_key: !visibility["email_validator_key"] })}>
+                    {visibility["email_validator_key"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
