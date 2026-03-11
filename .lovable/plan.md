@@ -1,30 +1,18 @@
 
 
-# Analisi: Pagina Settings gia' completa
+## Creazione Account Superadmin
 
-## Stato attuale
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-Tutti i campi richiesti nella Fase 6 **esistono gia'**:
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-| Campo richiesto | Stato |
-|----------------|-------|
-| `anthropic_api_key` | Presente (riga 92) |
-| `millionverifier_api_key` | Presente (riga 95) |
-| `zerobounce_api_key` | Presente (riga 96) |
-| Webhook WhatsApp/SMS/Email | Presenti come `n8n_webhook_send_*` (righe 128-130) |
-| Tab Ricezione con URL endpoint + guida | Presente via `WebhookGuideTab` (righe 211-213) con URL copiabile, guida Resend, n8n+IMAP, webhook manuale |
-| Tab AI con modello + costi stimati | Presente (righe 190-208) |
-| Timezone + orari default | Presenti nel tab Orari (righe 142-148) |
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-## Unica aggiunta utile
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-Il campo `resend_inbound_secret` (signing secret per verificare richieste Resend inbound) non e' presente nel tab Ricezione. Questo e' l'unico campo mancante rispetto alla Fase 6.
-
-## Piano
-
-| File | Modifica |
-|------|----------|
-| `src/components/settings/WebhookGuideTab.tsx` | Aggiungere un `SettingField` per `resend_inbound_secret` in fondo alla sezione Resend Inbound |
-
-Aggiunta minima: un campo password per il signing secret Resend nella sotto-tab "Resend Inbound" del `WebhookGuideTab`, dopo lo step 5.
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SettingField } from "./SettingField";
 import { Copy, Check, Webhook, Mail, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,6 +79,16 @@ export function WebhookGuideTab() {
               <Step n={3}>In Resend, crea un <strong>Webhook Endpoint</strong> con l'URL del tuo endpoint (vedi sopra) e seleziona l'evento <code>email.received</code></Step>
               <Step n={4}>Configura i tuoi sender email con <strong>reply-to</strong> che punta al sottodominio (es. <code>reply+campaign123@reply.tuodominio.it</code>)</Step>
               <Step n={5}>Testa inviando un'email al tuo indirizzo di ricezione. La risposta apparirà nella Unibox.</Step>
+            </div>
+            <div className="pt-3 border-t border-border">
+              <SettingField
+                chiave="resend_inbound_secret"
+                label="Resend Inbound Signing Secret (opzionale)"
+                description="Per verificare che le richieste inbound provengano effettivamente da Resend"
+                placeholder="whsec_..."
+                isSecret={true}
+                categoria="webhook"
+              />
             </div>
           </div>
         </TabsContent>
