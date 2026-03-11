@@ -295,3 +295,18 @@ export interface CampaignTemplate {
   utilizzi: number;
   created_at: string;
 }
+
+export type PipelineStageType = 'interessato' | 'richiesta_info' | 'meeting_fissato' | 'proposta_inviata' | 'vinto' | 'perso';
+
+export interface PipelineLead {
+  id: string;
+  user_id: string;
+  contact_id: string;
+  campaign_id: string | null;
+  inbox_message_id: string | null;
+  pipeline_stage: PipelineStageType;
+  pipeline_note: string | null;
+  valore_stimato: number;
+  pipeline_updated: string;
+  created_at: string;
+}

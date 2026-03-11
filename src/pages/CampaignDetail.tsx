@@ -20,6 +20,7 @@ import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalization
 import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
 import { AssignmentResultDialog, type AssignmentResult } from "@/components/senders/AssignmentResultDialog";
 import { SequenceProgress } from "@/components/campaigns/SequenceProgress";
+import { ABTestResults } from "@/components/campaigns/ABTestResults";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
@@ -450,6 +451,11 @@ export default function CampaignDetailPage() {
             </p>
           )}
         </div>
+      )}
+
+      {/* A/B Test Results per Step (Sequence) */}
+      {isSequence && (campaign as any).ab_test_enabled && (
+        <ABTestResults campaignId={campaign.id} />
       )}
 
       {/* AI Personalization Panel */}

@@ -13,6 +13,7 @@ import {
   GitBranch,
   ShieldOff,
   BarChart3,
+  Trophy,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -29,6 +30,7 @@ const navItems = [
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
   { title: "Suppression", path: "/suppression", icon: ShieldOff },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
+  { title: "Pipeline", path: "/pipeline", icon: Trophy },
   { title: "Impostazioni", path: "/settings", icon: Settings },
 ];
 

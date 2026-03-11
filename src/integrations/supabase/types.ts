@@ -950,6 +950,67 @@ export type Database = {
         }
         Relationships: []
       }
+      pipeline_leads: {
+        Row: {
+          campaign_id: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          inbox_message_id: string | null
+          pipeline_note: string | null
+          pipeline_stage: string
+          pipeline_updated: string
+          user_id: string
+          valore_stimato: number
+        }
+        Insert: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          inbox_message_id?: string | null
+          pipeline_note?: string | null
+          pipeline_stage?: string
+          pipeline_updated?: string
+          user_id: string
+          valore_stimato?: number
+        }
+        Update: {
+          campaign_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          inbox_message_id?: string | null
+          pipeline_note?: string | null
+          pipeline_stage?: string
+          pipeline_updated?: string
+          user_id?: string
+          valore_stimato?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_leads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_leads_inbox_message_id_fkey"
+            columns: ["inbox_message_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scraping_jobs: {
         Row: {
           contact_id: string | null
