@@ -806,7 +806,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="terminal-header mb-1.5 block">Mittente nome</Label>
-                  <Input value={data.sender_name} onChange={(e) => update({ sender_name: e.target.value })} placeholder="LeadHunter Pro" className="font-mono text-sm" />
+                  <Input value={data.sender_name} onChange={(e) => update({ sender_name: e.target.value })} placeholder="BuzzFinder" className="font-mono text-sm" />
                 </div>
                 <div>
                   <Label className="terminal-header mb-1.5 block">Mittente email *</Label>
