@@ -453,6 +453,11 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
+      {/* A/B Test Results per Step (Sequence) */}
+      {isSequence && (campaign as any).ab_test_enabled && (
+        <ABTestResults campaignId={campaign.id} />
+      )}
+
       {/* AI Personalization Panel */}
       {(campaign as any).ai_personalization_enabled && (
         <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
