@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import { useInboxUnreadCount } from "@/hooks/useInbox";
+import { useSenderPool } from "@/hooks/useSenderPool";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -13,24 +14,30 @@ import {
   GitBranch,
   ShieldOff,
   BarChart3,
-  Trophy,
   Settings,
   ChevronLeft,
   ChevronRight,
   Crosshair,
+  LayoutDashboard,
+  AtSign,
+  ShieldCheck,
+  Kanban,
 } from "lucide-react";
 
 const navItems = [
-  { title: "Scraper Maps", path: "/scraper/maps", icon: Search },
-  { title: "Scraper Siti", path: "/scraper/websites", icon: Globe },
+  { title: "Dashboard", path: "/", icon: LayoutDashboard },
   { title: "Contatti", path: "/contacts", icon: Users },
   { title: "Liste", path: "/lists", icon: List },
   { title: "Campagne", path: "/campaigns", icon: Send },
-  { title: "Unibox", path: "/unibox", icon: MessageSquare },
+  { title: "Unibox", path: "/unibox", icon: MessageSquare, badgeKey: "unibox" as const },
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
-  { title: "Suppression", path: "/suppression", icon: ShieldOff },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
-  { title: "Pipeline", path: "/pipeline", icon: Trophy },
+  { title: "Pipeline CRM", path: "/pipeline", icon: Kanban },
+  { title: "Scraper Maps", path: "/scraper/maps", icon: Search },
+  { title: "Scraper Siti", path: "/scraper/websites", icon: Globe },
+  { title: "Pool Mittenti", path: "/senders", icon: AtSign, badgeKey: "senders" as const },
+  { title: "Deliverability", path: "/deliverability", icon: ShieldCheck },
+  { title: "Suppression", path: "/suppression", icon: ShieldOff },
   { title: "Impostazioni", path: "/settings", icon: Settings },
 ];
 
@@ -38,6 +45,11 @@ export function AppSidebar() {
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const location = useLocation();
   const unreadCount = useInboxUnreadCount();
+  const { senders } = useSenderPool();
+
+  const unhealthySenders = senders.filter(
+    (s) => s.attivo && (s.bounce_rate > 0.05 || s.spam_rate > 0.003 || (s.tipo === "email" && (!s.spf_ok || !s.dkim_ok)))
+  ).length;
 
   return (
     <aside
@@ -59,8 +71,14 @@ export function AppSidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2">
         {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
-          const showBadge = item.path === "/unibox" && unreadCount > 0;
+          const isActive =
+            item.path === "/"
+              ? location.pathname === "/"
+              : location.pathname.startsWith(item.path);
+          const showUnreadBadge = item.badgeKey === "unibox" && unreadCount > 0;
+          const showSenderBadge = item.badgeKey === "senders" && unhealthySenders > 0;
+          const hasBadge = showUnreadBadge || showSenderBadge;
+
           return (
             <Link
               key={item.path}
@@ -76,15 +94,23 @@ export function AppSidebar() {
               {!sidebarCollapsed && (
                 <>
                   <span className="flex-1">{item.title}</span>
-                  {showBadge && (
+                  {showUnreadBadge && (
                     <Badge variant="destructive" className="ml-auto text-xs h-5 min-w-5 px-1 flex items-center justify-center">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </Badge>
                   )}
+                  {showSenderBadge && (
+                    <Badge className="ml-auto text-xs h-5 min-w-5 px-1 flex items-center justify-center bg-yellow-500 text-yellow-950 hover:bg-yellow-500">
+                      {unhealthySenders}
+                    </Badge>
+                  )}
                 </>
               )}
-              {sidebarCollapsed && showBadge && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive" />
+              {sidebarCollapsed && hasBadge && (
+                <span className={cn(
+                  "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full",
+                  showUnreadBadge ? "bg-destructive" : "bg-yellow-500"
+                )} />
               )}
             </Link>
           );

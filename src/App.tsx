@@ -20,6 +20,8 @@ import FollowUpSequencesPage from "@/pages/FollowUpSequences";
 import SuppressionListPage from "@/pages/SuppressionList";
 import UniboxPage from "@/pages/Unibox";
 import PipelinePage from "@/pages/Pipeline";
+import SendersPage from "@/pages/Senders";
+import DeliverabilityPage from "@/pages/Deliverability";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,8 @@ function AppRoutes() {
         <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/senders" element={<SendersPage />} />
+        <Route path="/deliverability" element={<DeliverabilityPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

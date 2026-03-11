@@ -8,14 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
-import { useSenderPool } from "@/hooks/useSenderPool";
-import { SenderCard } from "@/components/senders/SenderCard";
-import { SenderDialog } from "@/components/senders/SenderDialog";
-import { SenderHealthDashboard } from "@/components/senders/SenderHealthDashboard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Shield, ShieldCheck } from "lucide-react";
-import { BlacklistMonitor } from "@/components/senders/BlacklistMonitor";
-import type { SenderPool } from "@/types";
 
 interface SettingField {
   chiave: string;
@@ -69,10 +61,6 @@ export default function SettingsPage() {
   const [senders, setSenders] = useState<{ email: string; name: string }[]>([]);
   const [newSender, setNewSender] = useState({ email: "", name: "" });
   const [exporting, setExporting] = useState<string | null>(null);
-  const [senderTipoFilter, setSenderTipoFilter] = useState<"email" | "whatsapp" | "sms" | undefined>(undefined);
-  const { senders: poolSenders, loading: poolLoading, fetchSenders: refetchPool, toggleActive: togglePoolActive, deleteSender: deletePoolSender } = useSenderPool(senderTipoFilter);
-  const [editingSender, setEditingSender] = useState<SenderPool | null>(null);
-  const [senderDialogOpen, setSenderDialogOpen] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
 
@@ -239,12 +227,6 @@ export default function SettingsPage() {
           <TabsTrigger value="mittenti" className="font-mono text-xs">Mittenti</TabsTrigger>
           <TabsTrigger value="limiti" className="font-mono text-xs">Limiti</TabsTrigger>
           <TabsTrigger value="import_export" className="font-mono text-xs">Import/Export</TabsTrigger>
-          <TabsTrigger value="sender_pool" className="font-mono text-xs">
-            <Shield className="h-3 w-3 mr-1" /> Pool Mittenti
-          </TabsTrigger>
-          <TabsTrigger value="deliverability" className="font-mono text-xs">
-            <ShieldCheck className="h-3 w-3 mr-1" /> Deliverability
-          </TabsTrigger>
         </TabsList>
 
         {/* API Keys Tab */}
@@ -436,169 +418,6 @@ export default function SettingsPage() {
                 {exporting === key ? "Esportazione..." : label}
               </Button>
             ))}
-          </div>
-        </TabsContent>
-        {/* Pool Mittenti Tab */}
-        <TabsContent value="sender_pool" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-mono text-sm font-bold text-foreground">🛡️ Pool Mittenti</h2>
-              <p className="font-mono text-[10px] text-muted-foreground">Gestisci i tuoi domini email e numeri WhatsApp/SMS</p>
-            </div>
-            <Button size="sm" className="font-mono text-xs" onClick={() => { setEditingSender(null); setSenderDialogOpen(true); }}>
-              <Plus className="h-3 w-3 mr-1" /> Aggiungi Mittente
-            </Button>
-          </div>
-
-          <SenderHealthDashboard senders={poolSenders} />
-
-          {/* Alerts */}
-          {poolSenders.filter(s => s.bounce_rate > 0.05).map(s => (
-            <Alert key={`bounce-${s.id}`} variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="font-mono text-xs">Bounce rate alto — {s.nome}</AlertTitle>
-              <AlertDescription className="font-mono text-[10px]">
-                Bounce rate: {(s.bounce_rate * 100).toFixed(1)}%. Soglia critica superata (&gt;5%).
-              </AlertDescription>
-            </Alert>
-          ))}
-          {poolSenders.filter(s => s.spam_rate > 0.003).map(s => (
-            <Alert key={`spam-${s.id}`} variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="font-mono text-xs">Spam rate alto — {s.nome}</AlertTitle>
-              <AlertDescription className="font-mono text-[10px]">
-                Spam rate: {(s.spam_rate * 100).toFixed(2)}%. Soglia Google/Yahoo superata (&gt;0.3%).
-              </AlertDescription>
-            </Alert>
-          ))}
-          {poolSenders.filter(s => s.tipo === 'email' && s.attivo && (!s.spf_ok || !s.dkim_ok)).map(s => (
-            <Alert key={`dns-${s.id}`}>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="font-mono text-xs">DNS non verificati — {s.nome}</AlertTitle>
-              <AlertDescription className="font-mono text-[10px]">
-                {!s.spf_ok && 'SPF mancante. '}{!s.dkim_ok && 'DKIM mancante. '}
-                Configura i record DNS per migliorare la deliverability.
-              </AlertDescription>
-            </Alert>
-          ))}
-
-          {/* Sub-tabs filter */}
-          <div className="flex gap-2">
-            {[
-              { label: "Tutti", value: undefined },
-              { label: "Email", value: "email" as const },
-              { label: "WhatsApp", value: "whatsapp" as const },
-              { label: "SMS", value: "sms" as const },
-            ].map(f => (
-              <Button
-                key={f.label}
-                variant={senderTipoFilter === f.value ? "default" : "outline"}
-                size="sm"
-                className="font-mono text-[10px]"
-                onClick={() => setSenderTipoFilter(f.value)}
-              >
-                {f.label}
-              </Button>
-            ))}
-          </div>
-
-          {/* Cards grid */}
-          {poolLoading ? (
-            <p className="font-mono text-xs text-muted-foreground">Caricamento...</p>
-          ) : poolSenders.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
-              <p className="font-mono text-xs text-muted-foreground">Nessun mittente configurato</p>
-              <Button variant="outline" size="sm" className="mt-3 font-mono text-xs" onClick={() => { setEditingSender(null); setSenderDialogOpen(true); }}>
-                <Plus className="h-3 w-3 mr-1" /> Aggiungi il primo
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {poolSenders.map(s => (
-                <SenderCard
-                  key={s.id}
-                  sender={s}
-                  onEdit={(sender) => { setEditingSender(sender); setSenderDialogOpen(true); }}
-                  onToggleActive={togglePoolActive}
-                  onDelete={deletePoolSender}
-                />
-              ))}
-            </div>
-          )}
-
-          <SenderDialog
-            open={senderDialogOpen}
-            onOpenChange={setSenderDialogOpen}
-            sender={editingSender}
-            onSaved={refetchPool}
-          />
-        </TabsContent>
-
-        {/* Deliverability Tab */}
-        <TabsContent value="deliverability" className="space-y-4">
-          <BlacklistMonitor senders={poolSenders} />
-
-          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-            <div className="terminal-header text-primary">SOGLIE DI ALLERTA DELIVERABILITY</div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
-                <div>
-                  <p className="font-mono text-xs font-medium text-foreground">Bounce rate</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">Avviso: &gt;2% • Critico: &gt;5%</p>
-                </div>
-                <p className="font-mono text-[10px] text-destructive">Google/Yahoo bloccano a &gt;10%</p>
-              </div>
-              <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
-                <div>
-                  <p className="font-mono text-xs font-medium text-foreground">Spam rate</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">Avviso: &gt;0.1% • Critico: &gt;0.3%</p>
-                </div>
-                <p className="font-mono text-[10px] text-destructive">Gmail blocca a &gt;0.3%</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-            <div className="terminal-header text-primary">API VALIDATORE EMAIL</div>
-            <p className="text-xs text-muted-foreground">Configura un validatore esterno per verifiche avanzate (MX, SMTP)</p>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="font-mono text-xs text-muted-foreground">Provider di validazione</Label>
-                <select
-                  value={values["email_validator_provider"] || "mx"}
-                  onChange={(e) => setValues({ ...values, email_validator_provider: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-accent px-3 py-2 text-sm font-mono ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  <option value="mx">Solo MX (gratuito)</option>
-                  <option value="millionverifier">MillionVerifier</option>
-                  <option value="zerobounce">ZeroBounce</option>
-                </select>
-                <p className="font-mono text-[10px] text-muted-foreground mt-1">
-                  {(values["email_validator_provider"] || "mx") === "mx"
-                    ? "Verifica record MX del dominio — gratuito, senza API key"
-                    : "Verifica SMTP avanzata — richiede API key"}
-                </p>
-              </div>
-              {(values["email_validator_provider"] === "millionverifier" || values["email_validator_provider"] === "zerobounce") && (
-                <div className="space-y-1">
-                  <Label className="font-mono text-xs text-muted-foreground">
-                    {values["email_validator_provider"] === "millionverifier" ? "MillionVerifier" : "ZeroBounce"} API Key
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type={visibility["email_validator_key"] ? "text" : "password"}
-                      value={values["email_validator_key"] || ""}
-                      onChange={(e) => setValues({ ...values, email_validator_key: e.target.value })}
-                      placeholder="Inserisci API key..."
-                      className="font-mono text-xs bg-accent border-border"
-                    />
-                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setVisibility({ ...visibility, email_validator_key: !visibility["email_validator_key"] })}>
-                      {visibility["email_validator_key"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </TabsContent>
       </Tabs>
