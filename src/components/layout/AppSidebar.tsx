@@ -13,6 +13,7 @@ import {
   GitBranch,
   ShieldOff,
   BarChart3,
+  Trophy,
   Settings,
   ChevronLeft,
   ChevronRight,
