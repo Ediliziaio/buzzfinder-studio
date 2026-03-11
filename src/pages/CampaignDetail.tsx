@@ -522,8 +522,8 @@ export default function CampaignDetailPage() {
         <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
       )}
 
-      {/* Sequence Progress */}
-      {isSequence && (
+      {/* Sequence Progress — shown for any active campaign with steps */}
+      {["in_corso", "in_pausa", "completata"].includes(campaign.stato) && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-3">
           <div className="flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-primary" />
