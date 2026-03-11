@@ -61,7 +61,7 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   const loadCampaign = async () => {
-    const { data, error } = await supabase.from("campaigns").select("*").eq("id", id!).single();
+    const { data, error } = await supabase.from("campaigns").select("*").eq("id", id!).maybeSingle();
     if (data) {
       setCampaign(data as unknown as Campaign);
     } else {
