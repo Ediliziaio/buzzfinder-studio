@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Trophy, Filter, X } from "lucide-react";
+import { Trophy, Filter, X, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
