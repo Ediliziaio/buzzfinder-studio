@@ -13,7 +13,7 @@ export function useScrapingSession(sessionId: string | null) {
       .from("scraping_sessions")
       .select("*")
       .eq("id", sessionId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data) setSession(data as unknown as ScrapingSession);
       });

@@ -270,7 +270,7 @@ export default function ScraperWebsitesPage() {
   const handleShowDetail = (job: ScrapingJob) => {
     setDetailJob(job);
     if (job.contact_id) {
-      supabase.from("contacts").select("*").eq("id", job.contact_id).single().then(({ data }) => {
+      supabase.from("contacts").select("*").eq("id", job.contact_id).maybeSingle().then(({ data }) => {
         setDetailContact(data as unknown as Contact);
       });
     }

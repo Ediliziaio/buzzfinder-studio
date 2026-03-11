@@ -54,7 +54,7 @@ export async function populateCampaignRecipients(
       .from("lists")
       .select("tipo, filtri")
       .eq("id", wizardData.selectedListId)
-      .single();
+      .maybeSingle();
 
     if (listData?.tipo === "dinamica") {
       // Dynamic list: apply saved filters + channel filter

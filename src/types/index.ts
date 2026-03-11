@@ -5,7 +5,7 @@ export type ScrapingSessionTipo = 'google_maps' | 'website';
 export type ScrapingSessionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
 export type ScrapingJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'skipped';
 export type CampaignTipo = 'email' | 'sms' | 'whatsapp';
-export type CampaignStato = 'bozza' | 'schedulata' | 'in_corso' | 'completata' | 'pausa' | 'errore';
+export type CampaignStato = 'bozza' | 'schedulata' | 'in_corso' | 'completata' | 'pausa' | 'errore' | 'archiviata';
 export type CampaignTipoCampagna = 'blast' | 'sequence' | 'drip';
 export type CampaignRecipientStato = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'failed' | 'bounced' | 'unsubscribed';
 export type ActivityTipo = 'email_inviata' | 'email_aperta' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato';
@@ -193,7 +193,7 @@ export interface CampaignStepExecution {
   step_id: string;
   recipient_id: string;
   sender_id: string | null;
-  stato: 'scheduled' | 'sent' | 'skipped' | 'failed';
+  stato: 'scheduled' | 'sent' | 'skipped' | 'failed' | 'cancelled';
   scheduled_at: string | null;
   sent_at: string | null;
   opened_at: string | null;

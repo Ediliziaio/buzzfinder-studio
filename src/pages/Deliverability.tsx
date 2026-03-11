@@ -30,11 +30,13 @@ export default function DeliverabilityPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Non autenticato"); setSaving(false); return; }
       for (const key of ["email_validator_provider", "email_validator_key"]) {
         const val = values[key];
         if (val !== undefined) {
           await supabase.from("app_settings").upsert(
-            { chiave: key, valore: val, categoria: "deliverability", updated_at: new Date().toISOString() } as any,
+            { chiave: key, valore: val, categoria: "deliverability", user_id: user.id, updated_at: new Date().toISOString() } as any,
             { onConflict: "chiave" }
           );
         }

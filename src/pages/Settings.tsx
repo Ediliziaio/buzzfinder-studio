@@ -245,14 +245,12 @@ function Section({ title, children, extra }: { title: string; children: React.Re
 
 function BlocklistEditor() {
   const [value, setValue] = useState("");
-  const [loaded, setLoaded] = useState(false);
 
-  if (!loaded) {
+  useEffect(() => {
     supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").maybeSingle().then(({ data }) => {
       if (data?.valore) setValue(data.valore);
-      setLoaded(true);
     });
-  }
+  }, []);
 
   const save = async () => {
     const { data: { user } } = await supabase.auth.getUser();
