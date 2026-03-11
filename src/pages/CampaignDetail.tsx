@@ -84,7 +84,7 @@ export default function CampaignDetailPage() {
     if (!campaign) return;
     try {
       const user_id = await getCurrentUserId();
-      const { error } = await supabase.from("campaign_templates" as any).insert({
+      const { error } = await supabase.from("campaign_templates").insert({
         user_id,
         nome: `${campaign.nome} (template)`,
         tipo: campaign.tipo,

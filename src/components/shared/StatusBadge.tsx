@@ -57,6 +57,7 @@ const statusLabels: Record<string, string> = {
   completata: "Completata",
   pausa: "In pausa",
   errore: "Errore",
+  archiviata: "Archiviata",
   pending: "In attesa",
   running: "In esecuzione",
   completed: "Completato",

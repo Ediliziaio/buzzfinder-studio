@@ -121,10 +121,10 @@ export function SenderDialog({ open, onOpenChange, sender, onSaved }: Props) {
       }
 
       if (isEdit && sender) {
-        await supabase.from("sender_pool" as any).update(payload as any).eq("id", sender.id);
+        await supabase.from("sender_pool").update(payload as any).eq("id", sender.id);
       } else {
         const user_id = await getCurrentUserId();
-        await supabase.from("sender_pool" as any).insert({ ...payload, user_id } as any);
+        await supabase.from("sender_pool").insert({ ...payload, user_id } as any);
       }
 
       toast.success("Mittente salvato");
