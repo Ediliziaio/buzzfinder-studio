@@ -12,7 +12,7 @@ export function SequenceProgress({ campaignId }: Props) {
     queryKey: ["campaign-steps", campaignId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("campaign_steps" as any)
+        .from("campaign_steps")
         .select("*, campaign_step_executions(stato)")
         .eq("campaign_id", campaignId)
         .is("ab_padre_id", null)

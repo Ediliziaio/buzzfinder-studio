@@ -84,7 +84,7 @@ export default function CampaignDetailPage() {
     if (!campaign) return;
     try {
       const user_id = await getCurrentUserId();
-      const { error } = await supabase.from("campaign_templates" as any).insert({
+      const { error } = await supabase.from("campaign_templates").insert({
         user_id,
         nome: `${campaign.nome} (template)`,
         tipo: campaign.tipo,
@@ -113,7 +113,7 @@ export default function CampaignDetailPage() {
   const initializeSequence = async (campaignId: string) => {
     // Get step 1
     const { data: step1 } = await supabase
-      .from("campaign_steps" as any)
+      .from("campaign_steps")
       .select("id")
       .eq("campaign_id", campaignId)
       .eq("step_number", 1)
@@ -147,7 +147,7 @@ export default function CampaignDetailPage() {
       stato: "scheduled",
     }));
 
-    const { error } = await supabase.from("campaign_step_executions" as any).insert(executions);
+    const { error } = await supabase.from("campaign_step_executions").insert(executions as any);
     if (error) {
       toast.error("Errore inizializzazione sequenza: " + error.message);
       return false;

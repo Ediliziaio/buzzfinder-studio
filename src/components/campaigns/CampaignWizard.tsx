@@ -180,7 +180,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   useEffect(() => {
     if (!data.tipo || !open) return;
     setTemplateSearch("");
-    supabase.from("campaign_templates" as any)
+    supabase.from("campaign_templates")
       .select("*")
       .eq("tipo", data.tipo)
       .order("utilizzi", { ascending: false })
@@ -321,7 +321,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           ab_nome: s.ab_nome || null,
           ab_peso: s.ab_peso,
         }));
-        const { error: stepsErr } = await supabase.from("campaign_steps" as any).insert(stepRows);
+        const { error: stepsErr } = await supabase.from("campaign_steps").insert(stepRows as any);
         if (stepsErr) throw stepsErr;
       }
 
@@ -473,11 +473,11 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                           reply_to: tpl.reply_to || data.reply_to,
                           sending_rate_per_hour: tpl.sending_rate_per_hour || 500,
                           aiEnabled: tpl.ai_personalization_enabled || false,
-                          aiModel: tpl.ai_model || "haiku",
+                          aiModel: tpl.ai_model || "gemini-flash",
                           aiContext: tpl.ai_context || "",
                           aiObjective: tpl.ai_objective || "",
                         });
-                        supabase.from("campaign_templates" as any)
+                        supabase.from("campaign_templates")
                           .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
                           .eq("id", tpl.id)
                           .then(() => {});
