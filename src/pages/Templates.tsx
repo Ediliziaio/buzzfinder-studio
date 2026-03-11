@@ -41,7 +41,7 @@ interface TemplateFormData {
 
 const emptyForm: TemplateFormData = {
   nome: "",
-  tipo: "email",
+  tipo: "email" as const,
   subject: "",
   body_html: "",
   sender_email: "",
