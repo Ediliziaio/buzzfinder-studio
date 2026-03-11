@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.validate-emails]
 verify_jwt = false
+
+[functions.send-reply]
+verify_jwt = false

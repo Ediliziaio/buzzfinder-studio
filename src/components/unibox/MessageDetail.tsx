@@ -106,6 +106,15 @@ export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsU
           )}
         </div>
 
+        {/* Reply composer */}
+        {showReply && (
+          <ReplyComposer
+            message={message}
+            onSent={() => setShowReply(false)}
+            onCancel={() => setShowReply(false)}
+          />
+        )}
+
         {/* Footer: labels */}
         <div className="p-4 border-t">
           <Label className="font-mono text-xs mb-2 block">ETICHETTA</Label>
