@@ -24,6 +24,7 @@ import UniboxPage from "@/pages/Unibox";
 import PipelinePage from "@/pages/Pipeline";
 import SendersPage from "@/pages/Senders";
 import DeliverabilityPage from "@/pages/Deliverability";
+import TemplatesPage from "@/pages/Templates";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
