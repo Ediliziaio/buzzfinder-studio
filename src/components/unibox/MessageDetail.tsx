@@ -10,6 +10,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { EtichettaBadge, getEtichettaConfig } from "./EtichettaBadge";
 import { ContactInfoPanel } from "./ContactInfoPanel";
 import { ReplyComposer } from "./ReplyComposer";
+import { ThreadView } from "./ThreadView";
 import type { InboxMessage } from "@/hooks/useInbox";
 
 const etichette = [
