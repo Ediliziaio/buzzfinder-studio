@@ -51,9 +51,9 @@ export interface Contact {
   note: string | null;
   ultima_attivita: string | null;
   scraping_session_id: string | null;
-  ai_intro: string | null;
-  ai_personalizzato_at: string | null;
-  ai_modello: string | null;
+  ai_intro?: string | null;
+  ai_personalizzato_at?: string | null;
+  ai_modello?: string | null;
   created_at: string;
   updated_at: string;
 }
