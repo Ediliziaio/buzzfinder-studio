@@ -51,6 +51,7 @@ function AppRoutes() {
         <Route path="/lists" element={<ListsPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+        <Route path="/unibox" element={<UniboxPage />} />
         <Route path="/follow-up" element={<FollowUpSequencesPage />} />
         <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />

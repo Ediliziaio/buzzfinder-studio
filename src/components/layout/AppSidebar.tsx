@@ -35,6 +35,7 @@ const navItems = [
 export function AppSidebar() {
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const location = useLocation();
+  const unreadCount = useInboxUnreadCount();
 
   return (
     <aside
@@ -57,6 +58,7 @@ export function AppSidebar() {
       <nav className="flex-1 overflow-y-auto py-2">
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
+          const showBadge = item.path === "/unibox" && unreadCount > 0;
           return (
             <Link
               key={item.path}
@@ -69,7 +71,19 @@ export function AppSidebar() {
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              {!sidebarCollapsed && <span>{item.title}</span>}
+              {!sidebarCollapsed && (
+                <>
+                  <span className="flex-1">{item.title}</span>
+                  {showBadge && (
+                    <Badge variant="destructive" className="ml-auto text-xs h-5 min-w-5 px-1 flex items-center justify-center">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Badge>
+                  )}
+                </>
+              )}
+              {sidebarCollapsed && showBadge && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive" />
+              )}
             </Link>
           );
         })}
