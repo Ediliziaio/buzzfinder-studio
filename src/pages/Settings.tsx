@@ -271,7 +271,7 @@ function BlocklistEditor() {
 }
 
 function AiModelSelector() {
-  const [model, setModel] = useState("haiku");
+  const [model, setModel] = useState("gemini-flash");
 
   useEffect(() => {
     supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").maybeSingle().then(({ data }) => {
