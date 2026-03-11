@@ -19,10 +19,10 @@ export default function DeliverabilityPage() {
   }, []);
 
   const loadSettings = async () => {
-    const { data } = await supabase.from("app_settings").select("*") as any;
+    const { data } = await supabase.from("app_settings").select("chiave, valore").in("chiave", ["email_validator_provider", "email_validator_key"]);
     if (data) {
       const map: Record<string, string> = {};
-      data.forEach((s: any) => { map[s.chiave] = s.valore || ""; });
+      data.forEach((s) => { map[s.chiave] = s.valore || ""; });
       setValues(map);
     }
   };
