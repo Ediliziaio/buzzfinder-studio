@@ -94,7 +94,6 @@ export interface ScrapingJob {
 export interface Campaign {
   id: string;
   nome: string;
-  descrizione: string | null;
   tipo: CampaignTipo;
   tipo_campagna: CampaignTipoCampagna;
   stato: CampaignStato;

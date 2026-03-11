@@ -192,15 +192,15 @@ export default function SettingsPage() {
           </Section>
           <Section title="STIMA COSTI">
             <div className="rounded-md border border-border bg-accent p-3 space-y-1">
-              <p className="font-mono text-xs text-muted-foreground">Haiku: ~€0.001 / contatto personalizzato</p>
-              <p className="font-mono text-xs text-muted-foreground">Sonnet: ~€0.005 / contatto personalizzato</p>
-              <p className="font-mono text-xs text-muted-foreground">1000 contatti × Haiku ≈ €1.00</p>
-              <p className="font-mono text-xs text-muted-foreground">1000 contatti × Sonnet ≈ €5.00</p>
+              <p className="font-mono text-xs text-muted-foreground">Gemini Flash: ~€0.001 / contatto personalizzato</p>
+              <p className="font-mono text-xs text-muted-foreground">GPT-5 Mini: ~€0.003 / contatto personalizzato</p>
+              <p className="font-mono text-xs text-muted-foreground">Gemini Pro: ~€0.005 / contatto personalizzato</p>
+              <p className="font-mono text-xs text-muted-foreground">1000 contatti × Flash ≈ €1.00</p>
             </div>
           </Section>
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="font-mono text-[10px] text-muted-foreground">
-              La chiave Anthropic è configurata nella tab API Keys. L'AI personalizza oggetto e corpo email per ogni contatto usando dati aziendali.
+              L'AI è integrata nativamente tramite Lovable Cloud. Personalizza oggetto e corpo email per ogni contatto usando dati aziendali.
             </p>
           </div>
         </TabsContent>
@@ -257,7 +257,7 @@ function BlocklistEditor() {
     if (!user) return;
     await supabase.from("app_settings").upsert(
       { chiave: "email_blocklist", valore: value, categoria: "tracking", user_id: user.id, updated_at: new Date().toISOString() } as any,
-      { onConflict: "chiave" }
+      { onConflict: "chiave,user_id" }
     );
     toast.success("Blocklist salvata");
   };
@@ -271,7 +271,7 @@ function BlocklistEditor() {
 }
 
 function AiModelSelector() {
-  const [model, setModel] = useState("haiku");
+  const [model, setModel] = useState("gemini-flash");
 
   useEffect(() => {
     supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").maybeSingle().then(({ data }) => {
@@ -285,7 +285,7 @@ function AiModelSelector() {
     if (!user) return;
     await supabase.from("app_settings").upsert(
       { chiave: "ai_model_default", valore: val, categoria: "ai", user_id: user.id, updated_at: new Date().toISOString() } as any,
-      { onConflict: "chiave" }
+      { onConflict: "chiave,user_id" }
     );
   };
 
@@ -297,8 +297,10 @@ function AiModelSelector() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="haiku">Claude Haiku (veloce, economico)</SelectItem>
-          <SelectItem value="sonnet">Claude Sonnet (preciso, costoso)</SelectItem>
+          <SelectItem value="gemini-flash">Gemini 2.5 Flash (veloce, economico)</SelectItem>
+          <SelectItem value="gemini-pro">Gemini 2.5 Pro (preciso, potente)</SelectItem>
+          <SelectItem value="gpt-5-mini">GPT-5 Mini (bilanciato)</SelectItem>
+          <SelectItem value="gpt-5">GPT-5 (massima qualità)</SelectItem>
         </SelectContent>
       </Select>
     </div>

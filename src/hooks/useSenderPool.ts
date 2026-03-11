@@ -8,11 +8,12 @@ export function useSenderPool(tipo?: "email" | "whatsapp" | "sms") {
 
   const fetchSenders = useCallback(async () => {
     let query = supabase
-      .from("sender_pool" as any)
+      .from("sender_pool")
       .select("*")
       .order("health_score", { ascending: false });
     if (tipo) query = query.eq("tipo", tipo);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) { console.error("Errore caricamento sender pool:", error.message); }
     setSenders((data as unknown as SenderPool[]) || []);
     setLoading(false);
   }, [tipo]);
@@ -35,12 +36,12 @@ export function useSenderPool(tipo?: "email" | "whatsapp" | "sms") {
   }, [fetchSenders]);
 
   const toggleActive = async (id: string, attivo: boolean) => {
-    await supabase.from("sender_pool" as any).update({ attivo } as any).eq("id", id);
+    await supabase.from("sender_pool").update({ attivo }).eq("id", id);
     fetchSenders();
   };
 
   const deleteSender = async (id: string) => {
-    await supabase.from("sender_pool" as any).delete().eq("id", id);
+    await supabase.from("sender_pool").delete().eq("id", id);
     fetchSenders();
   };
 

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS idx_app_settings_chiave_user_id ON public.app_settings (chiave, user_id);

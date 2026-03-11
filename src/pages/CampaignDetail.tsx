@@ -61,7 +61,7 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   const loadCampaign = async () => {
-    const { data, error } = await supabase.from("campaigns").select("*").eq("id", id!).single();
+    const { data, error } = await supabase.from("campaigns").select("*").eq("id", id!).maybeSingle();
     if (data) {
       setCampaign(data as unknown as Campaign);
     } else {
@@ -118,7 +118,7 @@ export default function CampaignDetailPage() {
       .eq("campaign_id", campaignId)
       .eq("step_number", 1)
       .is("ab_padre_id", null)
-      .single();
+      .maybeSingle();
 
     if (!step1) {
       toast.error("Aggiungi almeno uno step alla sequenza");

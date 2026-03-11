@@ -19,10 +19,10 @@ export default function DeliverabilityPage() {
   }, []);
 
   const loadSettings = async () => {
-    const { data } = await supabase.from("app_settings").select("*") as any;
+    const { data } = await supabase.from("app_settings").select("chiave, valore").in("chiave", ["email_validator_provider", "email_validator_key"]);
     if (data) {
       const map: Record<string, string> = {};
-      data.forEach((s: any) => { map[s.chiave] = s.valore || ""; });
+      data.forEach((s) => { map[s.chiave] = s.valore || ""; });
       setValues(map);
     }
   };
@@ -37,7 +37,7 @@ export default function DeliverabilityPage() {
         if (val !== undefined) {
           await supabase.from("app_settings").upsert(
             { chiave: key, valore: val, categoria: "deliverability", user_id: user.id, updated_at: new Date().toISOString() } as any,
-            { onConflict: "chiave" }
+            { onConflict: "chiave,user_id" }
           );
         }
       }
