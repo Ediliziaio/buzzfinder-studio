@@ -45,7 +45,7 @@ export interface Contact {
   facebook_url: string | null;
   instagram_url: string | null;
   fonte: ContactFonte;
-  fonte_dettaglio: string | null;
+  fonte_dettaglio?: string | null;
   stato: ContactStato;
   tags: string[];
   note: string | null;
