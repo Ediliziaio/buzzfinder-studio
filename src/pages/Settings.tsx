@@ -207,6 +207,11 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
+        {/* Ricezione Risposte */}
+        <TabsContent value="ricezione">
+          <WebhookGuideTab />
+        </TabsContent>
+
         {/* Import/Export */}
         <TabsContent value="export" className="space-y-4">
           <Section title="IMPORT">
