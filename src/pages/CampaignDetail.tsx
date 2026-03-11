@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save } from "lucide-react";
+import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save, GitBranch } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -19,6 +19,7 @@ import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
 import { AssignmentResultDialog, type AssignmentResult } from "@/components/senders/AssignmentResultDialog";
+import { SequenceProgress } from "@/components/campaigns/SequenceProgress";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
