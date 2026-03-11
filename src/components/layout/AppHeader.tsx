@@ -98,7 +98,7 @@ export function AppHeader() {
     >
       {/* Breadcrumb */}
       <div className="flex items-center gap-2">
-        <span className="font-mono text-xs text-muted-foreground">LeadHunter</span>
+        <span className="font-mono text-xs text-muted-foreground">BuzzFinder</span>
         {currentPage && (
           <>
             <span className="text-muted-foreground/40">/</span>

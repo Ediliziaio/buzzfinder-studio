@@ -202,7 +202,7 @@ export default function CampaignDetailPage() {
 
     try {
       // ─── AVVIO ──────────────────────────────────────────────────────────
-      if (newStato === "in_corso" && campaign.stato !== "pausa") {
+      if (newStato === "in_corso" && campaign.stato !== "in_pausa") {
         const { count } = await supabase
           .from("campaign_recipients")
           .select("*", { count: "exact", head: true })
@@ -301,7 +301,7 @@ export default function CampaignDetailPage() {
         } catch { /* ignore */ }
 
       // ─── RIPRENDI ───────────────────────────────────────────────────────
-      } else if (newStato === "in_corso" && campaign.stato === "pausa") {
+      } else if (newStato === "in_corso" && campaign.stato === "in_pausa") {
         const { error } = await supabase.from("campaigns")
           .update({ stato: "in_corso" } as any)
           .eq("id", campaign.id);
@@ -382,7 +382,7 @@ export default function CampaignDetailPage() {
 
   // Phase progress
   const phases = [
-    { label: "Preparazione", active: campaign.stato === "bozza" || campaign.stato === "schedulata", done: ["in_corso", "completata", "pausa"].includes(campaign.stato) },
+    { label: "Preparazione", active: campaign.stato === "bozza" || campaign.stato === "schedulata", done: ["in_corso", "completata", "in_pausa"].includes(campaign.stato) },
     { label: "Invio", active: campaign.stato === "in_corso", done: campaign.stato === "completata" },
     { label: "Completata", active: campaign.stato === "completata", done: false },
   ];
@@ -430,7 +430,7 @@ export default function CampaignDetailPage() {
               </Button>
             </>
           )}
-          {campaign.stato === "pausa" && (
+          {campaign.stato === "in_pausa" && (
             <Button size="sm" className="font-mono text-xs" onClick={() => handleStatusChange("in_corso")}>
               <Send className="h-3 w-3 mr-1" /> RIPRENDI
             </Button>

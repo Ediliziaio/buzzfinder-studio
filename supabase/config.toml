@@ -11,3 +11,18 @@ verify_jwt = false
 
 [functions.send-reply]
 verify_jwt = false
+
+[functions.track-open]
+verify_jwt = false
+
+[functions.unsubscribe]
+verify_jwt = false
+
+[functions.assign-senders]
+verify_jwt = false
+
+[functions.scrape-maps-page]
+verify_jwt = false
+
+[functions.weekly-report]
+verify_jwt = false

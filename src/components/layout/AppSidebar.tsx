@@ -190,7 +190,7 @@ export function AppSidebar() {
         <Crosshair className="h-5 w-5 shrink-0 text-primary" />
         {!sidebarCollapsed && (
           <span className="ml-2 font-display text-sm font-bold text-foreground tracking-tight">
-            LeadHunter
+            BuzzFinder
           </span>
         )}
       </div>

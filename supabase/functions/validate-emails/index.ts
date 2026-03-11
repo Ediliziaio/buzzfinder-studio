@@ -121,12 +121,21 @@ Deno.serve(async (req) => {
     const { data: settingsData } = await supabase
       .from("app_settings")
       .select("chiave, valore")
-      .in("chiave", ["email_validator_provider", "email_validator_key"]);
+      .in("chiave", ["millionverifier_api_key", "zerobounce_api_key"]);
 
     const settingsMap: Record<string, string> = {};
     settingsData?.forEach((s: any) => { settingsMap[s.chiave] = s.valore || ""; });
-    const provider = settingsMap["email_validator_provider"] || "mx";
-    const apiKey = settingsMap["email_validator_key"] || null;
+    
+    // Determine provider based on which key exists
+    let provider = "mx";
+    let apiKey: string | null = null;
+    if (settingsMap["millionverifier_api_key"]) {
+      provider = "millionverifier";
+      apiKey = settingsMap["millionverifier_api_key"];
+    } else if (settingsMap["zerobounce_api_key"]) {
+      provider = "zerobounce";
+      apiKey = settingsMap["zerobounce_api_key"];
+    }
 
     const body = await req.json();
     const batchSize = Math.min(body.batch_size || 100, 500);
