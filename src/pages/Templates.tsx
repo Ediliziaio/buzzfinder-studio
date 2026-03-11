@@ -215,7 +215,7 @@ export default function TemplatesPage() {
               </div>
               <div className="space-y-1">
                 <Label className="font-mono text-xs text-muted-foreground">Tipo</Label>
-                <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                <Select value={form.tipo} onValueChange={(v: "email" | "sms" | "whatsapp") => setForm({ ...form, tipo: v })}>
                   <SelectTrigger className="font-mono text-xs">
                     <SelectValue />
                   </SelectTrigger>
