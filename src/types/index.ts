@@ -19,16 +19,13 @@ export interface Contact {
   id: string;
   nome: string | null;
   cognome: string | null;
-  ruolo?: string | null;
   azienda: string;
   telefono: string | null;
   telefono_normalizzato: string | null;
   email: string | null;
   email_confidence: number;
   email_valid: boolean;
-  email_quality: 'valid' | 'risky' | 'invalid' | null;
-  email_validato?: boolean;
-  email_validato_at?: string | null;
+  email_quality: string | null;
   sito_web: string | null;
   indirizzo: string | null;
   citta: string | null;
@@ -45,15 +42,12 @@ export interface Contact {
   facebook_url: string | null;
   instagram_url: string | null;
   fonte: ContactFonte;
-  fonte_dettaglio?: string | null;
   stato: ContactStato;
   tags: string[];
   note: string | null;
   ultima_attivita: string | null;
   scraping_session_id: string | null;
-  ai_intro?: string | null;
-  ai_personalizzato_at?: string | null;
-  ai_modello?: string | null;
+  user_id: string | null;
   created_at: string;
   updated_at: string;
 }
