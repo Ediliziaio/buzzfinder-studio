@@ -202,7 +202,7 @@ export default function CampaignDetailPage() {
 
     try {
       // ─── AVVIO ──────────────────────────────────────────────────────────
-      if (newStato === "in_corso" && campaign.stato !== "pausa") {
+      if (newStato === "in_corso" && campaign.stato !== "in_pausa") {
         const { count } = await supabase
           .from("campaign_recipients")
           .select("*", { count: "exact", head: true })
