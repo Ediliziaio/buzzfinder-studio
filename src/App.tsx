@@ -18,6 +18,7 @@ import SettingsPage from "@/pages/Settings";
 import CampaignDetailPage from "@/pages/CampaignDetail";
 import FollowUpSequencesPage from "@/pages/FollowUpSequences";
 import SuppressionListPage from "@/pages/SuppressionList";
+import UniboxPage from "@/pages/Unibox";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
