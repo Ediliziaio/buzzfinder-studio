@@ -80,6 +80,9 @@ export default function PipelinePage() {
           <h1 className="font-display text-xl font-bold text-foreground">PIPELINE</h1>
         </div>
         <div className="flex items-center gap-4">
+          <Button size="sm" className="font-mono text-xs" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3 w-3 mr-1" /> Nuovo Lead
+          </Button>
           <Button
             variant={showFilters ? "default" : "outline"}
             size="sm"
