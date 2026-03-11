@@ -56,6 +56,7 @@ function AppRoutes() {
         <Route path="/follow-up" element={<FollowUpSequencesPage />} />
         <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/pipeline" element={<PipelinePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
