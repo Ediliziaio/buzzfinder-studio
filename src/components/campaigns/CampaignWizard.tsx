@@ -179,13 +179,18 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
 
   useEffect(() => {
     if (!data.tipo || !open) return;
+    setTemplateSearch("");
     supabase.from("campaign_templates" as any)
       .select("*")
       .eq("tipo", data.tipo)
       .order("utilizzi", { ascending: false })
-      .limit(6)
       .then(({ data: tpl }) => setTemplates(tpl || []));
   }, [data.tipo, open]);
+
+  const filteredTemplates = templates.filter((t: any) =>
+    !templateSearch || t.nome?.toLowerCase().includes(templateSearch.toLowerCase()) ||
+    t.subject?.toLowerCase().includes(templateSearch.toLowerCase())
+  );
 
   const update = (partial: Partial<WizardData>) => setData((d) => ({ ...d, ...partial }));
 
