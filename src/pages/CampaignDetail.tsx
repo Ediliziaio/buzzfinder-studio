@@ -319,27 +319,9 @@ export default function CampaignDetailPage() {
             </Button>
           )}
           {campaign.stato === "bozza" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" className="font-mono text-xs">
-                  <Send className="h-3 w-3 mr-1" /> LANCIA
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="font-mono">Lancia campagna?</AlertDialogTitle>
-                  <AlertDialogDescription className="font-mono text-xs">
-                    Stai per lanciare "{campaign.nome}" verso {campaign.totale_destinatari.toLocaleString()} destinatari via {campaign.tipo}. Questa azione avvierà l'invio tramite n8n.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="font-mono text-xs">Annulla</AlertDialogCancel>
-                  <AlertDialogAction className="font-mono text-xs" onClick={() => handleStatusChange("in_corso")}>
-                    <Send className="h-3 w-3 mr-1" /> Conferma invio
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button size="sm" className="font-mono text-xs" onClick={handleLaunchCampaign} disabled={isAssigning}>
+              <Send className="h-3 w-3 mr-1" /> {isAssigning ? "Assegnazione..." : "LANCIA"}
+            </Button>
           )}
         </div>
       </div>
