@@ -1,0 +1,1004 @@
+==============================================================
+PROMPT LOVABLE — TypeScript Types, Navigazione & Settings
+BuzzFinder Studio — Aggiornamento Completo Tipi e UI
+==============================================================
+
+## OBIETTIVO
+Aggiorna tutti i TypeScript types per riflettere lo schema DB completo,
+aggiorna la navigazione principale con le nuove sezioni, e completa la
+pagina Settings con tutti i campi API mancanti.
+
+---
+
+## PARTE 1 — TypeScript Types (src/types/index.ts o src/types/database.ts)
+
+Aggiorna/crea le seguenti interfacce TypeScript:
+
+```typescript
+// ─── CAMPAIGN (aggiornato con tutti i nuovi campi) ───────────────────────────
+export interface Campaign {
+  id: string;
+  nome: string;
+  descrizione?: string;
+  stato: 'bozza' | 'attiva' | 'in_pausa' | 'completata' | 'archiviata';
+  tipo?: string; // email, whatsapp, sms
+  tipo_campagna?: 'outreach' | 'follow_up' | 'nurturing' | 'reattivazione';
+
+  // Smart Scheduling
+  timezone?: string; // es. "Europe/Rome"
+  ora_inizio_invio?: string; // "09:00"
+  ora_fine_invio?: string;   // "18:00"
+  solo_lavorativi?: boolean;
+
+  // Sequence / Reply Handling
+  stop_su_risposta?: boolean;
+  stop_su_disiscrizione?: boolean;
+
+  // Tracking
+  tracking_aperture?: boolean;
+  tracking_click?: boolean;
+  custom_tracking_domain?: string;
+
+  // AI Personalization
+  ai_personalization_enabled?: boolean;
+  ai_model?: string; // "claude-haiku-4-5-20251001"
+  ai_context?: string;
+  ai_objective?: string;
+  ai_personalization_status?: 'idle' | 'running' | 'completed' | 'error';
+  ai_personalization_processed?: number;
+  ai_personalization_total?: number;
+  ai_cost_eur?: number;
+
+  // Pause/Resume tracking
+  paused_at?: string;
+  resumed_at?: string;
+  pausa_motivo?: string;
+
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ─── CAMPAIGN STEP (passi della sequenza) ────────────────────────────────────
+export interface CampaignStep {
+  id: string;
+  campaign_id: string;
+  nome?: string;
+  ordine: number;
+
+  // Timing
+  delay_giorni: number;
+  delay_ore: number;
+  delay_minuti: number;
+
+  // Content
+  canale: 'email' | 'whatsapp' | 'sms';
+  oggetto?: string;         // Per email
+  corpo_testo?: string;     // Testo plain
+  corpo_html?: string;      // HTML email
+  usa_html?: boolean;
+  usa_spintax?: boolean;    // {Ciao|Salve} anti-spam variation
+
+  // A/B Testing
+  ab_variante?: 'A' | 'B';
+  ab_percentuale?: number;  // % recipients per variante A (default 50)
+
+  // Stats (denormalizzati)
+  stat_schedulati?: number;
+  stat_inviati?: number;
+  stat_aperti?: number;
+  stat_cliccati?: number;
+  stat_risposte?: number;
+  stat_falliti?: number;
+
+  created_at?: string;
+}
+
+// ─── CAMPAIGN STEP EXECUTION (coda di invio) ─────────────────────────────────
+export interface CampaignStepExecution {
+  id: string;
+  campaign_id: string;
+  step_id: string;
+  recipient_id: string;
+
+  stato: 'scheduled' | 'sent' | 'failed' | 'cancelled' | 'skipped';
+  scheduled_at: string;
+  sent_at?: string;
+
+  // Tracking
+  tracking_id?: string;
+  aperto_at?: string;
+  primo_click_at?: string;
+  risposta_at?: string;
+
+  // Debug
+  error_message?: string;
+
+  created_at?: string;
+}
+
+// ─── CAMPAIGN RECIPIENT (aggiornato con CRM pipeline) ────────────────────────
+export interface CampaignRecipient {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  sender_id?: string;
+
+  stato: 'attivo' | 'completato' | 'disiscritto' | 'rimbalzato' | 'annullato';
+  step_corrente: number;
+  prossimo_invio?: string;
+  risposta_at?: string;
+
+  // CRM Pipeline
+  pipeline_stage?: 'interessato' | 'meeting_fissato' | 'proposta_inviata' | 'vinto' | 'perso';
+  pipeline_note?: string;
+  pipeline_updated?: string;
+
+  created_at?: string;
+}
+
+// ─── SENDER POOL (anti-spam mittenti) ────────────────────────────────────────
+export interface SenderPool {
+  id: string;
+  nome: string;
+  tipo: 'email' | 'whatsapp' | 'sms';
+  attivo: boolean;
+
+  // Email
+  email?: string;
+  resend_api_key?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_user?: string;
+  smtp_pass?: string;
+  nome_mittente?: string;
+  reply_to?: string;
+
+  // WhatsApp
+  wa_phone_id?: string;
+  wa_token?: string;
+
+  // SMS
+  sms_provider?: string;
+  sms_from?: string;
+  sms_api_key?: string;
+
+  // Warm-up
+  in_riscaldamento: boolean;
+  data_inizio_riscaldamento?: string;
+  email_al_giorno_limite: number;
+  email_inviate_oggi: number;
+  total_sent: number;
+
+  // Health Score
+  health_score: number; // 0-100
+  bounce_rate?: number;
+  spam_rate?: number;
+  ultimo_bounce_at?: string;
+  ultimo_spam_at?: string;
+
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ─── EMAIL EVENT (tracking aperture/click/bounce) ────────────────────────────
+export interface EmailEvent {
+  id: string;
+  execution_id: string;
+  tipo: 'open' | 'click' | 'bounce' | 'spam' | 'unsubscribe';
+  url?: string;
+  ip?: string;
+  user_agent?: string;
+  created_at?: string;
+}
+
+// ─── INBOX MESSAGE (Unibox unificato) ────────────────────────────────────────
+export interface InboxMessage {
+  id: string;
+  campaign_id?: string;
+  recipient_id?: string;
+  execution_id?: string;
+
+  canale: 'email' | 'whatsapp' | 'sms';
+  da_nome?: string;
+  da_email?: string;
+  da_telefono?: string;
+  oggetto?: string;
+  corpo: string;
+  corpo_html?: string;
+
+  data_ricezione: string;
+  letto: boolean;
+  archiviato: boolean;
+
+  // AI Categorization
+  etichetta: 'interessato' | 'non_interessato' | 'richiesta_info' | 'fuori_ufficio' |
+             'appuntamento_fissato' | 'referral' | 'obiezione' | 'disiscrizione' | 'non_categorizzato';
+  etichetta_ai: boolean;
+
+  note_interne?: string;
+  assegnato_a?: string;
+
+  created_at?: string;
+}
+
+// ─── UNSUBSCRIBE ──────────────────────────────────────────────────────────────
+export interface Unsubscribe {
+  id: string;
+  email?: string;
+  telefono?: string;
+  motivo?: 'unsubscribed' | 'bounced' | 'spam' | 'manual';
+  campaign_id?: string;
+  created_at?: string;
+}
+
+// ─── BLACKLIST CHECK ──────────────────────────────────────────────────────────
+export interface BlacklistCheck {
+  id: string;
+  dominio: string;
+  blacklist_nome: string;
+  listato: boolean;
+  checked_at: string;
+  rimosso_at?: string;
+}
+
+// ─── CAMPAIGN ANALYTICS (VIEW) ───────────────────────────────────────────────
+export interface CampaignAnalytics {
+  campaign_id: string;
+  nome: string;
+  tipo?: string;
+  stato: string;
+  created_at: string;
+  totale_destinatari: number;
+  inviati: number;
+  aperti: number;
+  cliccati: number;
+  risposte: number;
+  falliti: number;
+  interessati: number;
+  meeting: number;
+  vinti: number;
+  open_rate: number;   // %
+  reply_rate: number;  // %
+}
+
+// ─── CONTACT (aggiornato con email validation) ───────────────────────────────
+export interface Contact {
+  id: string;
+  nome?: string;
+  cognome?: string;
+  email?: string;
+  telefono?: string;
+  azienda?: string;
+  ruolo?: string;
+  sito_web?: string;  // campo corretto (non "sito")
+  linkedin?: string;
+  note?: string;
+  tags?: string[];
+
+  // Email Validation
+  email_validato?: boolean;
+  email_quality?: 'valid' | 'risky' | 'invalid';
+  email_validato_at?: string;
+
+  // AI Personalization
+  ai_intro?: string;
+  ai_personalizzato_at?: string;
+  ai_modello?: string;
+
+  // Source tracking
+  fonte?: string;
+  fonte_dettaglio?: string;
+
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ─── APP SETTINGS ─────────────────────────────────────────────────────────────
+export interface AppSetting {
+  chiave: string;
+  valore: string;
+  tipo?: string;
+  categoria?: string;
+}
+
+// ─── CAMPAIGN TEMPLATE ───────────────────────────────────────────────────────
+export interface CampaignTemplate {
+  id: string;
+  nome: string;
+  descrizione?: string;
+  tipo: string;
+  dati: Record<string, any>; // Full campaign config as JSON
+  is_public?: boolean;
+  created_at?: string;
+}
+```
+
+---
+
+## PARTE 2 — Navigazione principale (App.tsx / Sidebar / Nav)
+
+Aggiorna il menu di navigazione principale con le nuove sezioni. Usa `react-router-dom` con le seguenti route:
+
+### Route da aggiungere (in App.tsx o Router):
+
+```tsx
+// Già esistenti
+<Route path="/" element={<Index />} />
+<Route path="/contacts" element={<Contacts />} />
+<Route path="/campaigns" element={<Campaigns />} />
+<Route path="/settings" element={<Settings />} />
+
+// NUOVE ROUTE DA AGGIUNGERE:
+<Route path="/inbox" element={<Inbox />} />           // Unibox
+<Route path="/analytics" element={<Analytics />} />   // Analytics + CRM
+<Route path="/pipeline" element={<Pipeline />} />     // CRM Kanban
+<Route path="/senders" element={<Senders />} />       // Pool Mittenti
+<Route path="/deliverability" element={<Deliverability />} /> // Deliverability
+```
+
+### Sidebar / Navigation Component:
+
+Aggiorna la sidebar (o nav bar) per includere tutti i link. La struttura deve essere:
+
+```tsx
+const navItems = [
+  {
+    label: "Dashboard",
+    icon: <LayoutDashboard size={18} />,
+    href: "/",
+  },
+  {
+    label: "Contatti",
+    icon: <Users size={18} />,
+    href: "/contacts",
+  },
+  {
+    label: "Campagne",
+    icon: <Send size={18} />,
+    href: "/campaigns",
+  },
+  {
+    label: "Sequenze",       // Sub-link o parte di Campagne
+    icon: <GitBranch size={18} />,
+    href: "/campaigns?tab=sequences",
+  },
+  {
+    label: "Unibox",
+    icon: <Inbox size={18} />,
+    href: "/inbox",
+    badge: unreadCount,  // numero messaggi non letti — rosso se > 0
+  },
+  {
+    label: "Analytics",
+    icon: <BarChart2 size={18} />,
+    href: "/analytics",
+  },
+  {
+    label: "Pipeline CRM",
+    icon: <Kanban size={18} />,
+    href: "/pipeline",
+  },
+  {
+    label: "Pool Mittenti",
+    icon: <AtSign size={18} />,
+    href: "/senders",
+    badge: unhealthyCount, // mittenti con health_score < 60 — giallo se > 0
+  },
+  {
+    label: "Deliverability",
+    icon: <ShieldCheck size={18} />,
+    href: "/deliverability",
+  },
+  {
+    label: "Impostazioni",
+    icon: <Settings size={18} />,
+    href: "/settings",
+  },
+];
+```
+
+### Badge per Unibox (hook `useInboxCount`):
+
+```tsx
+// src/hooks/useInboxCount.ts
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+export function useInboxCount() {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { count } = await supabase
+        .from("inbox_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("letto", false)
+        .eq("archiviato", false);
+      setUnreadCount(count || 0);
+    };
+
+    fetch();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel("inbox-count")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "inbox_messages",
+      }, () => fetch())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  return unreadCount;
+}
+```
+
+---
+
+## PARTE 3 — Pagina Settings completa (src/pages/Settings.tsx)
+
+Rifai completamente la pagina Settings con tutte le sezioni. Usa Tabs di shadcn/ui.
+
+```tsx
+// Struttura con tab per categoria
+
+<Tabs defaultValue="api">
+  <TabsList>
+    <TabsTrigger value="api">API Keys</TabsTrigger>
+    <TabsTrigger value="n8n">Webhook n8n</TabsTrigger>
+    <TabsTrigger value="invio">Orari Invio</TabsTrigger>
+    <TabsTrigger value="tracking">Tracking</TabsTrigger>
+    <TabsTrigger value="ai">Intelligenza Artificiale</TabsTrigger>
+  </TabsList>
+
+  {/* TAB: API KEYS */}
+  <TabsContent value="api">
+    <Card>
+      <CardHeader>
+        <CardTitle>Chiavi API</CardTitle>
+        <CardDescription>
+          Configura le integrazioni con i servizi esterni
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        {/* Resend (Email) */}
+        <SettingField
+          chiave="resend_api_key"
+          label="Resend API Key"
+          description="Per l'invio di email transazionali. Ottieni su resend.com"
+          type="password"
+          placeholder="re_..."
+        />
+
+        {/* Anthropic (AI) */}
+        <SettingField
+          chiave="anthropic_api_key"
+          label="Anthropic API Key"
+          description="Per la personalizzazione AI dei messaggi e la categorizzazione risposte (Claude Haiku)"
+          type="password"
+          placeholder="sk-ant-..."
+        />
+
+        {/* Millionverifier (Email Validation) */}
+        <SettingField
+          chiave="millionverifier_api_key"
+          label="MillionVerifier API Key"
+          description="Validazione email a €0.001/email. Ottieni su millionverifier.com"
+          type="password"
+          placeholder="mv_..."
+        />
+
+        {/* ZeroBounce (Alternativa) */}
+        <SettingField
+          chiave="zerobounce_api_key"
+          label="ZeroBounce API Key (alternativa)"
+          description="Alternativa a MillionVerifier per validazione email"
+          type="password"
+          placeholder="zb_..."
+        />
+
+      </CardContent>
+    </Card>
+  </TabsContent>
+
+  {/* TAB: WEBHOOK N8N */}
+  <TabsContent value="n8n">
+    <Card>
+      <CardHeader>
+        <CardTitle>Webhook n8n</CardTitle>
+        <CardDescription>
+          URL dei webhook n8n per l'invio WhatsApp e SMS
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        <SettingField
+          chiave="email_webhook_url"
+          label="Webhook Email (n8n)"
+          description="URL del workflow n8n per l'invio email (opzionale — usa Resend di default)"
+          placeholder="https://n8n.tuodominio.com/webhook/email"
+        />
+
+        <SettingField
+          chiave="wa_webhook_url"
+          label="Webhook WhatsApp (n8n)"
+          description="URL del workflow n8n per l'invio di messaggi WhatsApp Business"
+          placeholder="https://n8n.tuodominio.com/webhook/whatsapp"
+        />
+
+        <SettingField
+          chiave="sms_webhook_url"
+          label="Webhook SMS (n8n)"
+          description="URL del workflow n8n per l'invio SMS"
+          placeholder="https://n8n.tuodominio.com/webhook/sms"
+        />
+
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Come configurare n8n</AlertTitle>
+          <AlertDescription>
+            Crea un workflow n8n con trigger "Webhook". Il payload inviato include:
+            <code className="block mt-1 text-xs bg-muted p-2 rounded">
+              {"{ to, subject, body, html, tracking_id, sender_config }"}
+            </code>
+          </AlertDescription>
+        </Alert>
+
+      </CardContent>
+    </Card>
+  </TabsContent>
+
+  {/* TAB: ORARI INVIO (defaults globali) */}
+  <TabsContent value="invio">
+    <Card>
+      <CardHeader>
+        <CardTitle>Orari di Invio Predefiniti</CardTitle>
+        <CardDescription>
+          Questi valori vengono usati come default per le nuove campagne
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        <SettingField
+          chiave="default_timezone"
+          label="Timezone Predefinito"
+          description="Fuso orario per il calcolo degli orari di invio"
+          placeholder="Europe/Rome"
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <SettingField
+            chiave="default_ora_inizio"
+            label="Orario Inizio"
+            description="Non inviare prima di..."
+            placeholder="09:00"
+          />
+          <SettingField
+            chiave="default_ora_fine"
+            label="Orario Fine"
+            description="Non inviare dopo le..."
+            placeholder="18:00"
+          />
+        </div>
+
+        <SettingToggle
+          chiave="default_solo_lavorativi"
+          label="Solo giorni lavorativi (Lun-Ven)"
+          description="Evita invii nel weekend"
+          defaultValue={true}
+        />
+
+      </CardContent>
+    </Card>
+  </TabsContent>
+
+  {/* TAB: TRACKING */}
+  <TabsContent value="tracking">
+    <Card>
+      <CardHeader>
+        <CardTitle>Tracking Email</CardTitle>
+        <CardDescription>
+          Configura il tracciamento aperture e click
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        <SettingToggle
+          chiave="tracking_aperture_default"
+          label="Tracking Aperture (default ON)"
+          description="Inserisce pixel 1x1 nelle email per tracciare le aperture"
+          defaultValue={true}
+        />
+
+        <SettingToggle
+          chiave="tracking_click_default"
+          label="Tracking Click (default ON)"
+          description="Trasforma i link in redirect tracciati"
+          defaultValue={true}
+        />
+
+        <SettingField
+          chiave="custom_tracking_domain"
+          label="Dominio Custom per Tracking"
+          description="Dominio da usare per i link di tracking (migliora deliverability). Deve puntare al tuo Supabase."
+          placeholder="track.tuodominio.com"
+        />
+
+        <Alert>
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>GDPR</AlertTitle>
+          <AlertDescription>
+            Assicurati che la tua Privacy Policy menzioni l'uso di pixel di tracking.
+            Gli utenti possono disiscriversi tramite il link in fondo alle email.
+          </AlertDescription>
+        </Alert>
+
+      </CardContent>
+    </Card>
+  </TabsContent>
+
+  {/* TAB: AI */}
+  <TabsContent value="ai">
+    <Card>
+      <CardHeader>
+        <CardTitle>Intelligenza Artificiale</CardTitle>
+        <CardDescription>
+          Configura i parametri per la personalizzazione AI e la gestione risposte
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        <div>
+          <label className="text-sm font-medium">Modello AI Predefinito</label>
+          <Select defaultValue="claude-haiku-4-5-20251001">
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="claude-haiku-4-5-20251001">
+                Claude Haiku 4.5 — Veloce ed economico (consigliato)
+              </SelectItem>
+              <SelectItem value="claude-sonnet-4-6">
+                Claude Sonnet 4.6 — Più potente, costo maggiore
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Usato per personalizzazione messaggi e categorizzazione risposte
+          </p>
+        </div>
+
+        <SettingField
+          chiave="ai_max_cost_per_campaign_eur"
+          label="Budget massimo AI per campagna (€)"
+          description="Interrompe la personalizzazione se supera questo costo"
+          placeholder="5.00"
+          type="number"
+        />
+
+        <div className="rounded-lg bg-muted p-4">
+          <h4 className="font-medium text-sm mb-2">Costo stimato</h4>
+          <ul className="text-xs text-muted-foreground space-y-1">
+            <li>• Claude Haiku: ~€0.0002 per personalizzazione</li>
+            <li>• Claude Haiku: ~€0.0001 per categorizzazione risposta</li>
+            <li>• 1.000 contatti personalizzati ≈ €0.20</li>
+            <li>• 10.000 contatti personalizzati ≈ €2.00</li>
+          </ul>
+        </div>
+
+      </CardContent>
+    </Card>
+  </TabsContent>
+</Tabs>
+```
+
+### Componente helper `SettingField`:
+
+```tsx
+// src/components/settings/SettingField.tsx
+interface SettingFieldProps {
+  chiave: string;
+  label: string;
+  description?: string;
+  type?: "text" | "password" | "number";
+  placeholder?: string;
+}
+
+export function SettingField({ chiave, label, description, type = "text", placeholder }: SettingFieldProps) {
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings")
+      .select("valore")
+      .eq("chiave", chiave)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.valore) setValue(data.valore);
+      });
+  }, [chiave]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await supabase
+      .from("app_settings")
+      .upsert({ chiave, valore: value }, { onConflict: "chiave" });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-medium">{label}</label>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <div className="flex gap-2">
+        <Input
+          type={type}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+          className="font-mono text-sm"
+        />
+        <Button
+          size="sm"
+          variant={saved ? "ghost" : "outline"}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> :
+           saved ? <Check className="h-4 w-4 text-green-600" /> :
+           "Salva"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+```
+
+### Componente helper `SettingToggle`:
+
+```tsx
+// src/components/settings/SettingToggle.tsx
+interface SettingToggleProps {
+  chiave: string;
+  label: string;
+  description?: string;
+  defaultValue?: boolean;
+}
+
+export function SettingToggle({ chiave, label, description, defaultValue = false }: SettingToggleProps) {
+  const [enabled, setEnabled] = useState(defaultValue);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings")
+      .select("valore")
+      .eq("chiave", chiave)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setEnabled(data.valore === "true");
+      });
+  }, [chiave]);
+
+  const toggle = async (checked: boolean) => {
+    setEnabled(checked);
+    await supabase
+      .from("app_settings")
+      .upsert({ chiave, valore: String(checked) }, { onConflict: "chiave" });
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
+      <Switch checked={enabled} onCheckedChange={toggle} />
+    </div>
+  );
+}
+```
+
+---
+
+## PARTE 4 — Fix Index.tsx (Welcome Screen)
+
+Aggiorna la pagina Index.tsx per rimuovere il contenuto placeholder e mostrare una dashboard reale.
+
+La dashboard deve mostrare:
+
+### KPI Cards in alto (4 cards in grid 2x2 o 4x1):
+
+```tsx
+const kpiCards = [
+  {
+    title: "Campagne Attive",
+    value: activeCampaigns,
+    icon: <Send />,
+    color: "blue",
+    href: "/campaigns",
+  },
+  {
+    title: "Email Inviate (30gg)",
+    value: emailsSent30d,
+    icon: <Mail />,
+    color: "green",
+    change: "+12% vs mese scorso",
+  },
+  {
+    title: "Messaggi Non Letti",
+    value: unreadMessages,
+    icon: <MessageSquare />,
+    color: unreadMessages > 0 ? "red" : "gray",
+    href: "/inbox",
+  },
+  {
+    title: "Open Rate Medio",
+    value: `${avgOpenRate}%`,
+    icon: <Eye />,
+    color: avgOpenRate > 25 ? "green" : avgOpenRate > 15 ? "yellow" : "red",
+  },
+];
+```
+
+### Tabella "Campagne recenti" sotto le KPI cards:
+
+Mostra le ultime 5 campagne con: Nome, Tipo, Stato badge, Inviati, Open Rate, Azioni (→ link).
+
+### Quick Actions:
+
+```tsx
+const quickActions = [
+  { label: "Nuova Campagna", icon: <Plus />, href: "/campaigns/new" },
+  { label: "Importa Contatti", icon: <Upload />, href: "/contacts?action=import" },
+  { label: "Vai all'Unibox", icon: <Inbox />, href: "/inbox", badge: unreadCount },
+];
+```
+
+---
+
+## PARTE 5 — Hook globale `useAppSettings`
+
+Crea un hook React che carica tutti i settings dal DB una volta sola e li mette in cache:
+
+```tsx
+// src/hooks/useAppSettings.ts
+import { useState, useEffect, createContext, useContext } from "react";
+import { supabase } from "@/lib/supabase";
+import type { AppSetting } from "@/types";
+
+type SettingsMap = Record<string, string>;
+
+const AppSettingsContext = createContext<{
+  settings: SettingsMap;
+  getSetting: (chiave: string) => string | undefined;
+  isLoaded: boolean;
+}>({ settings: {}, getSetting: () => undefined, isLoaded: false });
+
+export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
+  const [settings, setSettings] = useState<SettingsMap>({});
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings")
+      .select("chiave, valore")
+      .then(({ data }) => {
+        const map: SettingsMap = {};
+        data?.forEach((s: AppSetting) => { map[s.chiave] = s.valore; });
+        setSettings(map);
+        setIsLoaded(true);
+      });
+  }, []);
+
+  return (
+    <AppSettingsContext.Provider value={{
+      settings,
+      getSetting: (chiave) => settings[chiave],
+      isLoaded,
+    }}>
+      {children}
+    </AppSettingsContext.Provider>
+  );
+}
+
+export const useAppSettings = () => useContext(AppSettingsContext);
+```
+
+Avvolgi l'app con `<AppSettingsProvider>` in `main.tsx` o `App.tsx`.
+
+---
+
+## PARTE 6 — Pagine Placeholder (scheletri)
+
+Crea le seguenti pagine come componenti React minimali se non esistono già. Le implementazioni complete sono in prompt separati (PROMPT_LOVABLE_UNIBOX.txt, PROMPT_LOVABLE_ANALYTICS_CRM.txt, PROMPT_LOVABLE_SENDER_POOL.txt, PROMPT_LOVABLE_DELIVERABILITY.txt).
+
+```tsx
+// src/pages/Inbox.tsx
+export default function Inbox() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Unibox — Risposte</h1>
+      <p className="text-muted-foreground">Caricamento...</p>
+    </div>
+  );
+}
+
+// src/pages/Analytics.tsx
+export default function Analytics() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Analytics</h1>
+      <p className="text-muted-foreground">Caricamento...</p>
+    </div>
+  );
+}
+
+// src/pages/Pipeline.tsx
+export default function Pipeline() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Pipeline CRM</h1>
+      <p className="text-muted-foreground">Caricamento...</p>
+    </div>
+  );
+}
+
+// src/pages/Senders.tsx
+export default function Senders() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Pool Mittenti</h1>
+      <p className="text-muted-foreground">Caricamento...</p>
+    </div>
+  );
+}
+
+// src/pages/Deliverability.tsx
+export default function Deliverability() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Deliverability</h1>
+      <p className="text-muted-foreground">Caricamento...</p>
+    </div>
+  );
+}
+```
+
+---
+
+## NOTE IMPORTANTI
+
+### Schema DB — Nomi colonne corretti:
+- `app_settings` usa `chiave` e `valore` (NON key/value)
+- `campaign_recipients` usa `contact_id` (NON contatto_id)
+- `contacts` ha `sito_web` (NON sito)
+- Tutti i campi booleani usano il nome italiano: `solo_lavorativi`, `tracking_aperture`, ecc.
+
+### Supabase Realtime:
+- Per l'Unibox, abilita Realtime su `inbox_messages` nella Supabase Dashboard
+- Per le statistiche live, abilita Realtime su `campaign_step_executions`
+
+### RLS (Row Level Security):
+- Tutti gli INSERT/SELECT nelle pagine frontend usano il client `supabase` con la anon key
+- Le Edge Functions usano `SUPABASE_SERVICE_ROLE_KEY` per bypassare RLS
+- Assicurati che le policy RLS permettano l'accesso authenticated agli utenti
+
+### Edge Functions URL:
+- `process-sequence`: POST `/functions/v1/process-sequence`
+- `track-event`: GET `/functions/v1/track-event` (PUBLIC — no JWT)
+- `handle-reply`: POST `/functions/v1/handle-reply` (PUBLIC — no JWT)
+- `validate-emails`: POST `/functions/v1/validate-emails`
+- `assign-senders`: POST `/functions/v1/assign-senders`
+- `personalize-messages`: POST `/functions/v1/personalize-messages`
+
+==============================================================
+FINE PROMPT — PROMPT_LOVABLE_TYPES_NAV.txt
+==============================================================
