@@ -7,6 +7,7 @@ import { ContactFiltersBar } from "@/components/contacts/ContactFiltersBar";
 import { CsvImportDialog } from "@/components/contacts/CsvImportDialog";
 import { CreateContactDialog } from "@/components/contacts/CreateContactDialog";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
+import { EmailValidationPanel } from "@/components/contacts/EmailValidationPanel";
 import { useContacts } from "@/hooks/useContacts";
 import { exportContactsCsv } from "@/lib/csvExporter";
 import { toast } from "sonner";
