@@ -22,6 +22,7 @@ import {
   AtSign,
   ShieldCheck,
   Kanban,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
