@@ -301,7 +301,7 @@ export default function CampaignDetailPage() {
         } catch { /* ignore */ }
 
       // ─── RIPRENDI ───────────────────────────────────────────────────────
-      } else if (newStato === "in_corso" && campaign.stato === "pausa") {
+      } else if (newStato === "in_corso" && campaign.stato === "in_pausa") {
         const { error } = await supabase.from("campaigns")
           .update({ stato: "in_corso" } as any)
           .eq("id", campaign.id);
