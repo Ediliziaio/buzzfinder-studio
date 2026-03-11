@@ -2,3 +2,6 @@ project_id = "tiqzzhycqmspdpzqcbdo"
 
 [functions.process-sequence]
 verify_jwt = false
+
+[functions.handle-reply]
+verify_jwt = false

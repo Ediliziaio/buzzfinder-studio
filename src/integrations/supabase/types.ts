@@ -800,6 +800,93 @@ export type Database = {
           },
         ]
       }
+      inbox_messages: {
+        Row: {
+          archiviato: boolean
+          assegnato_a: string | null
+          campaign_id: string | null
+          canale: string
+          corpo: string
+          corpo_html: string | null
+          created_at: string
+          da_email: string | null
+          da_nome: string | null
+          da_telefono: string | null
+          data_ricezione: string
+          etichetta: string
+          etichetta_ai: boolean
+          execution_id: string | null
+          id: string
+          letto: boolean
+          note: string | null
+          oggetto: string | null
+          recipient_id: string | null
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          archiviato?: boolean
+          assegnato_a?: string | null
+          campaign_id?: string | null
+          canale?: string
+          corpo?: string
+          corpo_html?: string | null
+          created_at?: string
+          da_email?: string | null
+          da_nome?: string | null
+          da_telefono?: string | null
+          data_ricezione?: string
+          etichetta?: string
+          etichetta_ai?: boolean
+          execution_id?: string | null
+          id?: string
+          letto?: boolean
+          note?: string | null
+          oggetto?: string | null
+          recipient_id?: string | null
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          archiviato?: boolean
+          assegnato_a?: string | null
+          campaign_id?: string | null
+          canale?: string
+          corpo?: string
+          corpo_html?: string | null
+          created_at?: string
+          da_email?: string | null
+          da_nome?: string | null
+          da_telefono?: string | null
+          data_ricezione?: string
+          etichetta?: string
+          etichetta_ai?: boolean
+          execution_id?: string | null
+          id?: string
+          letto?: boolean
+          note?: string | null
+          oggetto?: string | null
+          recipient_id?: string | null
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_contacts: {
         Row: {
           contact_id: string
