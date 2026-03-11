@@ -55,6 +55,7 @@ export type Database = {
           inviato_at: string | null
           messaggio_personalizzato: string | null
           opened_at: string | null
+          sender_id: string | null
           soggetto_personalizzato: string | null
           stato: string | null
           triggered_at: string | null
@@ -69,6 +70,7 @@ export type Database = {
           inviato_at?: string | null
           messaggio_personalizzato?: string | null
           opened_at?: string | null
+          sender_id?: string | null
           soggetto_personalizzato?: string | null
           stato?: string | null
           triggered_at?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           inviato_at?: string | null
           messaggio_personalizzato?: string | null
           opened_at?: string | null
+          sender_id?: string | null
           soggetto_personalizzato?: string | null
           stato?: string | null
           triggered_at?: string | null
@@ -100,6 +103,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "sender_pool"
             referencedColumns: ["id"]
           },
         ]
@@ -803,6 +813,129 @@ export type Database = {
           totale_importati?: number | null
           totale_trovati?: number | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      sender_pool: {
+        Row: {
+          attivo: boolean | null
+          bounce_rate: number | null
+          created_at: string | null
+          dkim_ok: boolean | null
+          dmarc_ok: boolean | null
+          dominio: string | null
+          email_from: string | null
+          email_nome: string | null
+          health_score: number | null
+          id: string
+          inviati_oggi: number | null
+          max_per_day: number | null
+          nome: string
+          note: string | null
+          reply_to: string | null
+          resend_api_key: string | null
+          sms_api_key: string | null
+          sms_api_secret: string | null
+          sms_from: string | null
+          sms_provider: string | null
+          spam_rate: number | null
+          spf_ok: boolean | null
+          stato: string | null
+          tipo: string
+          totale_bounce: number | null
+          totale_inviati: number | null
+          totale_spam: number | null
+          ultimo_reset: string | null
+          updated_at: string | null
+          user_id: string
+          wa_access_token: string | null
+          wa_numero: string | null
+          wa_phone_number_id: string | null
+          wa_quality: string | null
+          wa_tier: string | null
+          warmup_attivo: boolean | null
+          warmup_giorno: number | null
+          warmup_iniziato: string | null
+        }
+        Insert: {
+          attivo?: boolean | null
+          bounce_rate?: number | null
+          created_at?: string | null
+          dkim_ok?: boolean | null
+          dmarc_ok?: boolean | null
+          dominio?: string | null
+          email_from?: string | null
+          email_nome?: string | null
+          health_score?: number | null
+          id?: string
+          inviati_oggi?: number | null
+          max_per_day?: number | null
+          nome: string
+          note?: string | null
+          reply_to?: string | null
+          resend_api_key?: string | null
+          sms_api_key?: string | null
+          sms_api_secret?: string | null
+          sms_from?: string | null
+          sms_provider?: string | null
+          spam_rate?: number | null
+          spf_ok?: boolean | null
+          stato?: string | null
+          tipo: string
+          totale_bounce?: number | null
+          totale_inviati?: number | null
+          totale_spam?: number | null
+          ultimo_reset?: string | null
+          updated_at?: string | null
+          user_id: string
+          wa_access_token?: string | null
+          wa_numero?: string | null
+          wa_phone_number_id?: string | null
+          wa_quality?: string | null
+          wa_tier?: string | null
+          warmup_attivo?: boolean | null
+          warmup_giorno?: number | null
+          warmup_iniziato?: string | null
+        }
+        Update: {
+          attivo?: boolean | null
+          bounce_rate?: number | null
+          created_at?: string | null
+          dkim_ok?: boolean | null
+          dmarc_ok?: boolean | null
+          dominio?: string | null
+          email_from?: string | null
+          email_nome?: string | null
+          health_score?: number | null
+          id?: string
+          inviati_oggi?: number | null
+          max_per_day?: number | null
+          nome?: string
+          note?: string | null
+          reply_to?: string | null
+          resend_api_key?: string | null
+          sms_api_key?: string | null
+          sms_api_secret?: string | null
+          sms_from?: string | null
+          sms_provider?: string | null
+          spam_rate?: number | null
+          spf_ok?: boolean | null
+          stato?: string | null
+          tipo?: string
+          totale_bounce?: number | null
+          totale_inviati?: number | null
+          totale_spam?: number | null
+          ultimo_reset?: string | null
+          updated_at?: string | null
+          user_id?: string
+          wa_access_token?: string | null
+          wa_numero?: string | null
+          wa_phone_number_id?: string | null
+          wa_quality?: string | null
+          wa_tier?: string | null
+          warmup_attivo?: boolean | null
+          warmup_giorno?: number | null
+          warmup_iniziato?: string | null
         }
         Relationships: []
       }
