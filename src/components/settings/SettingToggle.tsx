@@ -28,7 +28,7 @@ export function SettingToggle({ chiave, label, description, categoria = "general
     if (!user) return;
     await supabase.from("app_settings").upsert(
       { chiave, valore: String(val), categoria, user_id: user.id, updated_at: new Date().toISOString() } as any,
-      { onConflict: "chiave" }
+      { onConflict: "chiave,user_id" }
     );
   };
 

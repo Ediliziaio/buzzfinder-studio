@@ -32,7 +32,7 @@ export function SettingField({ chiave, label, placeholder, isSecret, type = "tex
     if (!user) return;
     await supabase.from("app_settings").upsert(
       { chiave, valore: val, categoria, user_id: user.id, updated_at: new Date().toISOString() } as any,
-      { onConflict: "chiave" }
+      { onConflict: "chiave,user_id" }
     );
     setStatus("saved");
     setTimeout(() => setStatus("idle"), 1500);

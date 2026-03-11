@@ -40,7 +40,7 @@ async function fetchAdvancedAnalytics(giorni: number): Promise<AdvancedAnalytics
   const since = subDays(new Date(), giorni).toISOString();
 
   const [campaignsRes, contactsRes, inboxRes, recipientsRes, usageRes, sessionsRes] = await Promise.all([
-    supabase.from("campaigns").select("id, nome, stato, tipo, inviati, consegnati, aperti, cliccati, errori, costo_reale_eur, created_at"),
+    supabase.from("campaigns").select("id, nome, stato, tipo, inviati, consegnati, aperti, cliccati, errori, costo_reale_eur, created_at").gte("created_at", since),
     supabase.from("contacts").select("id", { count: "exact", head: true }),
     supabase.from("inbox_messages").select("etichetta, created_at").gte("created_at", since),
     supabase.from("campaign_recipients").select("inviato_at, opened_at, clicked_at, stato").gte("inviato_at", since),

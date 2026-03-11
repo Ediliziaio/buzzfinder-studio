@@ -297,8 +297,10 @@ function AiModelSelector() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="haiku">Claude Haiku (veloce, economico)</SelectItem>
-          <SelectItem value="sonnet">Claude Sonnet (preciso, costoso)</SelectItem>
+          <SelectItem value="gemini-flash">Gemini 2.5 Flash (veloce, economico)</SelectItem>
+          <SelectItem value="gemini-pro">Gemini 2.5 Pro (preciso, potente)</SelectItem>
+          <SelectItem value="gpt-5-mini">GPT-5 Mini (bilanciato)</SelectItem>
+          <SelectItem value="gpt-5">GPT-5 (massima qualità)</SelectItem>
         </SelectContent>
       </Select>
     </div>

@@ -37,7 +37,7 @@ export default function DeliverabilityPage() {
         if (val !== undefined) {
           await supabase.from("app_settings").upsert(
             { chiave: key, valore: val, categoria: "deliverability", user_id: user.id, updated_at: new Date().toISOString() } as any,
-            { onConflict: "chiave" }
+            { onConflict: "chiave,user_id" }
           );
         }
       }

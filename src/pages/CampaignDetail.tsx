@@ -118,7 +118,7 @@ export default function CampaignDetailPage() {
       .eq("campaign_id", campaignId)
       .eq("step_number", 1)
       .is("ab_padre_id", null)
-      .single();
+      .maybeSingle();
 
     if (!step1) {
       toast.error("Aggiungi almeno uno step alla sequenza");

@@ -41,7 +41,7 @@ export function useSenderPool(tipo?: "email" | "whatsapp" | "sms") {
   };
 
   const deleteSender = async (id: string) => {
-    await supabase.from("sender_pool" as any).delete().eq("id", id);
+    await supabase.from("sender_pool").delete().eq("id", id);
     fetchSenders();
   };
 
