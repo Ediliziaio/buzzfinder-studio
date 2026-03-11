@@ -1,12 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
+import { useInboxUnreadCount } from "@/hooks/useInbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Globe,
   Users,
   List,
   Send,
+  MessageSquare,
   GitBranch,
   ShieldOff,
   BarChart3,
@@ -22,6 +25,7 @@ const navItems = [
   { title: "Contatti", path: "/contacts", icon: Users },
   { title: "Liste", path: "/lists", icon: List },
   { title: "Campagne", path: "/campaigns", icon: Send },
+  { title: "Unibox", path: "/unibox", icon: MessageSquare },
   { title: "Follow-up", path: "/follow-up", icon: GitBranch },
   { title: "Suppression", path: "/suppression", icon: ShieldOff },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
