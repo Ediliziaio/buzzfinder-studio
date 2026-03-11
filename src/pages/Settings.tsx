@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
 import { SettingField } from "@/components/settings/SettingField";
 import { SettingToggle } from "@/components/settings/SettingToggle";
+import { WebhookGuideTab } from "@/components/settings/WebhookGuideTab";
 
 export default function SettingsPage() {
   const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
