@@ -39,6 +39,10 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showReplica, setShowReplica] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignmentResult, setAssignmentResult] = useState<AssignmentResult | null>(null);
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [confirmingLaunch, setConfirmingLaunch] = useState(false);
 
   useEffect(() => {
     if (!id) return;
