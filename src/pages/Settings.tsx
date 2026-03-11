@@ -107,6 +107,16 @@ export default function SettingsPage() {
         { chiave: "email_blocklist", valore: blocklist, categoria: "limiti", updated_at: new Date().toISOString() } as any,
         { onConflict: "chiave" }
       );
+      // Save email validator provider
+      for (const key of ["email_validator_provider", "email_validator_key"]) {
+        const val = values[key];
+        if (val !== undefined) {
+          await supabase.from("app_settings").upsert(
+            { chiave: key, valore: val, categoria: "deliverability", updated_at: new Date().toISOString() } as any,
+            { onConflict: "chiave" }
+          );
+        }
+      }
       await supabase.from("app_settings").upsert(
         { chiave: "email_senders", valore: JSON.stringify(senders), categoria: "mittenti", updated_at: new Date().toISOString() } as any,
         { onConflict: "chiave" }
