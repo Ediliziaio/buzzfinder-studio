@@ -180,7 +180,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   useEffect(() => {
     if (!data.tipo || !open) return;
     setTemplateSearch("");
-    supabase.from("campaign_templates" as any)
+    supabase.from("campaign_templates")
       .select("*")
       .eq("tipo", data.tipo)
       .order("utilizzi", { ascending: false })
