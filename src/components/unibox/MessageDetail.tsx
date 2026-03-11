@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Archive, Trophy, MailOpen, Mail } from "lucide-react";
+import { Archive, Trophy, MailOpen, Mail, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { EtichettaBadge, getEtichettaConfig } from "./EtichettaBadge";
 import { ContactInfoPanel } from "./ContactInfoPanel";
+import { ReplyComposer } from "./ReplyComposer";
 import type { InboxMessage } from "@/hooks/useInbox";
 
 const etichette = [
