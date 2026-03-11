@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    supabase.from("inbox_messages").select("id", { count: "exact", head: true }).eq("letto", false).then(({ count }) => {
+    supabase.from("inbox_messages").select("id", { count: "exact", head: true }).eq("letto", false).eq("archiviato", false).then(({ count }) => {
       setUnreadCount(count || 0);
     });
   }, []);

@@ -1,29 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface InboxMessage {
-  id: string;
-  user_id: string;
-  campaign_id: string | null;
-  recipient_id: string | null;
-  execution_id: string | null;
-  canale: "email" | "whatsapp" | "sms";
-  da_nome: string | null;
-  da_email: string | null;
-  da_telefono: string | null;
-  oggetto: string | null;
-  corpo: string;
-  corpo_html: string | null;
-  data_ricezione: string;
-  letto: boolean;
-  archiviato: boolean;
-  assegnato_a: string | null;
-  etichetta: string;
-  etichetta_ai: boolean;
-  note: string | null;
-  thread_id: string | null;
-  created_at: string;
-}
+import type { InboxMessage } from "@/types";
+export type { InboxMessage };
 
 interface InboxFilters {
   etichetta?: string;

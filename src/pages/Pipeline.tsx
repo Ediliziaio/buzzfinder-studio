@@ -32,10 +32,12 @@ export default function PipelinePage() {
 
   const filteredLeads = useMemo(() => {
     return leads.filter((l) => {
-      if (filterCampaign !== "all" && l.campaign?.nome !== campaigns.find(c => c.id === filterCampaign)?.nome) {
-        // match by campaign id through the relation
-        const campaignMatch = filterCampaign === "none" ? !l.campaign : l.campaign?.nome === campaigns.find(c => c.id === filterCampaign)?.nome;
-        if (!campaignMatch) return false;
+      if (filterCampaign !== "all") {
+        if (filterCampaign === "none") {
+          if (l.campaign) return false;
+        } else {
+          if (l.campaign_id !== filterCampaign) return false;
+        }
       }
       if (filterMinValue && l.valore_stimato < parseFloat(filterMinValue)) return false;
       if (filterDateFrom && new Date(l.created_at) < new Date(filterDateFrom)) return false;

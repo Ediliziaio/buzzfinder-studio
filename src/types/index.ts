@@ -193,7 +193,7 @@ export interface CampaignStepExecution {
   step_id: string;
   recipient_id: string;
   sender_id: string | null;
-  stato: 'scheduled' | 'sent' | 'skipped' | 'failed';
+  stato: 'scheduled' | 'sent' | 'skipped' | 'failed' | 'cancelled';
   scheduled_at: string | null;
   sent_at: string | null;
   opened_at: string | null;
