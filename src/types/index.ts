@@ -19,7 +19,7 @@ export interface Contact {
   id: string;
   nome: string | null;
   cognome: string | null;
-  ruolo: string | null;
+  ruolo?: string | null;
   azienda: string;
   telefono: string | null;
   telefono_normalizzato: string | null;
