@@ -34,7 +34,7 @@ export function ActiveCampaignCard({ campaign }: Props) {
           <span className="font-mono text-sm font-medium truncate">{campaign.nome}</span>
         </div>
         <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
-          {campaign.stato === "pausa" ? (
+          {campaign.stato === "in_pausa" ? (
             <><Pause className="h-3 w-3" /> PAUSA</>
           ) : (
             <><Play className="h-3 w-3 text-primary" /> IN CORSO</>
