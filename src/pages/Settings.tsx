@@ -8,14 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
-import { useSenderPool } from "@/hooks/useSenderPool";
-import { SenderCard } from "@/components/senders/SenderCard";
-import { SenderDialog } from "@/components/senders/SenderDialog";
-import { SenderHealthDashboard } from "@/components/senders/SenderHealthDashboard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Shield, ShieldCheck } from "lucide-react";
-import { BlacklistMonitor } from "@/components/senders/BlacklistMonitor";
-import type { SenderPool } from "@/types";
 
 interface SettingField {
   chiave: string;

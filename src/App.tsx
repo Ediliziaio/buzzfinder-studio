@@ -59,6 +59,8 @@ function AppRoutes() {
         <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/senders" element={<SendersPage />} />
+        <Route path="/deliverability" element={<DeliverabilityPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
