@@ -30,6 +30,7 @@ export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote, onUpdate
             currentStage={stage.id}
             onMoveStage={onMoveStage}
             onUpdateNote={onUpdateNote}
+            onUpdateValue={onUpdateValue}
           />
         ))}
         {leads.length === 0 && (
