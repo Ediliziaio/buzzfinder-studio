@@ -1,37 +1,18 @@
 
 
-# Piano: Sidebar con Macrocategorie Collassabili
+## Creazione Account Superadmin
 
-## Struttura proposta
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-Raggruppare i 15 item in 5 macrocategorie con collapsible accordion:
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-| Categoria | Icona | Voci |
-|-----------|-------|------|
-| **Overview** | LayoutDashboard | Dashboard |
-| **Acquisizione** | Search | Scraper Maps, Scraper Siti, Contatti, Liste |
-| **Outreach** | Send | Campagne, Template, Follow-up, Unibox |
-| **Vendite** | Kanban | Pipeline CRM, Analytics |
-| **Infrastruttura** | Settings | Pool Mittenti, Deliverability, Suppression, Impostazioni |
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-## Comportamento
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-- Ogni gruppo ha un header cliccabile con chevron che apre/chiude la lista dei sotto-item
-- Il gruppo che contiene la route attiva resta aperto automaticamente (`defaultOpen`)
-- Dashboard resta sempre visibile fuori dai gruppi (top-level)
-- Quando la sidebar e' collassata (`w-[52px]`), mostra solo le icone dei singoli item senza le intestazioni dei gruppi (comportamento attuale invariato)
-- Le label dei gruppi sono in stile `terminal-header` (uppercase, piccole, tracking ampio) coerente col design system
-
-## File da modificare
-
-| File | Azione |
-|------|--------|
-| `src/components/layout/AppSidebar.tsx` | Riscrivere la struttura nav con gruppi collassabili usando stato locale per ogni gruppo aperto/chiuso |
-
-## Implementazione
-
-- Usare un semplice stato `Record<string, boolean>` per gestire apertura/chiusura dei gruppi
-- Auto-espandere il gruppo della route corrente
-- Animazione CSS `max-height` + `overflow-hidden` per transizione fluida
-- Nessuna nuova dipendenza necessaria (no Collapsible/Accordion, basta CSS + stato)
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 
