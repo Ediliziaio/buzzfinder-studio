@@ -147,7 +147,7 @@ export default function CampaignDetailPage() {
       stato: "scheduled",
     }));
 
-    const { error } = await supabase.from("campaign_step_executions" as any).insert(executions);
+    const { error } = await supabase.from("campaign_step_executions").insert(executions as any);
     if (error) {
       toast.error("Errore inizializzazione sequenza: " + error.message);
       return false;
