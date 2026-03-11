@@ -551,22 +551,43 @@ export default function SettingsPage() {
           <div className="rounded-lg border border-border bg-card p-4 space-y-3">
             <div className="terminal-header text-primary">API VALIDATORE EMAIL</div>
             <p className="text-xs text-muted-foreground">Configura un validatore esterno per verifiche avanzate (MX, SMTP)</p>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="font-mono text-xs text-muted-foreground">MillionVerifier / ZeroBounce API Key</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type={visibility["email_validator_key"] ? "text" : "password"}
-                    value={values["email_validator_key"] || ""}
-                    onChange={(e) => setValues({ ...values, email_validator_key: e.target.value })}
-                    placeholder="Inserisci API key..."
-                    className="font-mono text-xs bg-accent border-border"
-                  />
-                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setVisibility({ ...visibility, email_validator_key: !visibility["email_validator_key"] })}>
-                    {visibility["email_validator_key"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <Label className="font-mono text-xs text-muted-foreground">Provider di validazione</Label>
+                <select
+                  value={values["email_validator_provider"] || "mx"}
+                  onChange={(e) => setValues({ ...values, email_validator_provider: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-accent px-3 py-2 text-sm font-mono ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="mx">Solo MX (gratuito)</option>
+                  <option value="millionverifier">MillionVerifier</option>
+                  <option value="zerobounce">ZeroBounce</option>
+                </select>
+                <p className="font-mono text-[10px] text-muted-foreground mt-1">
+                  {(values["email_validator_provider"] || "mx") === "mx"
+                    ? "Verifica record MX del dominio — gratuito, senza API key"
+                    : "Verifica SMTP avanzata — richiede API key"}
+                </p>
               </div>
+              {(values["email_validator_provider"] === "millionverifier" || values["email_validator_provider"] === "zerobounce") && (
+                <div className="space-y-1">
+                  <Label className="font-mono text-xs text-muted-foreground">
+                    {values["email_validator_provider"] === "millionverifier" ? "MillionVerifier" : "ZeroBounce"} API Key
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type={visibility["email_validator_key"] ? "text" : "password"}
+                      value={values["email_validator_key"] || ""}
+                      onChange={(e) => setValues({ ...values, email_validator_key: e.target.value })}
+                      placeholder="Inserisci API key..."
+                      className="font-mono text-xs bg-accent border-border"
+                    />
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setVisibility({ ...visibility, email_validator_key: !visibility["email_validator_key"] })}>
+                      {visibility["email_validator_key"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>
