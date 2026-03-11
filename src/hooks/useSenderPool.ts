@@ -36,7 +36,7 @@ export function useSenderPool(tipo?: "email" | "whatsapp" | "sms") {
   }, [fetchSenders]);
 
   const toggleActive = async (id: string, attivo: boolean) => {
-    await supabase.from("sender_pool" as any).update({ attivo } as any).eq("id", id);
+    await supabase.from("sender_pool").update({ attivo }).eq("id", id);
     fetchSenders();
   };
 
