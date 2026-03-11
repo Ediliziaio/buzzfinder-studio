@@ -78,6 +78,11 @@ export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsU
             {message.oggetto && <p className="font-mono text-sm mt-1">📌 {message.oggetto}</p>}
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
+            {message.canale !== "sms" && (
+              <Button size="sm" variant="outline" onClick={() => setShowReply((v) => !v)} className="text-xs font-mono">
+                <Reply className="h-3 w-3 mr-1" /> Rispondi
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={onMarkAsUnread} title="Segna come non letto">
               <MailOpen className="h-3 w-3" />
             </Button>
