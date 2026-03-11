@@ -106,6 +106,18 @@ export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionCha
       size: 220,
     },
     {
+      accessorKey: "email_quality",
+      header: "Qualità",
+      cell: ({ row }) => {
+        const q = (row.original as any).email_quality;
+        if (q === "valid") return <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">✓ Valida</span>;
+        if (q === "risky") return <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[10px] text-accent-foreground">⚠ Rischio</span>;
+        if (q === "invalid") return <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] text-destructive">✗ Invalida</span>;
+        return <span className="font-mono text-[10px] text-muted-foreground">—</span>;
+      },
+      size: 80,
+    },
+    {
       accessorKey: "fonte",
       header: "Fonte",
       cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,

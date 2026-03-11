@@ -109,6 +109,14 @@ export default function ContactsPage() {
         onComplete={refetch}
       />
 
+      {/* Email Validation */}
+      <EmailValidationPanel
+        open={showValidation}
+        onClose={() => setShowValidation(false)}
+        onComplete={refetch}
+        totalContacts={totalCount}
+      />
+
       {/* Create Contact */}
       <CreateContactDialog
         open={showCreate}

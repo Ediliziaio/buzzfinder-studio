@@ -124,6 +124,9 @@ export function EmailEditor({ value, onChange }: Props) {
         ))}
       </div>
 
+      {/* Spintax Helper */}
+      <SpintaxHelper onInsert={(text) => editor.chain().focus().insertContent(text).run()} />
+
       {/* Editor */}
       <EditorContent editor={editor} />
     </div>

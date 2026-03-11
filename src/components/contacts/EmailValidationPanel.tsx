@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle, Loader2, Trash2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { CheckCircle, Loader2, Trash2, ShieldCheck } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -58,12 +58,12 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
   const removeInvalid = async () => {
     setRemoving(true);
     try {
-      const { error } = await supabase
-        .from("contacts")
-        .update({ email: null, email_valid: false } as any)
+      const { error } = await (supabase
+        .from("contacts") as any)
+        .update({ email: null, email_valid: false })
         .eq("email_quality", "invalid");
       if (error) throw error;
-      toast.success(`Email invalide rimosse`);
+      toast.success("Email invalide rimosse");
       onComplete();
     } catch {
       toast.error("Errore rimozione email invalide");
@@ -85,7 +85,6 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Info */}
           <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
             <p className="font-mono text-xs text-muted-foreground">
               🔍 Verifica sintassi e pattern per identificare email invalide o rischiose.
@@ -95,7 +94,6 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
             </p>
           </div>
 
-          {/* Progress */}
           {(isRunning || done) && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -104,7 +102,7 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
                   <div className="font-mono text-[10px] text-muted-foreground">Valide ✓</div>
                 </div>
                 <div className="rounded-md border border-border bg-card p-2">
-                  <div className="font-mono text-lg font-bold text-yellow-500">{progress.risky}</div>
+                  <div className="font-mono text-lg font-bold text-accent-foreground">{progress.risky}</div>
                   <div className="font-mono text-[10px] text-muted-foreground">Rischiose ⚠️</div>
                 </div>
                 <div className="rounded-md border border-border bg-card p-2">
@@ -119,13 +117,8 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-2">
-            <Button
-              className="flex-1 font-mono text-xs"
-              onClick={runValidation}
-              disabled={isRunning}
-            >
+            <Button className="flex-1 font-mono text-xs" onClick={runValidation} disabled={isRunning}>
               {isRunning ? (
                 <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Verifica in corso...</>
               ) : (
@@ -133,12 +126,7 @@ export function EmailValidationPanel({ open, onClose, onComplete, totalContacts 
               )}
             </Button>
             {done && progress.invalid > 0 && (
-              <Button
-                variant="destructive"
-                className="font-mono text-xs"
-                onClick={removeInvalid}
-                disabled={removing}
-              >
+              <Button variant="destructive" className="font-mono text-xs" onClick={removeInvalid} disabled={removing}>
                 {removing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
                 Rimuovi invalide ({progress.invalid})
               </Button>

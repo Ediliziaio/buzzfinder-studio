@@ -33,7 +33,6 @@ export function BlacklistMonitor({ senders }: Props) {
     }
 
     try {
-      // Simple client-side check — marks as clean (real DNS blacklist check would need edge function)
       const result: BlacklistCheck = {
         id: crypto.randomUUID(),
         dominio: domain,
@@ -42,12 +41,12 @@ export function BlacklistMonitor({ senders }: Props) {
         checked_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from("blacklist_checks").insert({
+      const { error } = await (supabase.from("blacklist_checks") as any).insert({
         sender_id: sender.id,
         dominio: domain,
         in_blacklist: result.in_blacklist,
         blacklists: result.blacklists,
-      } as any);
+      });
 
       if (error) throw error;
       setResults((prev) => ({ ...prev, [sender.id]: result }));
@@ -69,27 +68,20 @@ export function BlacklistMonitor({ senders }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-mono text-sm font-bold text-foreground">🛡️ Blacklist Monitor</h3>
-          <p className="font-mono text-[10px] text-muted-foreground">
-            Controlla regolarmente (1x/settimana) per rilevare problemi di reputazione
-          </p>
-        </div>
+      <div>
+        <h3 className="font-mono text-sm font-bold text-foreground">🛡️ Blacklist Monitor</h3>
+        <p className="font-mono text-[10px] text-muted-foreground">
+          Controlla regolarmente (1x/settimana) per rilevare problemi di reputazione
+        </p>
       </div>
 
       {emailSenders.map((sender) => {
         const result = results[sender.id];
         return (
-          <div
-            key={sender.id}
-            className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
-          >
+          <div key={sender.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
             <div className="space-y-0.5">
               <p className="font-mono text-sm font-medium text-foreground">{sender.nome}</p>
-              <p className="font-mono text-xs text-muted-foreground">
-                {sender.dominio || sender.email_from}
-              </p>
+              <p className="font-mono text-xs text-muted-foreground">{sender.dominio || sender.email_from}</p>
               {result && (
                 <div className="mt-1">
                   {result.in_blacklist ? (
@@ -112,13 +104,7 @@ export function BlacklistMonitor({ senders }: Props) {
                 </div>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-mono text-xs"
-              onClick={() => checkBlacklist(sender)}
-              disabled={checking === sender.id}
-            >
+            <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => checkBlacklist(sender)} disabled={checking === sender.id}>
               {checking === sender.id ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
