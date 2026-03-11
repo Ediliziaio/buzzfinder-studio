@@ -106,6 +106,39 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const handleLaunchCampaign = async () => {
+    if (!campaign) return;
+    setIsAssigning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assign-senders", {
+        body: { campaign_id: campaign.id },
+      });
+      if (error) throw error;
+      if (data.assigned === 0 && data.warnings?.length > 0) {
+        toast.error(data.warnings[0]);
+        return;
+      }
+      setAssignmentResult(data as AssignmentResult);
+      setShowAssignmentDialog(true);
+    } catch (err: any) {
+      // If edge function not deployed, skip assignment and launch directly
+      if (err.message?.includes("not found") || err.message?.includes("404")) {
+        handleStatusChange("in_corso");
+      } else {
+        toast.error("Errore assegnazione mittenti: " + err.message);
+      }
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const confirmLaunchAfterAssignment = async () => {
+    setConfirmingLaunch(true);
+    await handleStatusChange("in_corso");
+    setConfirmingLaunch(false);
+    setShowAssignmentDialog(false);
+  };
+
   const handleStatusChange = async (newStato: string) => {
     if (!campaign) return;
 
