@@ -1,18 +1,47 @@
 
 
-## Creazione Account Superadmin
+# Piano: Collegare Avvio Campagna al Nuovo Sistema
 
-Per creare l'account con le credenziali specificate, servono due passaggi:
+## Analisi stato attuale
 
-### Passaggio 1 — Abilitare auto-conferma email
-Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
+Il file `CampaignDetail.tsx` ha gia' un flusso di lancio ben strutturato:
+- `handleLaunchCampaign` chiama `assign-senders`, mostra risultati in `AssignmentResultDialog`
+- `confirmLaunchAfterAssignment` chiama `initializeSequence` + `handleStatusChange`
+- `initializeSequence` crea le `campaign_step_executions` per step 1
+- `handleStatusChange` aggiorna stato e triggera webhook n8n
 
-### Passaggio 2 — Registrazione
-Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
-- **Email**: `f.andriciuc@overthemol.com`
-- **Password**: `Password2025!`
+Il flusso e' gia' funzionante. Le modifiche richieste sono un refactoring per consolidare la logica e aggiungere:
+1. Gestione pausa/stop con cancellazione executions schedulate
+2. Fallback n8n solo quando non ci sono step configurati
+3. Loading state `isLaunching` sul pulsante
+4. Mostrare `SequenceProgress` anche per campagne non-sequence quando in corso
 
-L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
+## Cosa modificare
 
-> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
+| File | Azione |
+|------|--------|
+| `src/pages/CampaignDetail.tsx` | Refactor `handleStatusChange` per gestire pausa/stop con cancellazione executions; aggiungere `isLaunching` state; migliorare gestione errori |
+
+## Dettagli implementazione
+
+### 1. Aggiungere `isLaunching` state (gia' parzialmente coperto da `isAssigning`)
+- Rinominare/unificare in `isLaunching` per chiarezza
+
+### 2. Refactor `handleStatusChange` per pausa/stop
+- **Pausa**: cancellare executions `scheduled` future + aggiornare stato a `in_pausa`
+- **Stop/completata**: cancellare tutte le executions `scheduled` + aggiornare stato
+- **Riprendi**: solo update stato (le executions vengono ri-schedulate dal process-sequence)
+
+### 3. Migliorare fallback n8n
+- Nel flusso `in_corso`: se ci sono step configurati, NON triggerare webhook n8n (il process-sequence gestisce tutto)
+- Solo se NON ci sono step → usa il vecchio flusso n8n diretto
+- Rimuovere il rollback a `bozza` su errore n8n quando il sistema sequenze e' attivo
+
+### 4. SequenceProgress per tutte le campagne in corso
+- Mostrare il componente `SequenceProgress` per qualsiasi campagna `in_corso` che ha step configurati, non solo per `tipo_campagna === "sequence"`
+
+## Cosa NON toccare
+- Il flusso `handleLaunchCampaign` + `AssignmentResultDialog` funziona bene e va mantenuto
+- `initializeSequence` e' gia' corretta
+- Il componente `SequenceProgress` esiste gia' e funziona
 
