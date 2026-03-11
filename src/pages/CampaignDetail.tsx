@@ -430,7 +430,7 @@ export default function CampaignDetailPage() {
               </Button>
             </>
           )}
-          {campaign.stato === "pausa" && (
+          {campaign.stato === "in_pausa" && (
             <Button size="sm" className="font-mono text-xs" onClick={() => handleStatusChange("in_corso")}>
               <Send className="h-3 w-3 mr-1" /> RIPRENDI
             </Button>

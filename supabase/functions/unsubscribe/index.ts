@@ -26,9 +26,28 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Look up user_id from the contact
+    let userId: string | null = null;
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("id, user_id")
+      .eq("email", email.toLowerCase().trim())
+      .maybeSingle();
+    userId = contact?.user_id || null;
+
+    // If no contact found but we have a campaign, get user_id from campaign
+    if (!userId && campaignId) {
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("user_id")
+        .eq("id", campaignId)
+        .maybeSingle();
+      userId = campaign?.user_id || null;
+    }
+
     // Add to suppression list
     const { error } = await supabase.from("suppression_list").upsert(
-      { email: email.toLowerCase().trim(), motivo: "unsubscribe", campaign_id: campaignId || null },
+      { email: email.toLowerCase().trim(), motivo: "unsubscribe", campaign_id: campaignId || null, user_id: userId },
       { onConflict: "email" }
     );
 

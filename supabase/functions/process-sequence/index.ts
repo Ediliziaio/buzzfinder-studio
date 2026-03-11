@@ -245,7 +245,7 @@ Deno.serve(async (req: Request) => {
         // ─── 9. Aggiungi tracking pixel (solo email HTML) ────────────────
         if (step.tipo === "email" && step.corpo_html && campaign.tracking_aperture) {
           const baseUrl = Deno.env.get("SUPABASE_URL")!;
-          const pixelUrl = `${baseUrl}/functions/v1/track-open?id=${exec.id}`;
+          const pixelUrl = `${baseUrl}/functions/v1/track-open?rid=${exec.recipient_id}&cid=${exec.campaign_id}`;
           corpo += `<img src="${pixelUrl}" width="1" height="1" style="display:none" />`;
         }
 
