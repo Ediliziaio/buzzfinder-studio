@@ -22,44 +22,65 @@ export interface AnalyticsData {
 }
 
 async function fetchAnalytics(): Promise<AnalyticsData> {
-  const [contactsRes, campaignsRes, usageRes, sessionsRes] = await Promise.all([
-    supabase.from("contacts").select("id, email, telefono, fonte, stato, created_at"),
+  // Use server-side counts for contacts to avoid 1000-row limit
+  const [
+    totalContactsRes,
+    contactsWithEmailRes,
+    contactsWithPhoneRes,
+    campaignsRes,
+    usageRes,
+    sessionsCountRes,
+    contactsRecentRes,
+  ] = await Promise.all([
+    supabase.from("contacts").select("*", { count: "exact", head: true }),
+    supabase.from("contacts").select("*", { count: "exact", head: true }).not("email", "is", null),
+    supabase.from("contacts").select("*", { count: "exact", head: true }).not("telefono", "is", null),
     supabase.from("campaigns").select("id, nome, tipo, stato, inviati, aperti, cliccati, costo_reale_eur, created_at"),
     supabase.from("usage_log").select("tipo, costo_totale_eur, created_at"),
-    supabase.from("scraping_sessions").select("id, totale_importati, status"),
+    supabase.from("scraping_sessions").select("*", { count: "exact", head: true }),
+    // For contactsByDay we only need last 30 days — use filter to limit rows
+    supabase.from("contacts").select("created_at, fonte, stato")
+      .gte("created_at", subDays(new Date(), 30).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(5000),
   ]);
 
-  const contacts = contactsRes.data || [];
+  // Get scraping imported total separately
+  const { data: sessionsData } = await supabase.from("scraping_sessions").select("totale_importati");
+
+  const totalContacts = totalContactsRes.count || 0;
+  const contactsWithEmail = contactsWithEmailRes.count || 0;
+  const contactsWithPhone = contactsWithPhoneRes.count || 0;
+
   const campaigns = campaignsRes.data || [];
   const usage = usageRes.data || [];
-  const sessions = sessionsRes.data || [];
+  const recentContacts = contactsRecentRes.data || [];
 
-  const totalContacts = contacts.length;
-  const contactsWithEmail = contacts.filter(c => c.email).length;
-  const contactsWithPhone = contacts.filter(c => c.telefono).length;
   const totalCampaigns = campaigns.length;
   const totalSent = campaigns.reduce((s, c) => s + (c.inviati || 0), 0);
   const totalOpened = campaigns.reduce((s, c) => s + (c.aperti || 0), 0);
   const totalClicked = campaigns.reduce((s, c) => s + (c.cliccati || 0), 0);
   const totalCostEur = usage.reduce((s, u) => s + Number(u.costo_totale_eur || 0), 0);
 
+  // Contacts by day (last 30 days)
   const last30 = Array.from({ length: 30 }, (_, i) => {
     const d = startOfDay(subDays(new Date(), 29 - i));
     return { date: format(d, "yyyy-MM-dd"), count: 0 };
   });
-  contacts.forEach(c => {
+  recentContacts.forEach(c => {
     if (!c.created_at) return;
     const key = format(new Date(c.created_at), "yyyy-MM-dd");
     const entry = last30.find(d => d.date === key);
     if (entry) entry.count++;
   });
 
+  // Contacts by source and status (from recent contacts — approximation for chart)
   const sourceMap: Record<string, number> = {};
-  contacts.forEach(c => { const s = c.fonte || "altro"; sourceMap[s] = (sourceMap[s] || 0) + 1; });
+  recentContacts.forEach(c => { const s = c.fonte || "altro"; sourceMap[s] = (sourceMap[s] || 0) + 1; });
   const contactsBySource = Object.entries(sourceMap).map(([source, count]) => ({ source, count }));
 
   const statusMap: Record<string, number> = {};
-  contacts.forEach(c => { const s = c.stato || "nuovo"; statusMap[s] = (statusMap[s] || 0) + 1; });
+  recentContacts.forEach(c => { const s = c.stato || "nuovo"; statusMap[s] = (statusMap[s] || 0) + 1; });
   const contactsByStatus = Object.entries(statusMap).map(([status, count]) => ({ status, count }));
 
   const typeMap: Record<string, number> = {};
@@ -83,8 +104,8 @@ async function fetchAnalytics(): Promise<AnalyticsData> {
     if (entry) entry.costo += Number(u.costo_totale_eur || 0);
   });
 
-  const scrapingSessions = sessions.length;
-  const scrapingImported = sessions.reduce((s, ss) => s + (ss.totale_importati || 0), 0);
+  const scrapingSessions = sessionsCountRes.count || 0;
+  const scrapingImported = (sessionsData || []).reduce((s, ss) => s + (ss.totale_importati || 0), 0);
 
   return {
     totalContacts, contactsWithEmail, contactsWithPhone,
