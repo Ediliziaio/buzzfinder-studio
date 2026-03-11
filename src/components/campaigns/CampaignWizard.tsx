@@ -133,6 +133,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [templateSearch, setTemplateSearch] = useState("");
 
   const isSequence = data.tipoCampagna === "sequence";
 
@@ -178,13 +179,18 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
 
   useEffect(() => {
     if (!data.tipo || !open) return;
+    setTemplateSearch("");
     supabase.from("campaign_templates" as any)
       .select("*")
       .eq("tipo", data.tipo)
       .order("utilizzi", { ascending: false })
-      .limit(6)
       .then(({ data: tpl }) => setTemplates(tpl || []));
   }, [data.tipo, open]);
+
+  const filteredTemplates = templates.filter((t: any) =>
+    !templateSearch || t.nome?.toLowerCase().includes(templateSearch.toLowerCase()) ||
+    t.subject?.toLowerCase().includes(templateSearch.toLowerCase())
+  );
 
   const update = (partial: Partial<WizardData>) => setData((d) => ({ ...d, ...partial }));
 
@@ -446,8 +452,14 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
             {templates.length > 0 && (
               <div>
                 <Label className="terminal-header mb-2 block">Parti da un template</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {templates.map((tpl: any) => (
+                <Input
+                  placeholder="Cerca template..."
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  className="font-mono text-xs mb-2"
+                />
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {filteredTemplates.map((tpl: any) => (
                     <button
                       key={tpl.id}
                       onClick={() => {
@@ -469,16 +481,24 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                           .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
                           .eq("id", tpl.id)
                           .then(() => {});
+                        toast({ title: `Template "${tpl.nome}" applicato` });
                         setStep(1);
                       }}
-                      className="rounded-md border border-border bg-card p-2 text-left hover:border-primary/40 transition-colors"
+                      className={cn(
+                        "rounded-md border border-border bg-card p-2.5 text-left hover:border-primary/40 transition-colors",
+                        tpl.subject === data.subject && tpl.body_html === data.body_html && "border-primary bg-primary/5"
+                      )}
                     >
                       <p className="font-mono text-xs font-medium truncate">{tpl.nome}</p>
+                      {tpl.subject && <p className="text-[10px] text-muted-foreground truncate mt-0.5">{tpl.subject}</p>}
                       <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
                         Usato {tpl.utilizzi || 0} volte{tpl.ai_personalization_enabled ? " · ✨ AI" : ""}
                       </p>
                     </button>
                   ))}
+                  {filteredTemplates.length === 0 && (
+                    <p className="col-span-2 text-xs text-muted-foreground text-center py-2">Nessun template trovato</p>
+                  )}
                 </div>
               </div>
             )}
