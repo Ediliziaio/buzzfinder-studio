@@ -420,7 +420,7 @@ export default function SettingsPage() {
             ))}
           </div>
         </TabsContent>
+      </Tabs>
     </div>
   );
 }
-      </Tabs>
