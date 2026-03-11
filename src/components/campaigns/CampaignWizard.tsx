@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle, Sparkles } from "lucide-react";
+import { Mail, MessageSquare, Phone, ChevronRight, ChevronLeft, Rocket, Users, FileText, Eye, CalendarIcon, Clock, Plus, Trash2, AlertTriangle, Sparkles, Send, GitBranch, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -15,23 +15,18 @@ import { EmailEditor } from "./EmailEditor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "@/hooks/use-toast";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
 import { WizardStepAI } from "./WizardStepAI";
+import { SequenceBuilder } from "./SequenceBuilder";
+import { SmartSchedulingTab } from "./SmartSchedulingTab";
 import { populateCampaignRecipients, htmlToPlainText, getSmsInfo } from "@/lib/campaignHelpers";
 import { calculateCost } from "@/lib/costCalculator";
-import type { CampaignTipo } from "@/types";
-
-const STEPS = [
-  { id: "tipo", label: "Canale", icon: Mail },
-  { id: "destinatari", label: "Destinatari", icon: Users },
-  { id: "contenuto", label: "Contenuto", icon: FileText },
-  { id: "ai", label: "AI ✨", icon: Sparkles },
-  { id: "riepilogo", label: "Riepilogo", icon: Eye },
-] as const;
+import type { CampaignTipo, SequenceStep } from "@/types";
 
 const CANALI = [
   { value: "email" as CampaignTipo, label: "Email", icon: Mail, desc: "Invia email personalizzate", costPer: 0.001 },
@@ -47,6 +42,7 @@ export interface WhatsAppVariable {
 
 export interface WizardData {
   tipo: CampaignTipo;
+  tipoCampagna: "blast" | "sequence";
   nome: string;
   subject: string;
   subject_b: string;
@@ -74,10 +70,19 @@ export interface WizardData {
   aiModel: string;
   aiContext: string;
   aiObjective: string;
+  // Sequence fields
+  steps: SequenceStep[];
+  timezone: string;
+  ora_inizio_invio: string;
+  ora_fine_invio: string;
+  solo_lavorativi: boolean;
+  stop_su_risposta: boolean;
+  tracking_aperture: boolean;
 }
 
 const defaultData: WizardData = {
   tipo: "email",
+  tipoCampagna: "blast",
   nome: "",
   subject: "",
   subject_b: "",
@@ -105,6 +110,13 @@ const defaultData: WizardData = {
   aiModel: "haiku",
   aiContext: "",
   aiObjective: "",
+  steps: [],
+  timezone: "Europe/Rome",
+  ora_inizio_invio: "08:00",
+  ora_fine_invio: "19:00",
+  solo_lavorativi: true,
+  stop_su_risposta: true,
+  tracking_aperture: true,
 };
 
 interface CampaignWizardProps {
@@ -122,7 +134,27 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [showPreview, setShowPreview] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
 
-  // Load sender defaults from app_settings when wizard opens (Bug M3)
+  const isSequence = data.tipoCampagna === "sequence";
+
+  // Dynamic steps based on campaign type
+  const STEPS = isSequence
+    ? [
+        { id: "tipo", label: "Canale", icon: Mail },
+        { id: "destinatari", label: "Destinatari", icon: Users },
+        { id: "sequenza", label: "Sequenza", icon: GitBranch },
+        { id: "scheduling", label: "Recapito", icon: Settings2 },
+        { id: "riepilogo", label: "Riepilogo", icon: Eye },
+      ]
+    : [
+        { id: "tipo", label: "Canale", icon: Mail },
+        { id: "destinatari", label: "Destinatari", icon: Users },
+        { id: "contenuto", label: "Contenuto", icon: FileText },
+        { id: "ai", label: "AI ✨", icon: Sparkles },
+        { id: "riepilogo", label: "Riepilogo", icon: Eye },
+      ];
+
+  const totalSteps = STEPS.length;
+
   useEffect(() => {
     if (open) {
       setStep(0);
@@ -144,7 +176,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
     }
   }, [open]);
 
-  // Load templates when tipo changes
   useEffect(() => {
     if (!data.tipo || !open) return;
     supabase.from("campaign_templates" as any)
@@ -159,7 +190,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
 
   const canale = CANALI.find((c) => c.value === data.tipo)!;
 
-  // Use costCalculator for accurate cost estimation (Bug M6)
   const messageLength = data.tipo === "sms" ? data.body_text.length : 0;
   const costBreakdown = calculateCost(data.tipo, data.recipientCount, messageLength);
   const costStimato = costBreakdown.totalCost;
@@ -168,6 +198,14 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
     if (step === 0) return !!data.tipo && data.nome.trim().length > 0;
     if (step === 1) return data.recipientCount > 0;
     if (step === 2) {
+      if (isSequence) {
+        // Sequence: at least 1 step with content
+        return data.steps.length > 0 && data.steps.every(s => {
+          if (s.tipo === "email") return (s.soggetto || "").trim().length > 0 && (s.corpo_html || "").trim().length > 0;
+          return (s.messaggio || "").trim().length > 0;
+        });
+      }
+      // Blast
       if (data.tipo === "email") {
         return (
           data.subject.trim().length > 0 &&
@@ -178,13 +216,10 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       }
       if (data.tipo === "sms") return data.body_text.trim().length > 0;
       if (data.tipo === "whatsapp") {
-        return (
-          data.template_whatsapp_id.trim().length > 0 &&
-          data.template_whatsapp_language.trim().length > 0
-        );
+        return data.template_whatsapp_id.trim().length > 0 && data.template_whatsapp_language.trim().length > 0;
       }
     }
-    if (step === 3) return true; // AI step is optional
+    if (step === 3) return true;
     return true;
   };
 
@@ -200,7 +235,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
 
   const removeWhatsAppVariable = (idx: number) => {
     const vars = data.template_whatsapp_variables.filter((_, i) => i !== idx);
-    // Re-index
     update({
       template_whatsapp_variables: vars.map((v, i) => ({ ...v, index: i + 1 })),
     });
@@ -215,7 +249,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const handleCreate = async () => {
     setSaving(true);
     try {
-      // Compute scheduled_at by combining date + time
       let scheduledAt: string | null = null;
       if (data.scheduled_at) {
         const d = new Date(data.scheduled_at);
@@ -224,16 +257,14 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         scheduledAt = d.toISOString();
       }
 
-      // Auto-generate plain text from HTML for email (Bug M2)
       const bodyText = data.tipo === "email" ? htmlToPlainText(data.body_html) : data.body_text;
-
       const user_id = await getCurrentUserId();
 
-      // Insert campaign and get ID back (Bug C1)
       const { data: newCampaign, error } = await supabase.from("campaigns").insert({
         user_id,
         nome: data.nome.trim(),
         tipo: data.tipo,
+        tipo_campagna: data.tipoCampagna,
         stato: scheduledAt ? "schedulata" : "bozza",
         subject: data.subject || null,
         subject_b: data.ab_test_enabled ? (data.subject_b || null) : null,
@@ -257,22 +288,47 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
         ai_context: data.aiEnabled ? data.aiContext : null,
         ai_objective: data.aiEnabled ? data.aiObjective : null,
         ai_personalization_status: "none",
+        // Sequence scheduling fields
+        timezone: data.timezone,
+        ora_inizio_invio: data.ora_inizio_invio,
+        ora_fine_invio: data.ora_fine_invio,
+        solo_lavorativi: data.solo_lavorativi,
+        stop_su_risposta: data.stop_su_risposta,
+        tracking_aperture: data.tracking_aperture,
       } as any).select("id").single();
 
       if (error) throw error;
       if (!newCampaign) throw new Error("Errore creazione campagna");
 
-      // Populate campaign_recipients (Bug C1)
+      // If sequence, save steps
+      if (isSequence && data.steps.length > 0) {
+        const stepRows = data.steps.map((s) => ({
+          campaign_id: newCampaign.id,
+          step_number: s.step_number,
+          tipo: s.tipo,
+          delay_giorni: s.delay_giorni,
+          delay_ore: s.delay_ore,
+          condizione: s.condizione,
+          soggetto: s.soggetto || null,
+          corpo_html: s.corpo_html || null,
+          messaggio: s.messaggio || null,
+          ab_nome: s.ab_nome || null,
+          ab_peso: s.ab_peso,
+        }));
+        const { error: stepsErr } = await supabase.from("campaign_steps" as any).insert(stepRows);
+        if (stepsErr) throw stepsErr;
+      }
+
+      // Populate recipients
       try {
         const inserted = await populateCampaignRecipients(newCampaign.id, data);
         toast({
           title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
           description: scheduledAt
             ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })} — ${inserted} destinatari`
-            : `"${data.nome}" salvata come bozza — ${inserted} destinatari`,
+            : `"${data.nome}" salvata come bozza — ${inserted} destinatari${isSequence ? ` — ${data.steps.length} step` : ""}`,
         });
       } catch (recipientErr: any) {
-        // Rollback: delete campaign if recipient population fails
         await supabase.from("campaigns").delete().eq("id", newCampaign.id);
         throw new Error(`Errore popolamento destinatari: ${recipientErr.message}`);
       }
@@ -286,7 +342,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
     }
   };
 
-  // SMS info for GSM7 detection (Bug M1)
   const smsInfo = getSmsInfo(data.body_text);
 
   return (
@@ -330,6 +385,41 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                 className="font-mono"
               />
             </div>
+
+            {/* Tipo campagna: Blast vs Sequence */}
+            <div>
+              <Label className="font-mono text-xs mb-3 block">TIPO CAMPAGNA</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => update({ tipoCampagna: "blast" })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all",
+                    data.tipoCampagna === "blast"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <Send className="h-5 w-5 mb-2 text-primary" />
+                  <p className="font-semibold text-sm">Blast</p>
+                  <p className="text-xs text-muted-foreground">Un singolo invio a tutta la lista</p>
+                </button>
+                <button
+                  onClick={() => update({ tipoCampagna: "sequence" })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all",
+                    data.tipoCampagna === "sequence"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <GitBranch className="h-5 w-5 mb-2 text-primary" />
+                  <p className="font-semibold text-sm">Sequenza</p>
+                  <p className="text-xs text-muted-foreground">Multi-step con follow-up automatici</p>
+                  <Badge className="mt-1 text-xs bg-yellow-500/20 text-yellow-600 border-yellow-500/30">+35% reply rate</Badge>
+                </button>
+              </div>
+            </div>
+
             <div>
               <Label className="terminal-header mb-3 block">Canale di invio</Label>
               <div className="grid grid-cols-3 gap-3">
@@ -400,8 +490,8 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           <WizardStepRecipients data={data} update={update} />
         )}
 
-        {/* Step 2: Contenuto */}
-        {step === 2 && (
+        {/* Step 2: Contenuto (Blast) or Sequenza (Sequence) */}
+        {step === 2 && !isSequence && (
           <div className="space-y-4">
             {data.tipo === "email" && (
               <>
@@ -503,7 +593,6 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                   placeholder="Ciao {{nome}}, scopri le nostre offerte..."
                   className="font-mono text-sm min-h-[120px]"
                 />
-                {/* GSM7 vs UCS-2 detection (Bug M1) */}
                 {(() => {
                   const { isGsm7, maxSingle, smsCount, len } = smsInfo;
                   const isOver = len > maxSingle;
@@ -689,13 +778,49 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           </div>
         )}
 
-        {/* Step 3: AI Personalization */}
-        {step === 3 && (
+        {/* Step 2: Sequence Builder */}
+        {step === 2 && isSequence && (
+          <div className="space-y-4">
+            {/* Sender info for sequence emails */}
+            {data.tipo === "email" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="terminal-header mb-1.5 block">Mittente nome</Label>
+                  <Input value={data.sender_name} onChange={(e) => update({ sender_name: e.target.value })} placeholder="LeadHunter Pro" className="font-mono text-sm" />
+                </div>
+                <div>
+                  <Label className="terminal-header mb-1.5 block">Mittente email *</Label>
+                  <Input value={data.sender_email} onChange={(e) => update({ sender_email: e.target.value })} placeholder="noreply@tuodominio.it" className="font-mono text-sm" />
+                </div>
+              </div>
+            )}
+            <SequenceBuilder
+              steps={data.steps}
+              onChange={(steps) => update({ steps })}
+            />
+          </div>
+        )}
+
+        {/* Step 3: AI (blast) or Scheduling (sequence) */}
+        {step === 3 && !isSequence && (
           <WizardStepAI data={data} update={update} />
+        )}
+        {step === 3 && isSequence && (
+          <SmartSchedulingTab
+            data={{
+              timezone: data.timezone,
+              ora_inizio_invio: data.ora_inizio_invio,
+              ora_fine_invio: data.ora_fine_invio,
+              solo_lavorativi: data.solo_lavorativi,
+              stop_su_risposta: data.stop_su_risposta,
+              tracking_aperture: data.tracking_aperture,
+            }}
+            onChange={(updates) => update(updates)}
+          />
         )}
 
         {/* Step 4: Riepilogo */}
-        {step === 4 && (
+        {step === totalSteps - 1 && (
           <WizardStepReview data={data} costStimato={costStimato} canale={canale} />
         )}
 
@@ -710,7 +835,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
             <ChevronLeft className="mr-1 h-4 w-4" /> Indietro
           </Button>
 
-          {step < 4 ? (
+          {step < totalSteps - 1 ? (
             <Button
               onClick={() => setStep((s) => s + 1)}
               disabled={!canNext()}

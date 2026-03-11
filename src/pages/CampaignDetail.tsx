@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save } from "lucide-react";
+import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save, GitBranch } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
@@ -19,6 +19,7 @@ import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
 import { AssignmentResultDialog, type AssignmentResult } from "@/components/senders/AssignmentResultDialog";
+import { SequenceProgress } from "@/components/campaigns/SequenceProgress";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
@@ -106,6 +107,55 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const isSequence = (campaign as any)?.tipo_campagna === "sequence";
+
+  const initializeSequence = async (campaignId: string) => {
+    // Get step 1
+    const { data: step1 } = await supabase
+      .from("campaign_steps" as any)
+      .select("id")
+      .eq("campaign_id", campaignId)
+      .eq("step_number", 1)
+      .is("ab_padre_id", null)
+      .single();
+
+    if (!step1) {
+      toast.error("Aggiungi almeno uno step alla sequenza");
+      return false;
+    }
+
+    // Get all pending recipients
+    const { data: recipients } = await supabase
+      .from("campaign_recipients")
+      .select("id, sender_id")
+      .eq("campaign_id", campaignId)
+      .eq("stato", "pending");
+
+    if (!recipients?.length) {
+      toast.error("Nessun destinatario");
+      return false;
+    }
+
+    // Create executions for step 1
+    const executions = recipients.map((r: any) => ({
+      campaign_id: campaignId,
+      step_id: (step1 as any).id,
+      recipient_id: r.id,
+      sender_id: r.sender_id,
+      scheduled_at: new Date().toISOString(),
+      stato: "scheduled",
+    }));
+
+    const { error } = await supabase.from("campaign_step_executions" as any).insert(executions);
+    if (error) {
+      toast.error("Errore inizializzazione sequenza: " + error.message);
+      return false;
+    }
+
+    toast.success(`✅ Sequenza avviata: ${recipients.length} step 1 schedulati`);
+    return true;
+  };
+
   const handleLaunchCampaign = async () => {
     if (!campaign) return;
     setIsAssigning(true);
@@ -121,9 +171,13 @@ export default function CampaignDetailPage() {
       setAssignmentResult(data as AssignmentResult);
       setShowAssignmentDialog(true);
     } catch (err: any) {
-      // If edge function not deployed, skip assignment and launch directly
       if (err.message?.includes("not found") || err.message?.includes("404")) {
-        handleStatusChange("in_corso");
+        if (isSequence) {
+          const ok = await initializeSequence(campaign.id);
+          if (ok) handleStatusChange("in_corso");
+        } else {
+          handleStatusChange("in_corso");
+        }
       } else {
         toast.error("Errore assegnazione mittenti: " + err.message);
       }
@@ -134,6 +188,9 @@ export default function CampaignDetailPage() {
 
   const confirmLaunchAfterAssignment = async () => {
     setConfirmingLaunch(true);
+    if (isSequence && campaign) {
+      await initializeSequence(campaign.id);
+    }
     await handleStatusChange("in_corso");
     setConfirmingLaunch(false);
     setShowAssignmentDialog(false);
@@ -400,6 +457,17 @@ export default function CampaignDetailPage() {
         <AiPersonalizationPanel campaign={campaign} onUpdate={loadCampaign} />
       )}
 
+      {/* Sequence Progress */}
+      {isSequence && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-primary" />
+            <span className="terminal-header text-primary">PROGRESSO SEQUENZA</span>
+          </div>
+          <SequenceProgress campaignId={campaign.id} />
+        </div>
+      )}
+
       {/* Phase Progress */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center gap-2">
@@ -416,7 +484,7 @@ export default function CampaignDetailPage() {
             </div>
           ))}
         </div>
-        {campaign.stato === "in_corso" && (
+        {campaign.stato === "in_corso" && !isSequence && (
           <div className="mt-3">
             <TerminalProgress
               percent={progress}
