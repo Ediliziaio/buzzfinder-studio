@@ -139,7 +139,7 @@ export default function CampaignDetailPage() {
     // Create executions for step 1
     const executions = recipients.map((r: any) => ({
       campaign_id: campaignId,
-      step_id: step1.id,
+      step_id: (step1 as any).id,
       recipient_id: r.id,
       sender_id: r.sender_id,
       scheduled_at: new Date().toISOString(),
