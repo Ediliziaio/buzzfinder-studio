@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
 import { ReplicaCampagnaDialog } from "@/components/campaigns/ReplicaCampagnaDialog";
+import { AssignmentResultDialog, type AssignmentResult } from "@/components/senders/AssignmentResultDialog";
 
 const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
