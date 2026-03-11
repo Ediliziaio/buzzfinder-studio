@@ -261,9 +261,7 @@ export default function CampaignDetailPage() {
             reply_to: campaign.reply_to,
             template_whatsapp_id: campaign.template_whatsapp_id,
             rate_per_hour: campaign.sending_rate_per_hour,
-            // Bug C2: include supabase credentials for n8n
-            supabase_url: import.meta.env.VITE_SUPABASE_URL,
-            supabase_anon_key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            // n8n uses its own Supabase credentials configured in the workflow
             // AI personalization flag
             use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
           });

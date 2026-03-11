@@ -36,7 +36,9 @@ export default function PipelinePage() {
         if (filterCampaign === "none") {
           if (l.campaign) return false;
         } else {
-          if (l.campaign_id !== filterCampaign) return false;
+          if (!l.campaign) return false;
+          const matchCampaign = campaigns.find(c => c.id === filterCampaign);
+          if (!matchCampaign || l.campaign.nome !== matchCampaign.nome) return false;
         }
       }
       if (filterMinValue && l.valore_stimato < parseFloat(filterMinValue)) return false;
