@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Archive, Trophy, MailOpen, Mail } from "lucide-react";
+import { Archive, Trophy, MailOpen, Mail, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { EtichettaBadge, getEtichettaConfig } from "./EtichettaBadge";
 import { ContactInfoPanel } from "./ContactInfoPanel";
+import { ReplyComposer } from "./ReplyComposer";
 import type { InboxMessage } from "@/hooks/useInbox";
 
 const etichette = [
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsUnread, onSaveNote }: Props) {
+  const [showReply, setShowReply] = useState(false);
   const canaleIcon = message.canale === "email" ? "📧" : message.canale === "whatsapp" ? "💬" : "📱";
 
   const handleAddToPipeline = async () => {
@@ -76,6 +78,11 @@ export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsU
             {message.oggetto && <p className="font-mono text-sm mt-1">📌 {message.oggetto}</p>}
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
+            {message.canale !== "sms" && (
+              <Button size="sm" variant="outline" onClick={() => setShowReply((v) => !v)} className="text-xs font-mono">
+                <Reply className="h-3 w-3 mr-1" /> Rispondi
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={onMarkAsUnread} title="Segna come non letto">
               <MailOpen className="h-3 w-3" />
             </Button>
@@ -98,6 +105,15 @@ export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsU
             <pre className="font-mono text-sm whitespace-pre-wrap text-foreground">{message.corpo}</pre>
           )}
         </div>
+
+        {/* Reply composer */}
+        {showReply && (
+          <ReplyComposer
+            message={message}
+            onSent={() => setShowReply(false)}
+            onCancel={() => setShowReply(false)}
+          />
+        )}
 
         {/* Footer: labels */}
         <div className="p-4 border-t">
