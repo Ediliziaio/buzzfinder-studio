@@ -8,6 +8,7 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import AuthPage from "@/pages/Auth";
+import IndexPage from "@/pages/Index";
 import ContactsPage from "@/pages/Contacts";
 import ScraperMapsPage from "@/pages/ScraperMaps";
 import ScraperWebsitesPage from "@/pages/ScraperWebsites";
@@ -47,7 +48,7 @@ function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route path="/" element={<Navigate to="/contacts" />} />
+        <Route path="/" element={<IndexPage />} />
         <Route path="/scraper/maps" element={<ScraperMapsPage />} />
         <Route path="/scraper/websites" element={<ScraperWebsitesPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
