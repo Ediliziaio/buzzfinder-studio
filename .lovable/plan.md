@@ -1,18 +1,32 @@
 
 
-## Creazione Account Superadmin
+# Add "New Lead" Dialog to Pipeline
 
-Per creare l'account con le credenziali specificate, servono due passaggi:
+## What to build
 
-### Passaggio 1 — Abilitare auto-conferma email
-Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
+A dialog triggered by a "+ Nuovo Lead" button in the Pipeline header. The dialog lets the user select a contact (searchable), optionally a campaign, set an initial stage and estimated value, then calls `addLead` from `usePipeline`.
 
-### Passaggio 2 — Registrazione
-Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
-- **Email**: `f.andriciuc@overthemol.com`
-- **Password**: `Password2025!`
+## Changes
 
-L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
+### 1. Create `src/components/pipeline/CreateLeadDialog.tsx`
+- Dialog with form fields:
+  - **Contact search**: Input that queries contacts via `supabase.from("contacts").select("id, nome, cognome, azienda, email").ilike(...)` with debounced search, showing results in a dropdown list
+  - **Campaign select**: Optional, using `useCampaigns()` to populate a Select dropdown
+  - **Stage select**: Default "interessato", using STAGES array
+  - **Valore stimato**: Number input, default 0
+- On submit: call `addLead({ contact_id, campaign_id, stage })` from the `usePipeline` hook
+- Close dialog and reset form on success
 
-> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
+### 2. Update `src/pages/Pipeline.tsx`
+- Add a `+ Nuovo Lead` button in the header bar next to Filtri
+- Import and render `CreateLeadDialog` controlled by `open` state
+
+### 3. Update `src/hooks/usePipeline.ts`
+- The `addLead` mutation already exists and accepts `{ contact_id, campaign_id, stage }` — no changes needed
+
+## Files
+| File | Action |
+|------|--------|
+| `src/components/pipeline/CreateLeadDialog.tsx` | Create |
+| `src/pages/Pipeline.tsx` | Add button + dialog |
 
