@@ -13,7 +13,8 @@ import { SenderCard } from "@/components/senders/SenderCard";
 import { SenderDialog } from "@/components/senders/SenderDialog";
 import { SenderHealthDashboard } from "@/components/senders/SenderHealthDashboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Shield } from "lucide-react";
+import { AlertTriangle, Shield, ShieldCheck } from "lucide-react";
+import { BlacklistMonitor } from "@/components/senders/BlacklistMonitor";
 import type { SenderPool } from "@/types";
 
 interface SettingField {
