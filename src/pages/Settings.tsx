@@ -257,7 +257,7 @@ function BlocklistEditor() {
     if (!user) return;
     await supabase.from("app_settings").upsert(
       { chiave: "email_blocklist", valore: value, categoria: "tracking", user_id: user.id, updated_at: new Date().toISOString() } as any,
-      { onConflict: "chiave" }
+      { onConflict: "chiave,user_id" }
     );
     toast.success("Blocklist salvata");
   };
