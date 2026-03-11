@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, Upload, Download } from "lucide-react";
+import { Users, Plus, Upload, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContactDetailDrawer } from "@/components/contacts/ContactDetailDrawer";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
