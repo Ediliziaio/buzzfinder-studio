@@ -321,7 +321,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           ab_nome: s.ab_nome || null,
           ab_peso: s.ab_peso,
         }));
-        const { error: stepsErr } = await supabase.from("campaign_steps" as any).insert(stepRows);
+        const { error: stepsErr } = await supabase.from("campaign_steps").insert(stepRows as any);
         if (stepsErr) throw stepsErr;
       }
 
