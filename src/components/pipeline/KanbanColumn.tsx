@@ -12,6 +12,7 @@ interface Props {
   leads: PipelineLeadWithRelations[];
   onMoveStage: (leadId: string, newStage: string) => void;
   onUpdateNote: (leadId: string, note: string) => void;
+  onUpdateValue: (leadId: string, value: number) => void;
 }
 
 export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote }: Props) {
