@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Trophy, Filter, X } from "lucide-react";
+import { Trophy, Filter, X, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { KanbanColumn, type PipelineStage } from "@/components/pipeline/KanbanColumn";
 import { usePipeline } from "@/hooks/usePipeline";
 import { useCampaigns } from "@/hooks/useCampaigns";
+import { CreateLeadDialog } from "@/components/pipeline/CreateLeadDialog";
 
 const STAGES: PipelineStage[] = [
   { id: "interessato", label: "Interessati 🔥", colorClass: "border-destructive" },
@@ -18,10 +19,11 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-  const { leads, isLoading, moveStage, updateNote, updateValue } = usePipeline();
+  const { leads, isLoading, moveStage, updateNote, updateValue, addLead } = usePipeline();
   const { campaigns } = useCampaigns();
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [filterCampaign, setFilterCampaign] = useState<string>("all");
   const [filterMinValue, setFilterMinValue] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -78,6 +80,9 @@ export default function PipelinePage() {
           <h1 className="font-display text-xl font-bold text-foreground">PIPELINE</h1>
         </div>
         <div className="flex items-center gap-4">
+          <Button size="sm" className="font-mono text-xs" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3 w-3 mr-1" /> Nuovo Lead
+          </Button>
           <Button
             variant={showFilters ? "default" : "outline"}
             size="sm"
@@ -165,6 +170,7 @@ export default function PipelinePage() {
           );
         })}
       </div>
+      <CreateLeadDialog open={showCreate} onOpenChange={setShowCreate} onAdd={addLead} />
     </div>
   );
 }
