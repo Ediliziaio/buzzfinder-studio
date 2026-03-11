@@ -502,6 +502,15 @@ export default function CampaignDetailPage() {
           onReplicated={() => { loadCampaign(); }}
         />
       )}
+
+      {/* Assignment Result Dialog */}
+      <AssignmentResultDialog
+        open={showAssignmentDialog}
+        onOpenChange={setShowAssignmentDialog}
+        result={assignmentResult}
+        onConfirm={confirmLaunchAfterAssignment}
+        confirming={confirmingLaunch}
+      />
     </div>
   );
 }
