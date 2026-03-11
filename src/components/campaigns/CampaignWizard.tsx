@@ -133,6 +133,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [templateSearch, setTemplateSearch] = useState("");
 
   const isSequence = data.tipoCampagna === "sequence";
 
