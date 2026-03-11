@@ -200,91 +200,152 @@ export default function CampaignDetailPage() {
   const handleStatusChange = async (newStato: string) => {
     if (!campaign) return;
 
-    // Validate recipients before launch
-    if (newStato === "in_corso") {
-      const { count } = await supabase
-        .from("campaign_recipients")
-        .select("*", { count: "exact", head: true })
-        .eq("campaign_id", campaign.id);
-      if (!count || count === 0) {
-        toast.error("Aggiungi almeno un destinatario prima di lanciare la campagna");
-        return;
-      }
-    }
-
-    const updates: Record<string, unknown> = { stato: newStato };
-    if (newStato === "in_corso" && !campaign.started_at) updates.started_at = new Date().toISOString();
-    if (newStato === "completata" && !campaign.completed_at) updates.completed_at = new Date().toISOString();
-    if (newStato === "pausa") updates.paused_at = new Date().toISOString();
-    if (newStato === "completata") updates.stopped_at = new Date().toISOString();
-
-    const { error } = await supabase.from("campaigns").update(updates as any).eq("id", campaign.id);
-    if (error) { toast.error("Errore aggiornamento stato"); return; }
-
-    toast.success(`Campagna ${newStato}`);
-
-    // Send control webhooks for pause/stop (Bug C5)
-    if (["pausa", "completata"].includes(newStato)) {
-      try {
-        const settings = await getN8nSettings();
-        const controlWebhook = settings.n8n_webhook_campaign_control;
-        if (controlWebhook) {
-          await triggerN8nWebhook(controlWebhook, {
-            campaign_id: campaign.id,
-            action: newStato === "pausa" ? "pause" : "stop",
-          });
+    try {
+      // ─── AVVIO ──────────────────────────────────────────────────────────
+      if (newStato === "in_corso" && campaign.stato !== "pausa") {
+        const { count } = await supabase
+          .from("campaign_recipients")
+          .select("*", { count: "exact", head: true })
+          .eq("campaign_id", campaign.id);
+        if (!count || count === 0) {
+          toast.error("Aggiungi almeno un destinatario prima di lanciare la campagna");
+          return;
         }
-      } catch (err) {
-        console.warn("n8n control webhook failed:", err);
-      }
-    }
 
-    // Trigger n8n webhook on launch (Bug C2 + M5)
-    if (newStato === "in_corso") {
-      try {
-        const settings = await getN8nSettings();
-        const webhookMap: Record<string, string> = {
-          email: settings.n8n_webhook_send_emails || "",
-          sms: settings.n8n_webhook_send_sms || "",
-          whatsapp: settings.n8n_webhook_send_whatsapp || "",
+        // Check if campaign has configured steps
+        const { data: steps } = await supabase
+          .from("campaign_steps")
+          .select("id")
+          .eq("campaign_id", campaign.id)
+          .is("ab_padre_id", null)
+          .limit(1);
+
+        const hasSteps = steps && steps.length > 0;
+
+        // Update campaign state
+        const updates: Record<string, unknown> = {
+          stato: "in_corso",
+          ...(!campaign.started_at ? { started_at: new Date().toISOString() } : {}),
         };
-        const webhookPath = webhookMap[campaign.tipo];
-        if (webhookPath) {
-          const webhookResponse = await triggerN8nWebhook(webhookPath, {
-            campaign_id: campaign.id,
-            tipo: campaign.tipo,
-            subject: campaign.subject,
-            body_html: campaign.body_html,
-            body_text: campaign.body_text,
-            sender_email: campaign.sender_email,
-            sender_name: campaign.sender_name,
-            reply_to: campaign.reply_to,
-            template_whatsapp_id: campaign.template_whatsapp_id,
-            rate_per_hour: campaign.sending_rate_per_hour,
-            // n8n uses its own Supabase credentials configured in the workflow
-            // AI personalization flag
-            use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
-          });
+        const { error } = await supabase.from("campaigns").update(updates as any).eq("id", campaign.id);
+        if (error) throw error;
 
-          // Bug M5: save n8n execution ID
-          const executionId = webhookResponse?.executionId || webhookResponse?.id || null;
-          if (executionId) {
-            await supabase.from("campaigns")
-              .update({ n8n_webhook_id: String(executionId) } as any)
-              .eq("id", campaign.id);
-          }
+        setCampaign(prev => prev ? { ...prev, stato: "in_corso" } as Campaign : null);
 
-          toast.success("Job di invio avviato su n8n");
+        // If steps exist → process-sequence handles everything, no n8n needed
+        if (hasSteps) {
+          toast.success("🚀 Campagna avviata — il motore sequenze gestisce gli invii");
         } else {
-          toast.warning("Webhook n8n non configurato — configura in Impostazioni");
+          // No steps → fallback to n8n direct
+          try {
+            const settings = await getN8nSettings();
+            const webhookMap: Record<string, string> = {
+              email: settings.n8n_webhook_send_emails || "",
+              sms: settings.n8n_webhook_send_sms || "",
+              whatsapp: settings.n8n_webhook_send_whatsapp || "",
+            };
+            const webhookPath = webhookMap[campaign.tipo];
+            if (webhookPath) {
+              const webhookResponse = await triggerN8nWebhook(webhookPath, {
+                campaign_id: campaign.id,
+                tipo: campaign.tipo,
+                subject: campaign.subject,
+                body_html: campaign.body_html,
+                body_text: campaign.body_text,
+                sender_email: campaign.sender_email,
+                sender_name: campaign.sender_name,
+                reply_to: campaign.reply_to,
+                template_whatsapp_id: campaign.template_whatsapp_id,
+                rate_per_hour: campaign.sending_rate_per_hour,
+                use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
+              });
+              const executionId = webhookResponse?.executionId || webhookResponse?.id || null;
+              if (executionId) {
+                await supabase.from("campaigns")
+                  .update({ n8n_webhook_id: String(executionId) } as any)
+                  .eq("id", campaign.id);
+              }
+              toast.success("Job di invio avviato su n8n");
+            } else {
+              toast.warning("⚠️ Configura Step sequenza o Webhook n8n nelle Impostazioni");
+            }
+          } catch (n8nErr: any) {
+            toast.warning(`Webhook n8n non raggiungibile: ${n8nErr.message}`);
+          }
         }
-      } catch (err: any) {
-        // Rollback to bozza on n8n error
-        await supabase.from("campaigns")
-          .update({ stato: "bozza" } as any)
+
+      // ─── PAUSA ──────────────────────────────────────────────────────────
+      } else if (newStato === "pausa") {
+        const { error } = await supabase.from("campaigns")
+          .update({ stato: "in_pausa", paused_at: new Date().toISOString() } as any)
           .eq("id", campaign.id);
-        toast.error(`Errore trigger n8n: ${err.message}`);
+        if (error) throw error;
+
+        // Cancel future scheduled executions
+        await supabase
+          .from("campaign_step_executions")
+          .update({ stato: "cancelled" } as any)
+          .eq("campaign_id", campaign.id)
+          .eq("stato", "scheduled");
+
+        setCampaign(prev => prev ? { ...prev, stato: "in_pausa" } as Campaign : null);
+        toast.info("⏸️ Campagna messa in pausa");
+
+        // Notify n8n
+        try {
+          const settings = await getN8nSettings();
+          const controlWebhook = settings.n8n_webhook_campaign_control;
+          if (controlWebhook) {
+            await triggerN8nWebhook(controlWebhook, { campaign_id: campaign.id, action: "pause" });
+          }
+        } catch { /* ignore */ }
+
+      // ─── RIPRENDI ───────────────────────────────────────────────────────
+      } else if (newStato === "in_corso" && campaign.stato === "pausa") {
+        const { error } = await supabase.from("campaigns")
+          .update({ stato: "in_corso" } as any)
+          .eq("id", campaign.id);
+        if (error) throw error;
+        setCampaign(prev => prev ? { ...prev, stato: "in_corso" } as Campaign : null);
+        toast.success("▶️ Campagna ripresa");
+
+      // ─── STOP / COMPLETATA ──────────────────────────────────────────────
+      } else if (newStato === "completata") {
+        const { error } = await supabase.from("campaigns")
+          .update({ stato: "completata", completed_at: new Date().toISOString(), stopped_at: new Date().toISOString() } as any)
+          .eq("id", campaign.id);
+        if (error) throw error;
+
+        // Cancel all scheduled executions
+        await supabase
+          .from("campaign_step_executions")
+          .update({ stato: "cancelled" } as any)
+          .eq("campaign_id", campaign.id)
+          .eq("stato", "scheduled");
+
+        setCampaign(prev => prev ? { ...prev, stato: "completata" } as Campaign : null);
+        toast.success("✅ Campagna completata");
+
+        // Notify n8n
+        try {
+          const settings = await getN8nSettings();
+          const controlWebhook = settings.n8n_webhook_campaign_control;
+          if (controlWebhook) {
+            await triggerN8nWebhook(controlWebhook, { campaign_id: campaign.id, action: "stop" });
+          }
+        } catch { /* ignore */ }
+
+      // ─── ALTRI STATI ────────────────────────────────────────────────────
+      } else {
+        const { error } = await supabase.from("campaigns")
+          .update({ stato: newStato } as any)
+          .eq("id", campaign.id);
+        if (error) throw error;
+        setCampaign(prev => prev ? { ...prev, stato: newStato } as Campaign : null);
       }
+    } catch (err: any) {
+      console.error("handleStatusChange error:", err);
+      toast.error(`Errore: ${err.message}`);
     }
 
     loadCampaign();
