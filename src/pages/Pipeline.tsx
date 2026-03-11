@@ -57,6 +57,7 @@ export default function PipelinePage() {
             leads={leads.filter((l) => l.pipeline_stage === stage.id)}
             onMoveStage={moveStage}
             onUpdateNote={updateNote}
+            onUpdateValue={updateValue}
           />
         ))}
       </div>
