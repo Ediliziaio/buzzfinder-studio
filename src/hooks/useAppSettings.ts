@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type SettingsMap = Record<string, string>;
@@ -17,19 +17,23 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   reload: async () => {},
 });
 
-export function AppSettingsProvider({ children }: { children: ReactNode }) {
+export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SettingsMap>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from("app_settings").select("chiave, valore");
     const map: SettingsMap = {};
-    data?.forEach((s) => { if (s.valore) map[s.chiave] = s.valore; });
+    data?.forEach((s) => {
+      if (s.valore) map[s.chiave] = s.valore;
+    });
     setSettings(map);
     setIsLoaded(true);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const getSetting = (chiave: string, fallback = "") => settings[chiave] ?? fallback;
 
