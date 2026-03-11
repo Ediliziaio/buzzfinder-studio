@@ -37,7 +37,7 @@ export function DelayConnector({ giorni, ore, condizione, onChange }: Props) {
           <GitBranch className="h-3 w-3 text-muted-foreground" />
           <select
             value={condizione}
-            onChange={(e) => onChange({ condizione: e.target.value })}
+            onChange={(e) => onChange({ condizione: e.target.value as 'always' | 'if_no_reply' | 'if_no_open' | 'if_opened' })}
             className="bg-background border border-border rounded px-1 text-xs flex-1"
           >
             <option value="if_no_reply">Solo se non ha risposto</option>
