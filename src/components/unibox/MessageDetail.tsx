@@ -10,6 +10,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { EtichettaBadge, getEtichettaConfig } from "./EtichettaBadge";
 import { ContactInfoPanel } from "./ContactInfoPanel";
 import { ReplyComposer } from "./ReplyComposer";
+import { ThreadView } from "./ThreadView";
 import type { InboxMessage } from "@/hooks/useInbox";
 
 const etichette = [
@@ -97,13 +98,9 @@ export function MessageDetail({ message, onUpdateEtichetta, onArchive, onMarkAsU
           </div>
         </div>
 
-        {/* Body */}
+        {/* Body — Thread View */}
         <div className="flex-1 overflow-y-auto p-4">
-          {message.corpo_html ? (
-            <div className="prose prose-sm max-w-none font-mono text-sm" dangerouslySetInnerHTML={{ __html: message.corpo_html }} />
-          ) : (
-            <pre className="font-mono text-sm whitespace-pre-wrap text-foreground">{message.corpo}</pre>
-          )}
+          <ThreadView message={message} />
         </div>
 
         {/* Reply composer */}

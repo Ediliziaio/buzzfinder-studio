@@ -1,29 +1,18 @@
 
 
-# Piano: Guida Webhook in Settings + Thread Completo in Unibox
+## Creazione Account Superadmin
 
-## Task 1 — Aggiungere tab "Ricezione Risposte" nelle Impostazioni
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-**File da modificare:** `src/pages/Settings.tsx`
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-Aggiungere un nuovo tab `ricezione` nella TabsList che contiene una guida step-by-step con 3 metodi di configurazione (Resend Inbound, n8n + IMAP, Webhook Manuale), ognuno in un sotto-tab con istruzioni numerate, URL endpoint copiabile e payload JSON di esempio.
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-L'URL dell'endpoint sara' costruito dinamicamente da `import.meta.env.VITE_SUPABASE_URL` + `/functions/v1/handle-reply`. Include un bottone "Copia" per l'URL e il payload JSON.
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-## Task 2 — Thread completo nel dettaglio messaggio
-
-**File da modificare:** `src/components/unibox/MessageDetail.tsx`
-
-Quando un messaggio e' selezionato, caricare tutti i messaggi con lo stesso `thread_id` oppure, se `thread_id` e' null, con lo stesso `da_email`/`da_telefono` + `campaign_id`. Mostrare la lista di messaggi in ordine cronologico nel body, ognuno con timestamp, mittente e badge in/out. Il messaggio corrente sara' evidenziato.
-
-Query: `supabase.from("inbox_messages").select("*").or(...)` filtrato per thread_id o email+campaign, ordinato per `data_ricezione asc`.
-
-Layout del thread: ogni messaggio come un "bubble" con header (nome + timestamp), corpo, e allineamento a sinistra per messaggi ricevuti, a destra per messaggi inviati (distinguibili dal campo `etichetta = 'risposta_inviata'` o confronto `da_email` con i sender dell'utente).
-
-## File coinvolti
-
-| File | Azione |
-|------|--------|
-| `src/pages/Settings.tsx` | Aggiungere tab "Ricezione" con guida webhook |
-| `src/components/unibox/MessageDetail.tsx` | Aggiungere caricamento e visualizzazione thread |
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
 import { SettingField } from "@/components/settings/SettingField";
 import { SettingToggle } from "@/components/settings/SettingToggle";
+import { WebhookGuideTab } from "@/components/settings/WebhookGuideTab";
 
 export default function SettingsPage() {
   const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
@@ -78,6 +79,7 @@ export default function SettingsPage() {
           <TabsTrigger value="orari" className="font-mono text-xs">Orari Invio</TabsTrigger>
           <TabsTrigger value="tracking" className="font-mono text-xs">Tracking</TabsTrigger>
           <TabsTrigger value="ai" className="font-mono text-xs">AI</TabsTrigger>
+          <TabsTrigger value="ricezione" className="font-mono text-xs">Ricezione</TabsTrigger>
           <TabsTrigger value="export" className="font-mono text-xs">Import/Export</TabsTrigger>
         </TabsList>
 
@@ -203,6 +205,11 @@ export default function SettingsPage() {
               L'AI è integrata nativamente tramite Lovable Cloud. Personalizza oggetto e corpo email per ogni contatto usando dati aziendali.
             </p>
           </div>
+        </TabsContent>
+
+        {/* Ricezione Risposte */}
+        <TabsContent value="ricezione">
+          <WebhookGuideTab />
         </TabsContent>
 
         {/* Import/Export */}
