@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanColumn, type PipelineStage } from "@/components/pipeline/KanbanColumn";
 import { usePipeline } from "@/hooks/usePipeline";
 
+
 const STAGES: PipelineStage[] = [
   { id: "interessato", label: "Interessati 🔥", colorClass: "border-destructive" },
   { id: "richiesta_info", label: "Richiedono info 📋", colorClass: "border-info" },
@@ -13,7 +14,7 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-  const { leads, isLoading, moveStage, updateNote } = usePipeline();
+  const { leads, isLoading, moveStage, updateNote, updateValue } = usePipeline();
 
   const totaleValore = leads
     .filter((l) => l.pipeline_stage !== "perso")
@@ -56,6 +57,7 @@ export default function PipelinePage() {
             leads={leads.filter((l) => l.pipeline_stage === stage.id)}
             onMoveStage={moveStage}
             onUpdateNote={updateNote}
+            onUpdateValue={updateValue}
           />
         ))}
       </div>

@@ -12,9 +12,10 @@ interface Props {
   leads: PipelineLeadWithRelations[];
   onMoveStage: (leadId: string, newStage: string) => void;
   onUpdateNote: (leadId: string, note: string) => void;
+  onUpdateValue: (leadId: string, value: number) => void;
 }
 
-export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote }: Props) {
+export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
   return (
     <div className={`flex-shrink-0 w-72 border-t-2 ${stage.colorClass} rounded-xl bg-muted/30`}>
       <div className="p-3 flex items-center justify-between">
@@ -29,6 +30,7 @@ export function KanbanColumn({ stage, leads, onMoveStage, onUpdateNote }: Props)
             currentStage={stage.id}
             onMoveStage={onMoveStage}
             onUpdateNote={onUpdateNote}
+            onUpdateValue={onUpdateValue}
           />
         ))}
         {leads.length === 0 && (

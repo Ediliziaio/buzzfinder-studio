@@ -66,6 +66,21 @@ export function usePipeline() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pipeline-leads"] }),
   });
 
+  const updateValue = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: number }) => {
+      const { error } = await supabase
+        .from("pipeline_leads")
+        .update({ valore_stimato: value, pipeline_updated: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipeline-leads"] });
+      toast.success("Valore aggiornato");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   const addLead = useMutation({
     mutationFn: async (input: { contact_id: string; campaign_id?: string; inbox_message_id?: string; stage?: string }) => {
       const user_id = await getCurrentUserId();
@@ -90,6 +105,7 @@ export function usePipeline() {
     isLoading: query.isLoading,
     moveStage: (id: string, stage: string) => moveStage.mutate({ id, stage }),
     updateNote: (id: string, note: string) => updateNote.mutate({ id, note }),
+    updateValue: (id: string, value: number) => updateValue.mutate({ id, value }),
     addLead: addLead.mutate,
   };
 }

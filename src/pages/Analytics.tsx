@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw, Sparkles, Send, Eye, MousePointerClick, MessageSquare, Flame } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { BarChart3, Users, Mail, DollarSign, Globe, TrendingUp, RefreshCw, Sparkles, Send, Eye, MousePointerClick, MessageSquare, Flame, Download } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart,
@@ -17,6 +17,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import type { AdvancedAnalyticsData } from "@/hooks/useAdvancedAnalytics";
+
+function exportAnalyticsCsv(data: AdvancedAnalyticsData, giorni: number) {
+  const rows = [
+    ["Metrica", "Valore", `Periodo: ultimi ${giorni} giorni`],
+    ["Inviati", String(data.inviati), ""],
+    ["Aperti", String(data.aperti), `${data.openRate.toFixed(1)}%`],
+    ["Cliccati", String(data.cliccati), `${data.clickRate.toFixed(1)}%`],
+    ["Risposte", String(data.risposte), `${data.replyRate.toFixed(1)}%`],
+    ["Interessati", String(data.interessati), `${data.conversionRate.toFixed(1)}%`],
+    ["Costo Totale", `€${data.totalCostEur.toFixed(2)}`, ""],
+    [],
+    ["Campagna", "Inviati", "Open %", "Click %", "Bounce %", "Stato"],
+    ...data.campaigns.map((c) => [
+      c.nome, String(c.inviati), `${c.openRate.toFixed(1)}%`, `${c.clickRate.toFixed(1)}%`, `${c.bounceRate.toFixed(1)}%`, c.stato,
+    ]),
+    [],
+    ["Giorno", "Inviati", "Aperti", "Risposte"],
+    ...data.timeline.map((t) => [t.data, String(t.inviati), String(t.aperti), String(t.risposte)]),
+  ];
+
+  const csv = rows.map((r) => (r as string[]).map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `analytics_${giorni}g_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const COLORS = [
   "hsl(152, 100%, 45%)",
@@ -197,6 +227,9 @@ export default function AnalyticsPage() {
           ))}
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1 font-mono text-xs ml-2">
             <RefreshCw className="h-3 w-3" /> Aggiorna
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportAnalyticsCsv(data, periodoGiorni)} className="gap-1 font-mono text-xs">
+            <Download className="h-3 w-3" /> CSV
           </Button>
         </div>
       </div>
