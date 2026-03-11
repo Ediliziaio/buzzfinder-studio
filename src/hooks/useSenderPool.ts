@@ -8,11 +8,12 @@ export function useSenderPool(tipo?: "email" | "whatsapp" | "sms") {
 
   const fetchSenders = useCallback(async () => {
     let query = supabase
-      .from("sender_pool" as any)
+      .from("sender_pool")
       .select("*")
       .order("health_score", { ascending: false });
     if (tipo) query = query.eq("tipo", tipo);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) { console.error("Errore caricamento sender pool:", error.message); }
     setSenders((data as unknown as SenderPool[]) || []);
     setLoading(false);
   }, [tipo]);
