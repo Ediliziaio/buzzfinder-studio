@@ -166,6 +166,7 @@ export default function PipelinePage() {
           );
         })}
       </div>
+      <CreateLeadDialog open={showCreate} onOpenChange={setShowCreate} onAdd={addLead} />
     </div>
   );
 }
