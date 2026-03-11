@@ -220,6 +220,47 @@ export interface SenderPool {
   updated_at: string;
 }
 
+export interface SequenceStep {
+  id?: string;
+  step_number: number;
+  tipo: 'email' | 'whatsapp' | 'sms';
+  delay_giorni: number;
+  delay_ore: number;
+  condizione: 'always' | 'if_no_reply' | 'if_no_open' | 'if_opened';
+  soggetto?: string;
+  corpo_html?: string;
+  messaggio?: string;
+  ab_padre_id?: string;
+  ab_nome?: string;
+  ab_peso: number;
+}
+
+export interface CampaignStep extends SequenceStep {
+  id: string;
+  campaign_id: string;
+  stat_inviati: number;
+  stat_aperti: number;
+  stat_cliccati: number;
+  stat_risposte: number;
+  created_at: string;
+}
+
+export interface CampaignStepExecution {
+  id: string;
+  campaign_id: string;
+  step_id: string;
+  recipient_id: string;
+  sender_id: string | null;
+  stato: 'scheduled' | 'sent' | 'skipped' | 'failed';
+  scheduled_at: string | null;
+  sent_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  replied_at: string | null;
+  error: string | null;
+  created_at: string;
+}
+
 export interface ContactFilters {
   search?: string;
   stato?: ContactStato[];
