@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { KanbanColumn, type PipelineStage } from "@/components/pipeline/KanbanColumn";
 import { usePipeline } from "@/hooks/usePipeline";
 import { useCampaigns } from "@/hooks/useCampaigns";
+import { CreateLeadDialog } from "@/components/pipeline/CreateLeadDialog";
 
 const STAGES: PipelineStage[] = [
   { id: "interessato", label: "Interessati 🔥", colorClass: "border-destructive" },
