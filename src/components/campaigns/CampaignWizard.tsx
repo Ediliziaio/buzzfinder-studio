@@ -32,6 +32,7 @@ const CANALI = [
   { value: "email" as CampaignTipo, label: "Email", icon: Mail, desc: "Invia email personalizzate", costPer: 0.001 },
   { value: "sms" as CampaignTipo, label: "SMS", icon: Phone, desc: "Messaggi brevi via SMS", costPer: 0.05 },
   { value: "whatsapp" as CampaignTipo, label: "WhatsApp", icon: MessageSquare, desc: "Template WhatsApp Business", costPer: 0.04 },
+  { value: "chiamata" as CampaignTipo, label: "Chiamata AI", icon: Phone, desc: "Chiamata AI ElevenLabs", costPer: 0.10 },
 ];
 
 export interface WhatsAppVariable {
