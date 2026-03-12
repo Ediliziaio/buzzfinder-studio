@@ -70,11 +70,12 @@ Deno.serve(async (req) => {
         .eq("id", session_id);
     }
 
-    // Get Google Maps API key from app_settings
+    // Get Google Maps API key from app_settings (filtered by user_id)
     const { data: apiKeySetting } = await supabase
       .from("app_settings")
       .select("valore")
       .eq("chiave", "google_maps_api_key")
+      .eq("user_id", session.user_id)
       .maybeSingle();
 
     const apiKey = apiKeySetting?.valore;

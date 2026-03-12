@@ -32,56 +32,55 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Update recipient status to "opened" if currently "sent" or "delivered"
-    await supabase
+    // Only update recipient status if not already opened — prevents duplicate counting
+    const { data: updated, error: updateErr } = await supabase
       .from("campaign_recipients")
-      .update({ stato: "opened" })
+      .update({ stato: "opened", opened_at: new Date().toISOString() })
       .eq("id", recipientId)
       .eq("campaign_id", campaignId)
-      .in("stato", ["sent", "delivered"]);
+      .in("stato", ["sent", "delivered"])
+      .is("opened_at", null)
+      .select("id, contact_id");
 
-    // Increment campaign open counter
-    const { data: campaign } = await supabase
-      .from("campaigns")
-      .select("aperti, aperti_a, aperti_b, ab_test_enabled")
-      .eq("id", campaignId)
-      .single();
+    // Only increment campaign counters if the recipient was actually updated (first open)
+    if (updated && updated.length > 0) {
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("aperti, aperti_a, aperti_b, ab_test_enabled")
+        .eq("id", campaignId)
+        .single();
 
-    if (campaign) {
-      const updates: Record<string, number> = {
-        aperti: (campaign.aperti || 0) + 1,
-      };
+      if (campaign) {
+        const updates: Record<string, number> = {
+          aperti: (campaign.aperti || 0) + 1,
+        };
 
-      // Update A/B variant counters
-      if (campaign.ab_test_enabled && variant) {
-        if (variant === "A") {
-          updates.aperti_a = (campaign.aperti_a || 0) + 1;
-        } else if (variant === "B") {
-          updates.aperti_b = (campaign.aperti_b || 0) + 1;
+        // Update A/B variant counters
+        if (campaign.ab_test_enabled && variant) {
+          if (variant === "A") {
+            updates.aperti_a = (campaign.aperti_a || 0) + 1;
+          } else if (variant === "B") {
+            updates.aperti_b = (campaign.aperti_b || 0) + 1;
+          }
         }
+
+        await supabase
+          .from("campaigns")
+          .update(updates)
+          .eq("id", campaignId);
       }
 
-      await supabase
-        .from("campaigns")
-        .update(updates)
-        .eq("id", campaignId);
-    }
-
-    // Log activity
-    const { data: recipient } = await supabase
-      .from("campaign_recipients")
-      .select("contact_id")
-      .eq("id", recipientId)
-      .single();
-
-    if (recipient?.contact_id) {
-      await supabase.from("contact_activities").insert({
-        contact_id: recipient.contact_id,
-        campaign_id: campaignId,
-        tipo: "email_aperta",
-        descrizione: `Email aperta${variant ? ` (variante ${variant})` : ""}`,
-        metadata: { recipient_id: recipientId, variant },
-      });
+      // Log activity (only on first open)
+      const contactId = updated[0]?.contact_id;
+      if (contactId) {
+        await supabase.from("contact_activities").insert({
+          contact_id: contactId,
+          campaign_id: campaignId,
+          tipo: "email_aperta",
+          descrizione: `Email aperta${variant ? ` (variante ${variant})` : ""}`,
+          metadata: { recipient_id: recipientId, variant },
+        });
+      }
     }
 
     return new Response(PIXEL, {
