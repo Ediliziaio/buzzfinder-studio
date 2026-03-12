@@ -80,7 +80,7 @@ export default function CampaignsPage() {
         console.error(`Errore lancio campagna ${id}:`, err);
       }
     }
-    toast({ title: `${launched} campagna${launched > 1 ? "e" : ""} avviat${launched > 1 ? "e" : "a"}` });
+    toast.success(`${launched} campagna${launched > 1 ? "e" : ""} avviat${launched > 1 ? "e" : "a"}`);
     setSelectedCampaignIds(new Set());
     refetch();
     setBulkLaunching(false);
