@@ -211,6 +211,10 @@ export interface CampaignRecipient {
   errore: string | null;
   messaggio_personalizzato: string | null;
   soggetto_personalizzato: string | null;
+  pipeline_stage: string | null;
+  pipeline_note: string | null;
+  pipeline_updated: string | null;
+  risposta_at: string | null;
 }
 
 // ── Contact Activity ─────────────────────────────────────────────────
