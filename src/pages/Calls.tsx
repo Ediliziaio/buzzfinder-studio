@@ -519,9 +519,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
       if (res.error) throw new Error(res.error.message);
       toast.success(schedula ? "Chiamata schedulata!" : "Chiamata avviata!");
       onSuccess();
-      onClose();
-      // Reset
-      setSearchQ(""); setSelected(null); setObiettivo(""); setContesto(""); setSchedula(false);
+      handleClose();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Errore");
     } finally {
