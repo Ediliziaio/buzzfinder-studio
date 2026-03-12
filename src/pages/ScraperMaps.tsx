@@ -42,6 +42,9 @@ export default function ScraperMapsPage() {
 
   const isPaused = useRef(false);
   const isStopped = useRef(false);
+  // Store config in ref so the loop always has the latest snapshot at start
+  const configRef = useRef(config);
+  configRef.current = config;
 
   const activeSession = useScrapingSession(activeSessionId);
   const { sessions: previousSessions, refetch: refetchSessions, hasMore, loadMore } = useScrapingSessions();
@@ -77,7 +80,7 @@ export default function ScraperMapsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [activeSessionId, loadResultsForSession]);
 
-  const runScrapingLoop = useCallback(async (sessionId: string) => {
+  const runScrapingLoop = useCallback(async (sessionId: string, loopConfig: MapsConfig) => {
     let nextPageToken: string | undefined = undefined;
     isPaused.current = false;
     isStopped.current = false;
@@ -93,16 +96,16 @@ export default function ScraperMapsPage() {
         const { data, error } = await supabase.functions.invoke("scrape-maps-page", {
           body: {
             session_id: sessionId,
-            query: config.query,
-            citta: config.citta,
-            raggio_km: config.raggio,
-            max_results: config.maxResults,
+            query: loopConfig.query,
+            citta: loopConfig.citta,
+            raggio_km: loopConfig.raggio,
+            max_results: loopConfig.maxResults,
             next_page_token: nextPageToken || undefined,
             filtri: {
-              solo_con_sito: config.soloConSito,
-              solo_con_telefono: config.soloConTelefono,
-              rating_min: config.ratingMin,
-              recensioni_min: config.recensioniMin,
+              solo_con_sito: loopConfig.soloConSito,
+              solo_con_telefono: loopConfig.soloConTelefono,
+              rating_min: loopConfig.ratingMin,
+              recensioni_min: loopConfig.recensioniMin,
             },
           },
         });
@@ -131,23 +134,34 @@ export default function ScraperMapsPage() {
       setIsRunningLocal(false);
       refetchSessions();
     }
-  }, [config, refetchSessions]);
+  }, [refetchSessions]);
 
   const handleStart = async () => {
     if (!config.query || !config.citta) { toast.error("Inserisci categoria e città"); return; }
     try {
       const user_id = await getCurrentUserId();
+      // Snapshot config at start time
+      const startConfig = { ...config };
+      const filtri = {
+        solo_con_sito: startConfig.soloConSito,
+        solo_con_telefono: startConfig.soloConTelefono,
+        rating_min: startConfig.ratingMin,
+        recensioni_min: startConfig.recensioniMin,
+      };
       const { data: session, error } = await supabase
         .from("scraping_sessions")
-        .insert({ user_id, tipo: "google_maps", query: config.query, citta: config.citta,
-                  raggio: config.raggio, max_results: config.maxResults, status: "pending" })
+        .insert({
+          user_id, tipo: "google_maps", query: startConfig.query, citta: startConfig.citta,
+          raggio: startConfig.raggio, max_results: startConfig.maxResults, status: "pending",
+          filtri,
+        })
         .select().single();
       if (error) throw error;
       setActiveSessionId(session.id);
       setResults([]);
       setLastImported([]);
       toast.info("Scraping avviato...");
-      runScrapingLoop(session.id);
+      runScrapingLoop(session.id, startConfig);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Errore");
     }
@@ -156,15 +170,17 @@ export default function ScraperMapsPage() {
   const handlePause = async () => {
     if (!activeSessionId) return;
     isPaused.current = true;
-    await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", activeSessionId);
-    toast.info("Scraping in pausa");
+    const { error } = await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", activeSessionId);
+    if (error) toast.error("Errore durante la pausa");
+    else toast.info("Scraping in pausa");
   };
 
   const handleResume = async () => {
     if (!activeSessionId) return;
     isPaused.current = false;
-    await supabase.from("scraping_sessions").update({ status: "running" }).eq("id", activeSessionId);
-    toast.info("Scraping ripreso");
+    const { error } = await supabase.from("scraping_sessions").update({ status: "running" }).eq("id", activeSessionId);
+    if (error) toast.error("Errore durante la ripresa");
+    else toast.info("Scraping ripreso");
   };
 
   const handleStop = () => setShowStopConfirm(true);

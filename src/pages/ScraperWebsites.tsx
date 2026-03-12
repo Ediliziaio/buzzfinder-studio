@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
@@ -26,6 +26,11 @@ export interface WebScraperConfig {
   maxRetries: number;
   crawlDepth: "homepage" | "homepage_contacts";
   searchPages: { contatti: boolean; chiSiamo: boolean; tutte: boolean };
+}
+
+/** Normalize URL for dedup comparison */
+function normalizeUrl(url: string): string {
+  return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "").toLowerCase();
 }
 
 export default function ScraperWebsitesPage() {
@@ -82,6 +87,7 @@ export default function ScraperWebsitesPage() {
       .from("contacts")
       .select("*")
       .in("id", contactIds)
+      .limit(1000)
       .then(({ data }) => {
         if (data) {
           const contacts = (data as unknown as Contact[]).map((c) => ({
@@ -94,7 +100,17 @@ export default function ScraperWebsitesPage() {
   }, [jobs]);
 
   const handleAddUrls = (newUrls: string[]) => {
-    setUrls((prev) => [...prev, ...newUrls.filter((u) => u && !prev.includes(u))]);
+    setUrls((prev) => {
+      const existingNormalized = new Set(prev.map(normalizeUrl));
+      const unique = newUrls.filter((u) => {
+        if (!u) return false;
+        const norm = normalizeUrl(u);
+        if (existingNormalized.has(norm)) return false;
+        existingNormalized.add(norm);
+        return true;
+      });
+      return [...prev, ...unique];
+    });
   };
 
   const [mapsSessionIdForImport, setMapsSessionIdForImport] = useState<string | null>(null);
@@ -106,7 +122,7 @@ export default function ScraperWebsitesPage() {
       .select("id, sito_web")
       .not("sito_web", "is", null)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
 
     if (mapsSessionIdForImport) {
       query = query.eq("scraping_session_id", mapsSessionIdForImport);
@@ -129,7 +145,7 @@ export default function ScraperWebsitesPage() {
       .not("sito_web", "is", null)
       .is("email", null)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (data) {
       const newUrls = data.map((c) => c.sito_web!).filter(Boolean);
       handleAddUrls(newUrls);
@@ -153,6 +169,7 @@ export default function ScraperWebsitesPage() {
       return;
     }
 
+    let createdSessionId: string | null = null;
     try {
       const user_id = await getCurrentUserId();
       // Create session
@@ -167,30 +184,31 @@ export default function ScraperWebsitesPage() {
         .select()
         .single();
       if (error) throw error;
+      createdSessionId = sess.id;
       setSessionId(sess.id);
       setSession(sess as unknown as ScrapingSession);
 
-      // Find matching contacts for URLs
+      // Find matching contacts for URLs (with limit)
       const { data: contacts } = await supabase
         .from("contacts")
         .select("id, sito_web")
-        .not("sito_web", "is", null);
+        .not("sito_web", "is", null)
+        .limit(1000);
 
       const contactMap = new Map<string, string>();
       contacts?.forEach((c) => {
         if (c.sito_web) {
-          const normalized = c.sito_web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
-          contactMap.set(normalized, c.id);
+          contactMap.set(normalizeUrl(c.sito_web), c.id);
         }
       });
 
       // Create jobs
       const jobInserts = urls.map((url) => {
-        const normalized = url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+        const fullUrl = url.startsWith("http") ? url : `https://${url}`;
         return {
           session_id: sess.id,
-          url: url.startsWith("http") ? url : `https://${url}`,
-          contact_id: contactMap.get(normalized) || null,
+          url: fullUrl,
+          contact_id: contactMap.get(normalizeUrl(url)) || null,
           status: "queued" as const,
         };
       });
@@ -221,17 +239,18 @@ export default function ScraperWebsitesPage() {
       );
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
-      // Cleanup: mark session as failed
-      if (sessionId) {
-        await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", sessionId);
+      // Cleanup: mark session as failed using the local variable (not stale state)
+      if (createdSessionId) {
+        await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", createdSessionId);
       }
     }
   };
 
   const handlePause = async () => {
     if (!sessionId) return;
-    await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", sessionId);
-    toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
+    const { error } = await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", sessionId);
+    if (error) toast.error("Errore durante la pausa");
+    else toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
   };
 
   const handleStop = async () => {
@@ -241,8 +260,9 @@ export default function ScraperWebsitesPage() {
   const confirmStop = async () => {
     setShowStopConfirm(false);
     if (!sessionId) return;
-    await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", sessionId);
-    toast.info("Scraping fermato");
+    const { error } = await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", sessionId);
+    if (error) toast.error("Errore durante lo stop");
+    else toast.info("Scraping fermato");
   };
 
   const handleRetryJob = async (job: ScrapingJob) => {

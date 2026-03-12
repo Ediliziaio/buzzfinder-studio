@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -30,13 +30,20 @@ interface Props {
 export function MapsResultsTable({ results, selectedIds, onSelectionChange, sessionId, totalFound, duplicates, onScrapeEmails }: Props) {
   const { lists } = useLists();
   const [exporting, setExporting] = useState(false);
+  // Keep stable refs for callbacks used in column defs
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
   const handleExportCsv = async () => {
     if (results.length === 0) { toast.error("Nessun risultato da esportare"); return; }
     setExporting(true);
     try {
-      await exportContactsCsv({});
-      toast.success(`${results.length} contatti esportati`);
+      await exportContactsCsv(sessionId ? { scraping_session_id: sessionId } : {});
+      toast.success(`Contatti esportati`);
     } catch (err: any) {
       toast.error(err.message || "Errore esportazione");
     } finally {
@@ -60,21 +67,21 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
     if (onScrapeEmails) {
       onScrapeEmails(selected);
     } else {
-      // Navigate to web scraper with URLs
       const urls = selected.map((c) => c.sito_web!).filter(Boolean);
       toast.info(`${urls.length} URL pronti per lo scraping. Vai a Scraper → Siti Web.`);
     }
   };
 
+  // Stable column definitions — use refs to avoid re-creating on every results/selectedIds change
   const columns = useMemo<ColumnDef<Contact>[]>(() => [
     {
       id: "select",
       header: () => (
         <input
           type="checkbox"
-          checked={results.length > 0 && selectedIds.size === results.length}
+          checked={resultsRef.current.length > 0 && selectedIdsRef.current.size === resultsRef.current.length}
           onChange={(e) => {
-            onSelectionChange(e.target.checked ? new Set(results.map((c) => c.id)) : new Set());
+            onSelectionChangeRef.current(e.target.checked ? new Set(resultsRef.current.map((c) => c.id)) : new Set());
           }}
           className="accent-primary"
         />
@@ -82,12 +89,12 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
       cell: ({ row }) => (
         <input
           type="checkbox"
-          checked={selectedIds.has(row.original.id)}
+          checked={selectedIdsRef.current.has(row.original.id)}
           onChange={(e) => {
-            const next = new Set(selectedIds);
+            const next = new Set(selectedIdsRef.current);
             if (e.target.checked) next.add(row.original.id);
             else next.delete(row.original.id);
-            onSelectionChange(next);
+            onSelectionChangeRef.current(next);
           }}
           className="accent-primary"
           onClick={(e) => e.stopPropagation()}
@@ -218,7 +225,7 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
       ),
       size: 80,
     },
-  ], [results, selectedIds, onSelectionChange]);
+  ], []); // stable — no deps needed, uses refs
 
   const table = useReactTable({
     data: results,
