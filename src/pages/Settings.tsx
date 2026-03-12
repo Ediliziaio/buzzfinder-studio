@@ -213,6 +213,36 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
+        {/* AI & Chiamate */}
+        <TabsContent value="ai_calls" className="space-y-4">
+          <Section title="ANTHROPIC (CLAUDE AI)">
+            <SettingField chiave="anthropic_api_key" label="Anthropic API Key" placeholder="sk-ant-..." isSecret categoria="api_keys" />
+            <div className="space-y-1">
+              <Label className="font-mono text-xs text-muted-foreground">Modello AI attivo</Label>
+              <AnthropicModelSelect />
+            </div>
+          </Section>
+          <Section title="ELEVENLABS CONVERSATIONAL AI" extra={<ElevenLabsTestButton />}>
+            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" />
+            <SettingField chiave="elevenlabs_agent_id_default" label="ID Agente Default" placeholder="agent_..." categoria="ai_calls" />
+            <SettingField chiave="elevenlabs_phone_number_id" label="Phone Number ID" placeholder="pn_..." categoria="ai_calls" />
+            <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline mt-1">
+              → Gestisci agenti su ElevenLabs Dashboard
+            </a>
+          </Section>
+          <Section title="IMPOSTAZIONI CHIAMATE AI">
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField chiave="chiamate_orario_inizio" label="Orario inizio chiamate" placeholder="09:00" type="time" categoria="ai_calls" />
+              <SettingField chiave="chiamate_orario_fine" label="Orario fine chiamate" placeholder="18:00" type="time" categoria="ai_calls" />
+            </div>
+            <SettingToggle chiave="chiamate_solo_lavorativi" label="Solo giorni lavorativi" description="Non effettuare chiamate nei weekend" categoria="ai_calls" defaultValue />
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField chiave="chiamate_max_tentativi" label="Max tentativi per lead" placeholder="3" type="number" categoria="ai_calls" />
+              <SettingField chiave="chiamate_intervallo_min" label="Minuti tra tentativi" placeholder="60" type="number" categoria="ai_calls" />
+            </div>
+          </Section>
+        </TabsContent>
+
         {/* Ricezione Risposte */}
         <TabsContent value="ricezione">
           <WebhookGuideTab />
