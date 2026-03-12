@@ -125,17 +125,25 @@ export default function Calls() {
   }, []);
 
   const fetchChart = useCallback(async () => {
+    const sevenDaysAgo = new Date(Date.now() - 6 * 86400000);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const { data } = await supabase
+      .from("call_sessions")
+      .select("created_at")
+      .gte("created_at", sevenDaysAgo.toISOString());
+
+    // Group by day client-side
+    const countByDay: Record<string, number> = {};
+    (data || []).forEach((c) => {
+      const day = new Date(c.created_at).toISOString().slice(0, 10);
+      countByDay[day] = (countByDay[day] || 0) + 1;
+    });
+
     const days: { giorno: string; chiamate: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000);
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString();
-      const { count } = await supabase
-        .from("call_sessions")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", start)
-        .lt("created_at", end);
-      days.push({ giorno: format(d, "EEE dd", { locale: it }), chiamate: count || 0 });
+      const key = d.toISOString().slice(0, 10);
+      days.push({ giorno: format(d, "EEE dd", { locale: it }), chiamate: countByDay[key] || 0 });
     }
     setChartData(days);
   }, []);
