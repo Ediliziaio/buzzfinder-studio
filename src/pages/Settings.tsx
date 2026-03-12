@@ -342,7 +342,9 @@ function AiModelSelector() {
   const [model, setModel] = useState("gemini-flash");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").maybeSingle().then(({ data }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data?.valore) setModel(data.valore);
     });
   }, []);
