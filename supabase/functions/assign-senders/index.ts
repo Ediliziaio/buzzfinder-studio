@@ -39,7 +39,10 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (token !== serviceRoleKey) {
+    let callerUserId: string | null = null;
+    const isServiceRole = token === serviceRoleKey;
+
+    if (!isServiceRole) {
       const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
       if (authErr || !user) {
         return new Response(JSON.stringify({ error: "Token non valido" }), {
@@ -47,6 +50,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      callerUserId = user.id;
     }
 
     const { campaign_id } = await req.json();
@@ -68,6 +72,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Campagna non trovata" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify ownership (skip for service_role)
+    if (!isServiceRole && callerUserId && campaign.user_id !== callerUserId) {
+      return new Response(
+        JSON.stringify({ error: "Non autorizzato: campagna di un altro utente" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

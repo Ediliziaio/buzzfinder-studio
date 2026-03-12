@@ -14,7 +14,6 @@ async function callAI(
   prompt: string,
   systemPrompt: string
 ): Promise<string> {
-  // Read active model (try user-specific, then any)
   let modelRow;
   if (userId) {
     const r = await supabase
@@ -57,7 +56,6 @@ async function callAI(
         return data.choices?.[0]?.message?.content?.trim() || "";
       }
     }
-    // Fall through to Lovable AI
   }
 
   if (model.startsWith("claude-")) {
@@ -88,7 +86,6 @@ async function callAI(
         return data.content?.[0]?.text?.trim() || "";
       }
     }
-    // Fall through to Lovable AI
   }
 
   // ─── LOVABLE AI (default / fallback) ─────────────────────
@@ -118,6 +115,92 @@ async function callAI(
   if (!res.ok) return "";
   const data = await res.json();
   return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
+// ─── Trigger automazioni risposta_ricevuta ───────────────────
+async function triggerAutomazioni(
+  supabase: any,
+  userId: string,
+  campaignId: string | null,
+  contactId: string | null,
+  etichetta: string
+) {
+  if (!contactId) return;
+  try {
+    let query = supabase
+      .from("automation_rules")
+      .select("*")
+      .eq("attiva", true)
+      .eq("trigger_tipo", "risposta_ricevuta")
+      .eq("user_id", userId);
+
+    if (campaignId) {
+      query = query.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
+    } else {
+      query = query.is("campaign_id", null);
+    }
+
+    const { data: rules } = await query;
+    if (!rules?.length) return;
+
+    // Filter by etichetta if trigger_params.etichetta is set
+    const filteredRules = rules.filter((rule: any) => {
+      const ruleEtichetta = (rule.trigger_params as any)?.etichetta;
+      if (!ruleEtichetta || ruleEtichetta === "__any__") return true;
+      return ruleEtichetta === etichetta;
+    });
+
+    for (const rule of filteredRules) {
+      // Cooldown check
+      const { data: recentExec } = await supabase
+        .from("automation_executions")
+        .select("id, created_at")
+        .eq("rule_id", rule.id)
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentExec) {
+        const orePassate = (Date.now() - new Date(recentExec.created_at).getTime()) / 3600000;
+        if (orePassate < (rule.cooldown_ore || 24)) continue;
+      }
+
+      // Max executions check
+      const { count } = await supabase
+        .from("automation_executions")
+        .select("id", { count: "exact" })
+        .eq("rule_id", rule.id)
+        .eq("contact_id", contactId);
+
+      if ((count || 0) >= (rule.max_esecuzioni_per_contatto || 1)) continue;
+
+      await supabase.from("automation_executions").insert({
+        user_id: userId,
+        rule_id: rule.id,
+        contact_id: contactId,
+        campaign_id: campaignId,
+        stato: "pending",
+        trigger_contesto: { tipo: "risposta_ricevuta", etichetta },
+      });
+    }
+  } catch (err) {
+    console.error("triggerAutomazioni error:", err);
+  }
+}
+
+// ─── Resolve contact_id from recipient_id ────────────────────
+async function resolveContactId(
+  supabase: any,
+  recipientId: string | null
+): Promise<string | null> {
+  if (!recipientId) return null;
+  const { data } = await supabase
+    .from("campaign_recipients")
+    .select("contact_id")
+    .eq("id", recipientId)
+    .maybeSingle();
+  return data?.contact_id || null;
 }
 
 serve(async (req) => {
@@ -202,6 +285,10 @@ Rispondi con SOLO l'etichetta, nient'altro.`;
     }).select().single();
 
     if (error) throw error;
+
+    // ─── Trigger automazioni risposta_ricevuta ──────────────────────
+    const contactId = await resolveContactId(supabase, recipient_id);
+    await triggerAutomazioni(supabase, user_id, campaign_id || null, contactId, etichetta);
 
     return new Response(JSON.stringify({ success: true, message: data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
