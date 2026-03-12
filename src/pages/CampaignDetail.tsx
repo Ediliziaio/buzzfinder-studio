@@ -83,6 +83,20 @@ export default function CampaignDetailPage() {
     setRecipients((data as unknown as RecipientWithContact[]) || []);
   };
 
+  const loadCallStats = async () => {
+    const { data: calls } = await supabase
+      .from("call_sessions")
+      .select("esito")
+      .eq("campaign_id", id!);
+    if (calls && calls.length > 0) {
+      setCallStats({
+        totale: calls.length,
+        interessati: calls.filter((c: any) => c.esito === "interessato").length,
+        appuntamenti: calls.filter((c: any) => c.esito === "appuntamento").length,
+      });
+    }
+  };
+
   const handleSaveAsTemplate = async () => {
     if (!campaign) return;
     try {
