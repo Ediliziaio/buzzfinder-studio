@@ -10,14 +10,22 @@ interface Props {
 export function MapsProgressBox({ session }: Props) {
   const [now, setNow] = useState(Date.now());
 
-  // Real-time timer update every second
+  const isActive = session.status === "running" || session.status === "pending";
+
+  // Only tick the timer when session is actively running
   useEffect(() => {
+    if (!isActive) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isActive]);
+
+  const endTime = isActive ? now : (
+    session.completed_at ? new Date(session.completed_at).getTime() :
+    session.paused_at ? new Date(session.paused_at).getTime() : now
+  );
 
   const elapsed = session.started_at
-    ? Math.round((now - new Date(session.started_at).getTime()) / 1000)
+    ? Math.round((endTime - new Date(session.started_at).getTime()) / 1000)
     : 0;
 
   const elapsedMin = Math.floor(elapsed / 60);
@@ -32,7 +40,9 @@ export function MapsProgressBox({ session }: Props) {
 
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-      <div className="terminal-header text-primary">JOB IN CORSO</div>
+      <div className="terminal-header text-primary">
+        {session.status === "paused" ? "JOB IN PAUSA" : "JOB IN CORSO"}
+      </div>
 
       <TerminalProgress
         percent={session.progress_percent || 0}
@@ -43,7 +53,7 @@ export function MapsProgressBox({ session }: Props) {
       <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
         <Clock className="h-3 w-3" />
         <span>{elapsedMin}m {elapsedSec.toString().padStart(2, "0")}s</span>
-        {remaining > 0 && (
+        {isActive && remaining > 0 && (
           <>
             <span className="text-muted-foreground/40">|</span>
             <span>~{remaining}m rimanenti</span>

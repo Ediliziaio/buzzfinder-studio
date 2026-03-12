@@ -20,7 +20,7 @@ export function MapsPreviousSessions({ sessions, onLoad, hasMore, onLoadMore }: 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
-        <span>Sessioni precedenti ({sessions.length})</span>
+        <span>Sessioni precedenti{hasMore ? "+" : ` (${sessions.length})`}</span>
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2 space-y-2">

@@ -19,6 +19,9 @@ export async function exportContactsCsv(filters?: Record<string, unknown>): Prom
     if (filters?.hasEmail) {
       query = query.not("email", "is", null);
     }
+    if (filters?.scraping_session_id && typeof filters.scraping_session_id === "string") {
+      query = query.eq("scraping_session_id", filters.scraping_session_id);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
