@@ -63,7 +63,7 @@ export default function CampaignsPage() {
       toast.success("Campagna eliminata");
       refetch();
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Errore eliminazione");
     }
   };
 
