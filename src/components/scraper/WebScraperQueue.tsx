@@ -151,11 +151,15 @@ export function WebScraperQueue({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="flex-1 font-mono text-[10px] h-7" onClick={onImportFromMaps}>
-            <Download className="h-3 w-3 mr-1" /> DA SESSIONE MAPS
+            <Download className="h-3 w-3 mr-1" /> DA MAPS
           </Button>
           <Button variant="outline" size="sm" className="flex-1 font-mono text-[10px] h-7" onClick={onImportFromContacts}>
-            <Download className="h-3 w-3 mr-1" /> CONTATTI SENZA EMAIL
+            <Download className="h-3 w-3 mr-1" /> SENZA EMAIL
           </Button>
+          <Button variant="outline" size="sm" className="flex-1 font-mono text-[10px] h-7" onClick={() => csvInputRef.current?.click()}>
+            <FileUp className="h-3 w-3 mr-1" /> DA CSV
+          </Button>
+          <input ref={csvInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleCsvImport} />
         </div>
       </div>
 
