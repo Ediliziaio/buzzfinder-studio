@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Plus, Play, Pause, Square, Trash2, Download, ChevronDown,
-  CheckCircle, XCircle, Loader2, Clock, RotateCcw, Globe,
+  CheckCircle, XCircle, Loader2, Clock, RotateCcw, Globe, FileUp,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
