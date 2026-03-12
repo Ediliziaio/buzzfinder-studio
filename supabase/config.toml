@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.weekly-report]
 verify_jwt = false
+
+[functions.kimi-batch-analysis]
+verify_jwt = true
+
+[functions.personalize-messages]
+verify_jwt = true

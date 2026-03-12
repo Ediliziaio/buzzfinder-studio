@@ -7,6 +7,119 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ─── Multi-model AI helper ──────────────────────────────────
+async function callAI(
+  supabase: any,
+  userId: string | null,
+  prompt: string,
+  systemPrompt: string
+): Promise<string> {
+  // Read active model (try user-specific, then any)
+  let modelRow;
+  if (userId) {
+    const r = await supabase
+      .from("app_settings")
+      .select("valore")
+      .eq("chiave", "ai_model_attivo")
+      .eq("user_id", userId)
+      .maybeSingle();
+    modelRow = r.data;
+  }
+  const model = modelRow?.valore || "lovable-gemini-flash";
+
+  if (model.startsWith("moonshot-")) {
+    const { data: keyRow } = await supabase
+      .from("app_settings")
+      .select("valore")
+      .eq("chiave", "kimi_api_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (keyRow?.valore) {
+      const res = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${keyRow.valore}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 100,
+          temperature: 0.3,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content?.trim() || "";
+      }
+    }
+    // Fall through to Lovable AI
+  }
+
+  if (model.startsWith("claude-")) {
+    const { data: keyRow } = await supabase
+      .from("app_settings")
+      .select("valore")
+      .eq("chiave", "anthropic_api_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (keyRow?.valore) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": keyRow.valore,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 100,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.content?.[0]?.text?.trim() || "";
+      }
+    }
+    // Fall through to Lovable AI
+  }
+
+  // ─── LOVABLE AI (default / fallback) ─────────────────────
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return "";
+
+  const lovableModel =
+    model === "lovable-gemini-pro" ? "google/gemini-2.5-pro" :
+    model === "lovable-gpt5-mini" ? "openai/gpt-5-mini" :
+    "google/gemini-2.5-flash-lite";
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: lovableModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+
+  if (!res.ok) return "";
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -18,7 +131,6 @@ serve(async (req) => {
 
     const payload = await req.json();
 
-    // Expected payload fields
     const {
       user_id,
       campaign_id,
@@ -42,51 +154,33 @@ serve(async (req) => {
       });
     }
 
-    // Classify with AI
+    // Classify with AI (multi-model)
     let etichetta = "non_categorizzato";
     let etichetta_ai = false;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
-      try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              {
-                role: "system",
-                content: `Classifica questa risposta email/messaggio in UNA delle seguenti etichette:
+    const SYSTEM_PROMPT = `Classifica questa risposta email/messaggio in UNA delle seguenti etichette:
 interessato, non_interessato, richiesta_info, fuori_ufficio, appuntamento_fissato, referral, obiezione, disiscrizione, non_categorizzato.
-Rispondi con SOLO l'etichetta, nient'altro.`,
-              },
-              {
-                role: "user",
-                content: `Oggetto: ${oggetto || "(nessuno)"}\n\nCorpo:\n${corpo}`,
-              },
-            ],
-          }),
-        });
+Rispondi con SOLO l'etichetta, nient'altro.`;
 
-        if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const raw = aiData.choices?.[0]?.message?.content?.trim().toLowerCase() || "";
-          const valid = [
-            "interessato", "non_interessato", "richiesta_info", "fuori_ufficio",
-            "appuntamento_fissato", "referral", "obiezione", "disiscrizione", "non_categorizzato",
-          ];
-          if (valid.includes(raw)) {
-            etichetta = raw;
-            etichetta_ai = true;
-          }
-        }
-      } catch (e) {
-        console.error("AI classification failed:", e);
+    try {
+      const raw = await callAI(
+        supabase,
+        user_id,
+        `Oggetto: ${oggetto || "(nessuno)"}\n\nCorpo:\n${corpo}`,
+        SYSTEM_PROMPT
+      );
+
+      const valid = [
+        "interessato", "non_interessato", "richiesta_info", "fuori_ufficio",
+        "appuntamento_fissato", "referral", "obiezione", "disiscrizione", "non_categorizzato",
+      ];
+      const cleaned = raw.toLowerCase().trim();
+      if (valid.includes(cleaned)) {
+        etichetta = cleaned;
+        etichetta_ai = true;
       }
+    } catch (e) {
+      console.error("AI classification failed:", e);
     }
 
     const { data, error } = await supabase.from("inbox_messages").insert({

@@ -11,6 +11,10 @@ import { exportContactsCsv, exportCampaignReport } from "@/lib/csvExporter";
 import { SettingField } from "@/components/settings/SettingField";
 import { SettingToggle } from "@/components/settings/SettingToggle";
 import { WebhookGuideTab } from "@/components/settings/WebhookGuideTab";
+import { AIModelSelector } from "@/components/settings/AIModelSelector";
+import { ClaudeCoworkSetup } from "@/components/settings/ClaudeCoworkSetup";
+import { KimiSetup } from "@/components/settings/KimiSetup";
+import { OpenClawSetup } from "@/components/settings/OpenClawSetup";
 
 export default function SettingsPage() {
   const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
@@ -80,6 +84,7 @@ export default function SettingsPage() {
           <TabsTrigger value="tracking" className="font-mono text-xs">Tracking</TabsTrigger>
           <TabsTrigger value="ai" className="font-mono text-xs">AI</TabsTrigger>
           <TabsTrigger value="ricezione" className="font-mono text-xs">Ricezione</TabsTrigger>
+          <TabsTrigger value="agenti" className="font-mono text-xs">🤖 Agenti AI</TabsTrigger>
           <TabsTrigger value="export" className="font-mono text-xs">Import/Export</TabsTrigger>
         </TabsList>
 
@@ -210,6 +215,25 @@ export default function SettingsPage() {
         {/* Ricezione Risposte */}
         <TabsContent value="ricezione">
           <WebhookGuideTab />
+        </TabsContent>
+
+        {/* Agenti AI */}
+        <TabsContent value="agenti" className="space-y-4">
+          <Section title="MODELLO AI ATTIVO">
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Scegli quale AI usa BuzzFinder per personalizzare i messaggi e categorizzare le risposte
+            </p>
+            <AIModelSelector />
+          </Section>
+          <Section title="🟠 CLAUDE COWORK">
+            <ClaudeCoworkSetup />
+          </Section>
+          <Section title="🌙 KIMI 2.5 (MOONSHOT AI)">
+            <KimiSetup />
+          </Section>
+          <Section title="🦅 OPENCLAW (AGENTE LOCALE)">
+            <OpenClawSetup />
+          </Section>
         </TabsContent>
 
         {/* Import/Export */}
