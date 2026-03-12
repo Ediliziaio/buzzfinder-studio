@@ -95,7 +95,7 @@ export default function SettingsPage() {
             <SettingField chiave="resend_api_key" label="Resend API Key" placeholder="re_..." isSecret categoria="api_keys" />
           </Section>
           <Section title="ANTHROPIC (AI)">
-            <SettingField chiave="anthropic_api_key" label="Anthropic API Key" placeholder="sk-ant-..." isSecret categoria="api_keys" />
+            <p className="text-[10px] text-muted-foreground">Configurazione in tab "📞 AI & Chiamate"</p>
           </Section>
           <Section title="EMAIL VALIDATION">
             <SettingField chiave="millionverifier_api_key" label="MillionVerifier API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />

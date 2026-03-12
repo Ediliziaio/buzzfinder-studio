@@ -120,22 +120,30 @@ export default function Calls() {
       totale: data.length,
       completate: data.filter((c) => c.stato === "completed").length,
       interessati: data.filter((c) => c.esito === "interessato" || c.esito === "appuntamento").length,
-      costo: data.reduce((s, c) => s + (c.costo_eur || 0), 0),
+      costo: data.reduce((s, c) => s + Number(c.costo_eur || 0), 0),
     });
   }, []);
 
   const fetchChart = useCallback(async () => {
+    const sevenDaysAgo = new Date(Date.now() - 6 * 86400000);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const { data } = await supabase
+      .from("call_sessions")
+      .select("created_at")
+      .gte("created_at", sevenDaysAgo.toISOString());
+
+    // Group by day client-side
+    const countByDay: Record<string, number> = {};
+    (data || []).forEach((c) => {
+      const day = new Date(c.created_at).toISOString().slice(0, 10);
+      countByDay[day] = (countByDay[day] || 0) + 1;
+    });
+
     const days: { giorno: string; chiamate: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000);
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString();
-      const { count } = await supabase
-        .from("call_sessions")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", start)
-        .lt("created_at", end);
-      days.push({ giorno: format(d, "EEE dd", { locale: it }), chiamate: count || 0 });
+      const key = d.toISOString().slice(0, 10);
+      days.push({ giorno: format(d, "EEE dd", { locale: it }), chiamate: countByDay[key] || 0 });
     }
     setChartData(days);
   }, []);
@@ -318,7 +326,7 @@ export default function Calls() {
                       <TableCell className="font-mono text-sm">{fmtDurata(c.durata_secondi)}</TableCell>
                       <TableCell><Badge className={eb.cls}>{eb.label}</Badge></TableCell>
                       <TableCell>{c.sentiment ? sentimentEmoji[c.sentiment] : "—"}</TableCell>
-                      <TableCell className="font-mono text-sm">€{(c.costo_eur || 0).toFixed(2)}</TableCell>
+                      <TableCell className="font-mono text-sm">€{Number(c.costo_eur || 0).toFixed(2)}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -402,7 +410,7 @@ function CallDetailDialog({ call, onClose, onRefresh }: {
           {/* Meta */}
           <div className="grid grid-cols-2 gap-2 text-sm font-mono">
             <div><span className="text-muted-foreground">Durata:</span> {fmtDurata(call.durata_secondi)}</div>
-            <div><span className="text-muted-foreground">Costo:</span> €{(call.costo_eur || 0).toFixed(2)}</div>
+            <div><span className="text-muted-foreground">Costo:</span> €{Number(call.costo_eur || 0).toFixed(2)}</div>
             <div><span className="text-muted-foreground">Inizio:</span> {call.started_at ? format(new Date(call.started_at), "dd/MM/yy HH:mm:ss") : "—"}</div>
             <div><span className="text-muted-foreground">Fine:</span> {call.ended_at ? format(new Date(call.ended_at), "dd/MM/yy HH:mm:ss") : "—"}</div>
           </div>

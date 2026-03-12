@@ -10,11 +10,12 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-async function getAppSetting(chiave: string): Promise<string | null> {
+async function getAppSetting(userId: string, chiave: string): Promise<string | null> {
   const { data } = await supabase
     .from("app_settings")
     .select("valore")
     .eq("chiave", chiave)
+    .eq("user_id", userId)
     .maybeSingle();
   return data?.valore || null;
 }
@@ -50,19 +51,7 @@ Deno.serve(async (req: Request) => {
 
     if (!contact_id) return jsonError("contact_id obbligatorio", 400);
 
-    // 1. Legge API key ElevenLabs
-    const apiKey = await getAppSetting("elevenlabs_api_key");
-    if (!apiKey) {
-      return jsonError("elevenlabs_api_key non configurata. Aggiungila in Impostazioni → API Keys.", 400);
-    }
-
-    // 2. Determina quale agente usare
-    const agentId = agentIdOverride || await getAppSetting("elevenlabs_agent_id_default");
-    if (!agentId) {
-      return jsonError("Nessun agente ElevenLabs configurato. Aggiungilo in Impostazioni → Chiamate AI.", 400);
-    }
-
-    // 3. Carica contatto
+    // 1. Carica contatto e verifica ownership
     const { data: contact, error: contactErr } = await supabase
       .from("contacts")
       .select("id, nome, cognome, azienda, telefono, email, citta, google_categories, sito_web, note, telefono_dnc, totale_chiamate, user_id")
@@ -70,6 +59,20 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (contactErr || !contact) return jsonError("Contatto non trovato", 404);
+    if (!contact.user_id) return jsonError("Contatto senza proprietario", 400);
+
+    // Verifica che il chiamante sia il proprietario del contatto
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user: caller } } = await supabase.auth.getUser(token);
+      if (caller && caller.id !== contact.user_id) {
+        return jsonError("Non autorizzato: il contatto non ti appartiene", 403);
+      }
+    }
+
+    const userId = contact.user_id;
+
     if (!contact.telefono) {
       return jsonError(`Il contatto ${contact.azienda} non ha un numero di telefono.`, 400);
     }
@@ -77,11 +80,23 @@ Deno.serve(async (req: Request) => {
       return jsonError(`${contact.azienda} è in lista DNC (Do Not Call).`, 400);
     }
 
+    // 2. Legge API key ElevenLabs
+    const apiKey = await getAppSetting(userId, "elevenlabs_api_key");
+    if (!apiKey) {
+      return jsonError("elevenlabs_api_key non configurata. Aggiungila in Impostazioni → API Keys.", 400);
+    }
+
+    // 3. Determina quale agente usare
+    const agentId = agentIdOverride || await getAppSetting(userId, "elevenlabs_agent_id_default");
+    if (!agentId) {
+      return jsonError("Nessun agente ElevenLabs configurato. Aggiungilo in Impostazioni → Chiamate AI.", 400);
+    }
+
     // 4. Controlla orario consentito (se chiamata immediata)
     if (!scheduled_at) {
-      const orarioInizio = await getAppSetting("chiamate_orario_inizio") || "09:00";
-      const orarioFine = await getAppSetting("chiamate_orario_fine") || "18:00";
-      const soloLavorativi = (await getAppSetting("chiamate_solo_lavorativi")) === "true";
+      const orarioInizio = await getAppSetting(userId, "chiamate_orario_inizio") || "09:00";
+      const orarioFine = await getAppSetting(userId, "chiamate_orario_fine") || "18:00";
+      const soloLavorativi = (await getAppSetting(userId, "chiamate_solo_lavorativi")) === "true";
 
       const now = new Date();
       const nowIT = new Intl.DateTimeFormat("it-IT", {
@@ -112,7 +127,7 @@ Deno.serve(async (req: Request) => {
     const { data: callSession, error: insertErr } = await supabase
       .from("call_sessions")
       .insert({
-        user_id: contact.user_id,
+        user_id: userId,
         campaign_id,
         contact_id,
         recipient_id,
@@ -153,6 +168,7 @@ Deno.serve(async (req: Request) => {
     ].filter(Boolean).join(" ");
 
     // 8. Avvia chiamata ElevenLabs Conversational AI
+    const phoneNumberId = await getAppSetting(userId, "elevenlabs_phone_number_id");
     const elevenLabsRes = await fetch("https://api.elevenlabs.io/v1/convai/twilio/outbound-call", {
       method: "POST",
       headers: {
@@ -161,7 +177,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         agent_id: agentId,
-        agent_phone_number_id: await getAppSetting("elevenlabs_phone_number_id") || undefined,
+        agent_phone_number_id: phoneNumberId || undefined,
         to_number: contact.telefono,
         conversation_initiation_client_data: {
           dynamic_variables: {

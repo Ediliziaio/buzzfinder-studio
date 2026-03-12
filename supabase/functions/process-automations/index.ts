@@ -10,11 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function getAppSetting(chiave: string): Promise<string | null> {
+async function getAppSetting(userId: string, chiave: string): Promise<string | null> {
   const { data } = await supabase
     .from("app_settings")
     .select("valore")
     .eq("chiave", chiave)
+    .eq("user_id", userId)
     .maybeSingle();
   return data?.valore || null;
 }
@@ -57,6 +58,9 @@ Deno.serve(async (req: Request) => {
         .update({ stato: "running" })
         .eq("id", exec.id);
 
+      // Use the execution's user_id for settings lookup
+      const userId = exec.user_id;
+
       try {
         let risultato: Record<string, unknown> = {};
 
@@ -82,7 +86,7 @@ Deno.serve(async (req: Request) => {
               body: JSON.stringify({
                 contact_id: exec.contact_id,
                 campaign_id: exec.campaign_id,
-                agent_id: params.agent_id || await getAppSetting("elevenlabs_agent_id_default"),
+                agent_id: params.agent_id || await getAppSetting(userId, "elevenlabs_agent_id_default"),
                 scheduled_at: scheduledAt,
                 script_contesto: params.script_contesto,
                 obiettivo: params.obiettivo,
@@ -158,7 +162,7 @@ Deno.serve(async (req: Request) => {
           }
 
           case "notifica_slack": {
-            const slackUrl = await getAppSetting("slack_webhook_url");
+            const slackUrl = await getAppSetting(userId, "slack_webhook_url");
             if (!slackUrl) {
               risultato = { skipped: true, motivo: "slack_webhook_url non configurato" };
               break;
@@ -185,6 +189,18 @@ Deno.serve(async (req: Request) => {
             });
 
             risultato = { slack_notificato: true };
+            break;
+          }
+
+          case "invia_email": {
+            // TODO: implementare invio email tramite edge function send-reply o Resend
+            risultato = { skipped: true, motivo: "Azione invia_email non ancora implementata" };
+            break;
+          }
+
+          case "aggiungi_a_sequenza": {
+            // TODO: implementare aggiunta a sequenza campaign
+            risultato = { skipped: true, motivo: "Azione aggiungi_a_sequenza non ancora implementata" };
             break;
           }
 
