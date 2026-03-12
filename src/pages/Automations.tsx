@@ -110,6 +110,7 @@ export default function Automations() {
   const [showWizard, setShowWizard] = useState(false);
   const [editRule, setEditRule] = useState<AutomationRule | null>(null);
   const [filterExecStato, setFilterExecStato] = useState("all");
+  const [execLimit, setExecLimit] = useState(100);
 
   const fetchRules = useCallback(async () => {
     const { data, error } = await supabase
@@ -126,11 +127,11 @@ export default function Automations() {
       .from("automation_executions")
       .select("*, automation_rules(nome), contacts:contact_id(azienda)")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(execLimit);
     if (filterExecStato !== "all") query = query.eq("stato", filterExecStato);
     const { data } = await query;
     setExecs((data as unknown as typeof execs) || []);
-  }, [filterExecStato]);
+  }, [filterExecStato, execLimit]);
 
   useEffect(() => { fetchRules(); fetchExecs(); }, [fetchRules, fetchExecs]);
 
@@ -342,6 +343,13 @@ export default function Automations() {
               </TableBody>
             </Table>
           </div>
+          {execs.length >= execLimit && (
+            <div className="flex justify-center mt-3">
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => setExecLimit(prev => prev + 100)}>
+                Carica altri 100
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -391,8 +399,23 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
     }
   }, [open, initial]);
 
+  // Stub warning for unimplemented actions
+  const isStubAction = azioneTipo === "invia_email" || azioneTipo === "aggiungi_a_sequenza";
+
   const handleSave = async () => {
     if (!nome.trim()) { toast.error("Inserisci un nome per la regola"); return; }
+
+    // Validate required action params
+    if (azioneTipo === "cambia_pipeline_stage" && !(azioneParams.nuovo_stage as string)) {
+      toast.error("Seleziona il nuovo stage per la pipeline"); return;
+    }
+    if (azioneTipo === "notifica_webhook" && !(azioneParams.url as string)?.trim()) {
+      toast.error("Inserisci l'URL del webhook"); return;
+    }
+    if (azioneTipo === "assegna_tag" && (!Array.isArray(azioneParams.tags) || (azioneParams.tags as string[]).length === 0)) {
+      toast.error("Inserisci almeno un tag"); return;
+    }
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -515,19 +538,26 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {azioneConfig.map((a) => {
                 const AIcon = a.icon;
+                const isStub = a.tipo === "invia_email" || a.tipo === "aggiungi_a_sequenza";
                 return (
                   <button
                     key={a.tipo}
                     onClick={() => { setAzioneTipo(a.tipo); setAzioneParams({}); }}
-                    className={`p-3 rounded-lg border text-left transition-colors ${azioneTipo === a.tipo ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}
+                    className={`p-3 rounded-lg border text-left transition-colors ${azioneTipo === a.tipo ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"} ${isStub ? "opacity-60" : ""}`}
                   >
                     <AIcon className="h-4 w-4 mb-1 text-primary" />
                     <div className="font-mono text-xs font-bold">{a.label}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{a.desc}</div>
+                    {isStub && <div className="text-[10px] text-warning font-mono mt-1">⚠ Non ancora attiva</div>}
                   </button>
                 );
               })}
             </div>
+            {isStubAction && (
+              <div className="p-2 rounded-md bg-warning/10 border border-warning/30 text-xs font-mono text-warning">
+                ⚠ Questa azione non è ancora implementata. La regola verrà salvata ma non produrrà effetti fino all'attivazione.
+              </div>
+            )}
 
             {/* Action-specific params */}
             {azioneTipo === "chiama_contatto" && (

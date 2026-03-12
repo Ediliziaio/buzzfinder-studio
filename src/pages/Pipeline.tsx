@@ -19,7 +19,7 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function PipelinePage() {
-  const { leads, isLoading, moveStage, updateNote, updateValue, addLead } = usePipeline();
+  const { leads, isLoading, moveStage, updateNote, updateValue, addLead, deleteLead } = usePipeline();
   const { campaigns } = useCampaigns();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -34,18 +34,16 @@ export default function PipelinePage() {
     return leads.filter((l) => {
       if (filterCampaign !== "all") {
         if (filterCampaign === "none") {
-          if (l.campaign) return false;
+          if (l.campaign_id) return false;
         } else {
-          if (!l.campaign) return false;
-          const matchCampaign = campaigns.find(c => c.id === filterCampaign);
-          if (!matchCampaign || l.campaign.nome !== matchCampaign.nome) return false;
+          if (l.campaign_id !== filterCampaign) return false;
         }
       }
       if (filterMinValue && l.valore_stimato < parseFloat(filterMinValue)) return false;
       if (filterDateFrom && new Date(l.created_at) < new Date(filterDateFrom)) return false;
       return true;
     });
-  }, [leads, filterCampaign, filterMinValue, filterDateFrom, campaigns]);
+  }, [leads, filterCampaign, filterMinValue, filterDateFrom]);
 
   const totaleValore = filteredLeads
     .filter((l) => l.pipeline_stage !== "perso")
@@ -56,6 +54,10 @@ export default function PipelinePage() {
     setFilterMinValue("");
     setFilterDateFrom("");
   };
+
+  // Funnel conversion: % of first stage (interessato) count
+  const firstStageCount = filteredLeads.filter(l => l.pipeline_stage === "interessato").length;
+  const totalActive = filteredLeads.filter(l => l.pipeline_stage !== "perso").length;
 
   if (isLoading) {
     return (
@@ -72,9 +74,6 @@ export default function PipelinePage() {
       </div>
     );
   }
-
-  // Compute total leads entering pipeline (excluding "perso") for conversion rate
-  const totalActive = filteredLeads.filter(l => l.pipeline_stage !== "perso").length;
 
   return (
     <div className="space-y-4">
@@ -156,6 +155,7 @@ export default function PipelinePage() {
         {STAGES.map((stage) => {
           const stageLeads = filteredLeads.filter((l) => l.pipeline_stage === stage.id);
           const stageValue = stageLeads.reduce((s, l) => s + (l.valore_stimato || 0), 0);
+          // Funnel: % relative to total active leads (excluding perso)
           const conversionRate = totalActive > 0 && stage.id !== "perso"
             ? Math.round((stageLeads.length / totalActive) * 100)
             : undefined;
@@ -170,6 +170,7 @@ export default function PipelinePage() {
               onMoveStage={moveStage}
               onUpdateNote={updateNote}
               onUpdateValue={updateValue}
+              onDelete={deleteLead}
             />
           );
         })}
