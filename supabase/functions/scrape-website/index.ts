@@ -414,14 +414,14 @@ Deno.serve(async (req) => {
     }).eq("id", session_id);
 
     return new Response(
-      JSON.stringify({ ok: true, completed, errors }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ ok: true, completed, errors, requestId }),
+      { headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal error";
     return new Response(
       JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 500, headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   }
 });
