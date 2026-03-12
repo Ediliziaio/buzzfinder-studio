@@ -370,7 +370,7 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
         nome: nome.trim(),
         descrizione: descrizione || null,
         attiva: true,
-        campaign_id: campaignId || null,
+        campaign_id: campaignId && campaignId !== "__all__" ? campaignId : null,
         trigger_tipo: triggerTipo,
         trigger_params: triggerParams as unknown as import("@/integrations/supabase/types").Json,
         condizioni: [] as unknown as import("@/integrations/supabase/types").Json,

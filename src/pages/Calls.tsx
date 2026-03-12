@@ -120,7 +120,7 @@ export default function Calls() {
       totale: data.length,
       completate: data.filter((c) => c.stato === "completed").length,
       interessati: data.filter((c) => c.esito === "interessato" || c.esito === "appuntamento").length,
-      costo: data.reduce((s, c) => s + (c.costo_eur || 0), 0),
+      costo: data.reduce((s, c) => s + Number(c.costo_eur || 0), 0),
     });
   }, []);
 

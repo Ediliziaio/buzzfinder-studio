@@ -10,6 +10,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, content-type, xi-api-key, x-client-info, apikey, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function getAppSetting(userId: string, chiave: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("app_settings")
+    .select("valore")
+    .eq("chiave", chiave)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.valore || null;
+}
+
 async function estraiEsitoDaConversazione(
   trascrizione: string,
   riassunto: string,
@@ -109,6 +119,8 @@ Deno.serve(async (req: Request) => {
       return new Response("ok", { status: 200 });
     }
 
+    const userId = callSession.user_id;
+
     // Normalizza stato
     const statoMap: Record<string, string> = {
       "completed": "completed",
@@ -130,24 +142,20 @@ Deno.serve(async (req: Request) => {
         .join("\n");
     }
 
-    // Estrai esito con Claude
+    // Estrai esito con Claude (usando user_id per la API key)
     let esito = "da_analizzare";
     let sentiment = "neutro";
     let noteAi = "";
     let dataRichiamo: string | null = null;
 
     if (statoNormalizzato === "completed" && (trascrizioneTestuale || summary)) {
-      const { data: apiKeySetting } = await supabase
-        .from("app_settings")
-        .select("valore")
-        .eq("chiave", "anthropic_api_key")
-        .maybeSingle();
+      const apiKey = await getAppSetting(userId, "anthropic_api_key");
 
-      if (apiKeySetting?.valore) {
+      if (apiKey) {
         const analisi = await estraiEsitoDaConversazione(
           trascrizioneTestuale,
           summary || "",
-          apiKeySetting.valore
+          apiKey
         );
         esito = analisi.esito;
         sentiment = analisi.sentiment;
@@ -207,8 +215,8 @@ Deno.serve(async (req: Request) => {
         .eq("id", callSession.recipient_id);
     }
 
-    // Salva in inbox_messages
-    if (trascrizioneTestuale && callSession.user_id) {
+    // Salva in inbox_messages con canale "chiamata" (Fix #2)
+    if (trascrizioneTestuale && userId) {
       const etichettaMap: Record<string, string> = {
         "interessato": "interessato",
         "appuntamento": "appuntamento_fissato",
@@ -216,10 +224,10 @@ Deno.serve(async (req: Request) => {
         "richiama": "richiesta_info",
       };
       await supabase.from("inbox_messages").insert({
-        user_id: callSession.user_id,
+        user_id: userId,
         campaign_id: callSession.campaign_id,
         recipient_id: callSession.recipient_id,
-        canale: "email", // fallback since 'chiamata' may not be in CHECK constraint
+        canale: "chiamata",
         oggetto: `Trascrizione chiamata AI`,
         corpo: trascrizioneTestuale,
         data_ricezione: new Date().toISOString(),
@@ -232,7 +240,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Trigger automazioni
-    await triggerAutomazioni(callSession.campaign_id, callSession.contact_id, callSession.user_id, {
+    await triggerAutomazioni(callSession.campaign_id, callSession.contact_id, userId, {
       tipo: "chiamata_completata",
       call_session_id: callSession.id,
       esito,
@@ -240,7 +248,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (esito !== "da_analizzare") {
-      await triggerAutomazioni(callSession.campaign_id, callSession.contact_id, callSession.user_id, {
+      await triggerAutomazioni(callSession.campaign_id, callSession.contact_id, userId, {
         tipo: "chiamata_esito",
         esito,
         call_session_id: callSession.id,
@@ -271,7 +279,8 @@ async function triggerAutomazioni(
       .from("automation_rules")
       .select("*")
       .eq("attiva", true)
-      .eq("trigger_tipo", contesto.tipo);
+      .eq("trigger_tipo", contesto.tipo)
+      .eq("user_id", userId);
 
     if (campaignId) {
       query = query.or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
