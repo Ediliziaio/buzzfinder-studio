@@ -428,8 +428,8 @@ function ElevenLabsTestButton() {
       if (!apiKey) { toast.error("Inserisci prima la API Key ElevenLabs"); setTesting(false); return; }
       const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": apiKey } });
       if (res.ok) {
-        const user = await res.json();
-        toast.success(`✅ Connesso — Piano: ${user.subscription?.tier || "unknown"}`);
+      const userData = await res.json();
+        toast.success(`✅ Connesso — Piano: ${userData.subscription?.tier || "unknown"}`);
       } else {
         toast.error("❌ API Key non valida");
       }
