@@ -342,6 +342,13 @@ export default function Automations() {
               </TableBody>
             </Table>
           </div>
+          {execs.length >= execLimit && (
+            <div className="flex justify-center mt-3">
+              <Button variant="outline" size="sm" className="font-mono text-xs" onClick={() => setExecLimit(prev => prev + 100)}>
+                Carica altri 100
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

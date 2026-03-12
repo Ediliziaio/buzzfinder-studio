@@ -138,22 +138,41 @@ Deno.serve(async (req: Request) => {
 
           case "cambia_pipeline_stage": {
             const params = rule.azione_params as { nuovo_stage: string };
-            if (!exec.campaign_id) {
-              console.warn(`cambia_pipeline_stage: campaign_id null per exec ${exec.id}, skip`);
-              risultato = { skipped: true, motivo: "campaign_id mancante, impossibile trovare recipient" };
-              break;
-            }
-            await supabase
-              .from("campaign_recipients")
-              .update({
-                pipeline_stage: params.nuovo_stage,
-                pipeline_updated: new Date().toISOString(),
-                pipeline_note: `Automaticamente da regola: ${rule.nome}`,
-              })
-              .eq("contact_id", exec.contact_id)
-              .eq("campaign_id", exec.campaign_id);
+            const now = new Date().toISOString();
 
-            risultato = { stage_aggiornato: params.nuovo_stage };
+            // Check if lead already exists in pipeline_leads
+            const { data: existingLead } = await supabase
+              .from("pipeline_leads")
+              .select("id")
+              .eq("contact_id", exec.contact_id)
+              .eq("user_id", userId)
+              .maybeSingle();
+
+            if (existingLead) {
+              // Update existing pipeline lead
+              await supabase
+                .from("pipeline_leads")
+                .update({
+                  pipeline_stage: params.nuovo_stage,
+                  pipeline_updated: now,
+                  pipeline_note: `Automaticamente da regola: ${rule.nome}`,
+                })
+                .eq("id", existingLead.id);
+            } else {
+              // Create new pipeline lead
+              await supabase
+                .from("pipeline_leads")
+                .insert({
+                  user_id: userId,
+                  contact_id: exec.contact_id,
+                  campaign_id: exec.campaign_id || null,
+                  pipeline_stage: params.nuovo_stage,
+                  pipeline_updated: now,
+                  pipeline_note: `Automaticamente da regola: ${rule.nome}`,
+                });
+            }
+
+            risultato = { stage_aggiornato: params.nuovo_stage, created: !existingLead };
             break;
           }
 
