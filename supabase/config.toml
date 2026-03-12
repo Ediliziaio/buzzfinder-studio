@@ -32,3 +32,12 @@ verify_jwt = true
 
 [functions.personalize-messages]
 verify_jwt = true
+
+[functions.make-call]
+verify_jwt = false
+
+[functions.call-webhook]
+verify_jwt = false
+
+[functions.process-automations]
+verify_jwt = false
