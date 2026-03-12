@@ -326,7 +326,7 @@ export default function Calls() {
                       <TableCell className="font-mono text-sm">{fmtDurata(c.durata_secondi)}</TableCell>
                       <TableCell><Badge className={eb.cls}>{eb.label}</Badge></TableCell>
                       <TableCell>{c.sentiment ? sentimentEmoji[c.sentiment] : "—"}</TableCell>
-                      <TableCell className="font-mono text-sm">€{(c.costo_eur || 0).toFixed(2)}</TableCell>
+                      <TableCell className="font-mono text-sm">€{Number(c.costo_eur || 0).toFixed(2)}</TableCell>
                     </TableRow>
                   );
                 })}
