@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
 import { WizardStepAI } from "./WizardStepAI";
