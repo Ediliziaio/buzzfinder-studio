@@ -557,7 +557,7 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
               <Select value={campaignId} onValueChange={setCampaignId}>
                 <SelectTrigger><SelectValue placeholder="Tutte le campagne" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutte le campagne</SelectItem>
+                  <SelectItem value="__all__">Tutte le campagne</SelectItem>
                   {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
