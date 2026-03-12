@@ -217,6 +217,25 @@ export default function SettingsPage() {
           <WebhookGuideTab />
         </TabsContent>
 
+        {/* Agenti AI */}
+        <TabsContent value="agenti" className="space-y-4">
+          <Section title="MODELLO AI ATTIVO">
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Scegli quale AI usa BuzzFinder per personalizzare i messaggi e categorizzare le risposte
+            </p>
+            <AIModelSelector />
+          </Section>
+          <Section title="🟠 CLAUDE COWORK">
+            <ClaudeCoworkSetup />
+          </Section>
+          <Section title="🌙 KIMI 2.5 (MOONSHOT AI)">
+            <KimiSetup />
+          </Section>
+          <Section title="🦅 OPENCLAW (AGENTE LOCALE)">
+            <OpenClawSetup />
+          </Section>
+        </TabsContent>
+
         {/* Import/Export */}
         <TabsContent value="export" className="space-y-4">
           <Section title="IMPORT">
