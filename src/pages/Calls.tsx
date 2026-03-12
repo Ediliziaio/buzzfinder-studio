@@ -530,7 +530,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => onClose()}>
+    <Dialog open={open} onOpenChange={() => handleClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle className="font-mono">Nuova Chiamata AI</DialogTitle></DialogHeader>
         <div className="space-y-4">
