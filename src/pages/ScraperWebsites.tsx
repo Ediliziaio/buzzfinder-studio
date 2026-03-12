@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Globe } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Globe, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
@@ -10,6 +10,7 @@ import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8
 import { useScrapingSessions } from "@/hooks/useScrapingSession";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,13 @@ export interface WebScraperConfig {
 /** Normalize URL for dedup comparison */
 function normalizeUrl(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "").toLowerCase();
+}
+
+/** Check if an error is a network error */
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || "").toLowerCase();
+  return msg.includes("network") || msg.includes("fetch") || msg.includes("econnaborted") || msg.includes("failed to fetch") || err.code === "ECONNABORTED";
 }
 
 export default function ScraperWebsitesPage() {
@@ -65,25 +73,67 @@ export default function ScraperWebsitesPage() {
     return session?.status === "paused" && !jobs.some((j) => j.status === "processing");
   }, [session, jobs]);
 
-  // Subscribe to session updates
+  // Subscribe to session + jobs updates with debounced job batching
   useEffect(() => {
     if (!sessionId) return;
+    let cancelled = false;
+    const jobBuffer = new Map<string, ScrapingJob>();
+    const newJobBuffer: ScrapingJob[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushJobUpdates = () => {
+      if (cancelled) return;
+      flushTimer = null;
+      const updates = new Map(jobBuffer);
+      const inserts = [...newJobBuffer];
+      jobBuffer.clear();
+      newJobBuffer.length = 0;
+
+      if (updates.size > 0 || inserts.length > 0) {
+        setJobs((prev) => {
+          let next = prev;
+          if (updates.size > 0) {
+            next = next.map((j) => updates.has(j.id) ? updates.get(j.id)! : j);
+          }
+          if (inserts.length > 0) {
+            const existingIds = new Set(next.map((j) => j.id));
+            const truly = inserts.filter((j) => !existingIds.has(j.id));
+            if (truly.length > 0) next = [...next, ...truly];
+          }
+          return next;
+        });
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (flushTimer) return;
+      flushTimer = setTimeout(flushJobUpdates, 300);
+    };
+
     const channel = supabase
       .channel(`web-session-${sessionId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "scraping_sessions", filter: `id=eq.${sessionId}` },
-        (payload) => setSession(payload.new as unknown as ScrapingSession)
+        (payload) => { if (!cancelled) setSession(payload.new as unknown as ScrapingSession); }
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "scraping_jobs", filter: `session_id=eq.${sessionId}` },
         (payload) => {
+          if (cancelled) return;
           if (payload.eventType === "INSERT") {
-            setJobs((prev) => [...prev, payload.new as unknown as ScrapingJob]);
+            newJobBuffer.push(payload.new as unknown as ScrapingJob);
           } else if (payload.eventType === "UPDATE") {
-            setJobs((prev) => prev.map((j) => j.id === (payload.new as any).id ? payload.new as unknown as ScrapingJob : j));
+            const job = payload.new as unknown as ScrapingJob;
+            jobBuffer.set(job.id, job);
           }
+          scheduleFlush();
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    return () => {
+      cancelled = true;
+      if (flushTimer) clearTimeout(flushTimer);
+      supabase.removeChannel(channel);
+    };
   }, [sessionId]);
 
   // Derive running state
@@ -97,16 +147,28 @@ export default function ScraperWebsitesPage() {
     return [...new Set(completed.map((j) => j.contact_id))].sort().join(",");
   }, [jobs]);
 
+  // Fetch contacts with cancelled flag to prevent state update after unmount
   useEffect(() => {
     if (!completedJobContactIds) return;
+    let cancelled = false;
     const contactIds = completedJobContactIds.split(",");
     const completedJobs = jobs.filter((j) => j.status === "completed" && j.contact_id);
+
     supabase
       .from("contacts")
       .select("*")
       .in("id", contactIds)
       .limit(1000)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          if (isNetworkError(error)) {
+            toast.error("Errore di rete nel caricamento contatti", {
+              action: { label: "Riprova", onClick: () => {} }, // re-trigger handled by dep change
+            });
+          }
+          return;
+        }
         if (data) {
           const contacts = (data as unknown as Contact[]).map((c) => ({
             ...c,
@@ -115,6 +177,8 @@ export default function ScraperWebsitesPage() {
           setEnrichedContacts(contacts);
         }
       });
+
+    return () => { cancelled = true; };
   }, [completedJobContactIds]);
 
   const handleAddUrls = (newUrls: string[]) => {
@@ -282,7 +346,13 @@ export default function ScraperWebsitesPage() {
         );
       }
     } catch (err: any) {
-      toast.error(err.message || "Errore avvio scraping");
+      if (isNetworkError(err)) {
+        toast.error("Errore di rete. Verifica la connessione.", {
+          action: { label: "Riprova", onClick: () => handleStart() },
+        });
+      } else {
+        toast.error(err.message || "Errore avvio scraping");
+      }
       if (createdSessionId) {
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", createdSessionId);
       }
@@ -318,7 +388,7 @@ export default function ScraperWebsitesPage() {
       await supabase.functions.invoke("scrape-website", {
         body: {
           session_id: sessionId,
-          urls: [], // empty - function will read queued jobs from DB
+          urls: [],
           config: {
             timeout_sec: config.timeoutSec,
             delay_ms: config.delayMs,
@@ -331,7 +401,13 @@ export default function ScraperWebsitesPage() {
 
       toast.success("Scraping ripreso!");
     } catch (err: any) {
-      toast.error(err.message || "Errore ripresa scraping");
+      if (isNetworkError(err)) {
+        toast.error("Errore di rete. Verifica la connessione.", {
+          action: { label: "Riprova", onClick: () => handleResume() },
+        });
+      } else {
+        toast.error(err.message || "Errore ripresa scraping");
+      }
     }
   };
 
@@ -376,7 +452,13 @@ export default function ScraperWebsitesPage() {
         },
       });
     } catch (err: any) {
-      toast.error(`Errore retry: ${err.message}`);
+      if (isNetworkError(err)) {
+        toast.error("Errore di rete. Verifica la connessione.", {
+          action: { label: "Riprova", onClick: () => handleRetryJob(job) },
+        });
+      } else {
+        toast.error(`Errore retry: ${err.message}`);
+      }
     }
   };
 
@@ -457,6 +539,15 @@ export default function ScraperWebsitesPage() {
 
       {/* Right — Results */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Memory warning banner */}
+        {enrichedContacts.length > 1000 && (
+          <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 mb-3 text-xs text-warning">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              {enrichedContacts.length.toLocaleString()} contatti in memoria. Esporta i risultati o filtra per migliorare le prestazioni.
+            </span>
+          </div>
+        )}
         <WebScraperResults
           enrichedContacts={enrichedContacts}
           jobs={jobs}

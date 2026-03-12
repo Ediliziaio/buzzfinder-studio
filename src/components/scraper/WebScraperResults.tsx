@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Star, ExternalLink, Linkedin, Facebook, Instagram, Download } from "lucide-react";
 import type { Contact, ScrapingJob } from "@/types";
@@ -40,8 +41,13 @@ function exportResultsCsv(completedJobs: ScrapingJob[]) {
   URL.revokeObjectURL(url);
 }
 
+const ROW_HEIGHT = 36;
+const VIRTUALIZE_THRESHOLD = 500;
+
 export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Props) {
   const completedJobs = jobs.filter((j) => j.status === "completed");
+  const parentRef = useRef<HTMLDivElement>(null);
+  const useVirtual = completedJobs.length > VIRTUALIZE_THRESHOLD;
 
   const columns = useMemo<ColumnDef<ScrapingJob>[]>(() => [
     {
@@ -156,6 +162,16 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const { rows: tableRows } = table.getRowModel();
+
+  const virtualizer = useVirtualizer({
+    count: tableRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 20,
+    enabled: useVirtual,
+  });
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between pb-3">
@@ -189,7 +205,7 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
           </div>
         </div>
       ) : (
-        <div className="flex-1 rounded-lg border border-border overflow-auto">
+        <div ref={parentRef} className="flex-1 rounded-lg border border-border overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               {table.getHeaderGroups().map((hg) => (
@@ -206,22 +222,47 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
                 </tr>
               ))}
             </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row, i) => (
-                <tr
-                  key={row.id}
-                  className={`border-t border-border cursor-pointer transition-colors hover:bg-primary/5 hover:border-l-2 hover:border-l-primary ${
-                    i % 2 === 0 ? "bg-card" : "bg-background"
-                  }`}
-                  onClick={() => onDetailClick(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-2 py-1.5">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+            <tbody style={useVirtual ? { height: `${virtualizer.getTotalSize()}px`, position: "relative" } : undefined}>
+              {useVirtual
+                ? virtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = tableRows[virtualRow.index];
+                    return (
+                      <tr
+                        key={row.id}
+                        className="border-t border-border cursor-pointer transition-colors hover:bg-primary/5 hover:border-l-2 hover:border-l-primary bg-card"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                        onClick={() => onDetailClick(row.original)}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-2 py-1.5">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })
+                : tableRows.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      className={`border-t border-border cursor-pointer transition-colors hover:bg-primary/5 hover:border-l-2 hover:border-l-primary ${
+                        i % 2 === 0 ? "bg-card" : "bg-background"
+                      }`}
+                      onClick={() => onDetailClick(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-2 py-1.5">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
             </tbody>
           </table>
         </div>
