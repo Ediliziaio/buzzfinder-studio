@@ -1,19 +1,29 @@
-import { X, Copy, Check, Star, Save } from "lucide-react";
+import { Copy, Check, Star, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 import type { ScrapingJob, Contact } from "@/types";
 
 interface Props {
-  job: ScrapingJob;
+  job: ScrapingJob | null;
   contact: Contact | null;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function WebScraperDetailModal({ job, contact, onClose }: Props) {
+export function WebScraperDetailModal({ job, contact, open, onOpenChange }: Props) {
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+
+  if (!job) return null;
 
   const domain = job.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
   const emails = job.emails_found || [];
@@ -50,7 +60,6 @@ export function WebScraperDetailModal({ job, contact, onClose }: Props) {
     }
     if (phones.length > 0 && !contact.telefono) {
       updates.telefono = phones[0];
-      // Normalize Italian phone
       const normalized = phones[0].replace(/[\s\-\.\/]/g, "");
       updates.telefono_normalizzato = normalized.startsWith("+39") ? normalized : `+39${normalized.replace(/^0/, "")}`;
     }
@@ -63,25 +72,18 @@ export function WebScraperDetailModal({ job, contact, onClose }: Props) {
       toast.error("Errore salvataggio");
     } else {
       toast.success("Dati salvati nel contatto");
-      onClose();
+      onOpenChange(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="w-[560px] max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-card shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="font-display text-lg font-bold text-foreground">{domain}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[560px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-lg">{domain}</DialogTitle>
+        </DialogHeader>
 
-        <div className="p-4 space-y-5">
+        <div className="space-y-5">
           {/* Emails */}
           <div className="space-y-2">
             <div className="terminal-header text-primary">📧 EMAIL TROVATE</div>
@@ -89,7 +91,7 @@ export function WebScraperDetailModal({ job, contact, onClose }: Props) {
               <p className="font-mono text-xs text-muted-foreground">Nessuna email trovata</p>
             ) : (
               <div className="space-y-1">
-                {emails.map((email, i) => {
+                {emails.map((email) => {
                   const confidence = getEmailConfidence(email, emails);
                   const stars = Math.min(confidence, 3);
                   const color = stars >= 3 ? "text-primary" : stars >= 2 ? "text-warning" : "text-destructive";
@@ -198,8 +200,7 @@ export function WebScraperDetailModal({ job, contact, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-border p-4 flex gap-2">
+        <DialogFooter className="gap-2">
           {contact ? (
             <Button onClick={handleSaveToContact} className="flex-1 font-mono text-xs">
               <Save className="h-3 w-3 mr-1" /> SALVA NEL CONTATTO
@@ -209,17 +210,13 @@ export function WebScraperDetailModal({ job, contact, onClose }: Props) {
               Nessun contatto associato
             </Button>
           )}
-          <Button onClick={onClose} variant="outline" className="font-mono text-xs">
-            CHIUDI
-          </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function getEmailConfidence(email: string, allEmails: string[]): number {
-  // Simple heuristic: info@, contatti@ = 3; first email = 2; others = 1
   const lower = email.toLowerCase();
   if (lower.startsWith("info@") || lower.startsWith("contatti@") || lower.startsWith("contact@")) return 3;
   if (allEmails.indexOf(email) === 0) return 2;

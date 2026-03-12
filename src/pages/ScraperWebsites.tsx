@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
+import { WebScraperPreviousSessions } from "@/components/scraper/WebScraperPreviousSessions";
 import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { useScrapingSessions } from "@/hooks/useScrapingSession";
 import { toast } from "sonner";
@@ -52,6 +53,8 @@ export default function ScraperWebsitesPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
 
+  const { sessions: allSessions } = useScrapingSessions();
+
   // Subscribe to session updates
   useEffect(() => {
     if (!sessionId) return;
@@ -78,11 +81,16 @@ export default function ScraperWebsitesPage() {
     setIsRunning(session?.status === "running" || session?.status === "pending");
   }, [session]);
 
-  // Load enriched contacts when jobs complete
+  // Optimize: only re-fetch contacts when completed job IDs change
+  const completedJobContactIds = useMemo(() => {
+    const completed = jobs.filter((j) => j.status === "completed" && j.contact_id);
+    return [...new Set(completed.map((j) => j.contact_id))].sort().join(",");
+  }, [jobs]);
+
   useEffect(() => {
+    if (!completedJobContactIds) return;
+    const contactIds = completedJobContactIds.split(",");
     const completedJobs = jobs.filter((j) => j.status === "completed" && j.contact_id);
-    if (completedJobs.length === 0) return;
-    const contactIds = [...new Set(completedJobs.map((j) => j.contact_id))];
     supabase
       .from("contacts")
       .select("*")
@@ -97,7 +105,7 @@ export default function ScraperWebsitesPage() {
           setEnrichedContacts(contacts);
         }
       });
-  }, [jobs]);
+  }, [completedJobContactIds]);
 
   const handleAddUrls = (newUrls: string[]) => {
     setUrls((prev) => {
@@ -114,12 +122,13 @@ export default function ScraperWebsitesPage() {
   };
 
   const [mapsSessionIdForImport, setMapsSessionIdForImport] = useState<string | null>(null);
-  const { sessions: mapsSessions } = useScrapingSessions();
 
   const handleImportFromMaps = async () => {
+    const userId = await getCurrentUserId();
     let query = supabase
       .from("contacts")
       .select("id, sito_web")
+      .eq("user_id", userId)
       .not("sito_web", "is", null)
       .order("created_at", { ascending: false })
       .limit(1000);
@@ -139,9 +148,11 @@ export default function ScraperWebsitesPage() {
   };
 
   const handleImportFromContacts = async () => {
+    const userId = await getCurrentUserId();
     const { data } = await supabase
       .from("contacts")
       .select("id, sito_web")
+      .eq("user_id", userId)
       .not("sito_web", "is", null)
       .is("email", null)
       .order("created_at", { ascending: false })
@@ -159,19 +170,21 @@ export default function ScraperWebsitesPage() {
       return;
     }
 
-    // Check n8n health first
-    const n8nOk = await checkN8nHealth();
-    if (!n8nOk) {
-      toast.error("n8n non raggiungibile. Verifica la connessione in Impostazioni → API Keys.", {
-        duration: 6000,
-        action: { label: "Impostazioni", onClick: () => window.location.assign("/settings") },
-      });
-      return;
-    }
-
     let createdSessionId: string | null = null;
     try {
       const user_id = await getCurrentUserId();
+
+      // Try n8n first, fallback to edge function
+      let useEdgeFunction = false;
+      let n8nSettings: Record<string, string> = {};
+
+      const n8nOk = await checkN8nHealth();
+      if (n8nOk) {
+        n8nSettings = await getN8nSettings();
+      } else {
+        useEdgeFunction = true;
+      }
+
       // Create session
       const { data: sess, error } = await supabase
         .from("scraping_sessions")
@@ -188,10 +201,11 @@ export default function ScraperWebsitesPage() {
       setSessionId(sess.id);
       setSession(sess as unknown as ScrapingSession);
 
-      // Find matching contacts for URLs (with limit)
+      // Find matching contacts for URLs (with user_id filter)
       const { data: contacts } = await supabase
         .from("contacts")
         .select("id, sito_web")
+        .eq("user_id", user_id)
         .not("sito_web", "is", null)
         .limit(1000);
 
@@ -215,31 +229,52 @@ export default function ScraperWebsitesPage() {
 
       await supabase.from("scraping_jobs").insert(jobInserts);
 
-      // Trigger n8n
-      const settings = await getN8nSettings();
-      const webhookPath = settings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
-
-      await toast.promise(
-        triggerN8nWebhook(webhookPath, {
-          session_id: sess.id,
-          urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
-          config: {
-            timeout_sec: config.timeoutSec,
-            delay_ms: config.delayMs,
-            max_retries: config.maxRetries,
-            crawl_depth: config.crawlDepth,
-            search_pages: config.searchPages,
-          },
-        }),
-        {
-          loading: "Avvio scraping siti su n8n...",
-          success: "Job avviato!",
-          error: (err) => `Errore: ${err.message}`,
-        }
-      );
+      if (useEdgeFunction) {
+        // Use autonomous edge function
+        await toast.promise(
+          supabase.functions.invoke("scrape-website", {
+            body: {
+              session_id: sess.id,
+              urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
+              config: {
+                timeout_sec: config.timeoutSec,
+                delay_ms: config.delayMs,
+                max_retries: config.maxRetries,
+                crawl_depth: config.crawlDepth,
+                search_pages: config.searchPages,
+              },
+            },
+          }),
+          {
+            loading: "Avvio scraping siti (modalità autonoma)...",
+            success: "Scraping completato!",
+            error: (err) => `Errore: ${err.message}`,
+          }
+        );
+      } else {
+        // Use n8n
+        const webhookPath = n8nSettings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
+        await toast.promise(
+          triggerN8nWebhook(webhookPath, {
+            session_id: sess.id,
+            urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
+            config: {
+              timeout_sec: config.timeoutSec,
+              delay_ms: config.delayMs,
+              max_retries: config.maxRetries,
+              crawl_depth: config.crawlDepth,
+              search_pages: config.searchPages,
+            },
+          }),
+          {
+            loading: "Avvio scraping siti su n8n...",
+            success: "Job avviato!",
+            error: (err) => `Errore: ${err.message}`,
+          }
+        );
+      }
     } catch (err: any) {
       toast.error(err.message || "Errore avvio scraping");
-      // Cleanup: mark session as failed using the local variable (not stale state)
       if (createdSessionId) {
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", createdSessionId);
       }
@@ -250,7 +285,7 @@ export default function ScraperWebsitesPage() {
     if (!sessionId) return;
     const { error } = await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", sessionId);
     if (error) toast.error("Errore durante la pausa");
-    else toast.info("Scraping in pausa — n8n verificherà lo stato al prossimo ciclo e si fermerà automaticamente.", { duration: 5000 });
+    else toast.info("Scraping in pausa", { duration: 5000 });
   };
 
   const handleStop = async () => {
@@ -268,14 +303,14 @@ export default function ScraperWebsitesPage() {
   const handleRetryJob = async (job: ScrapingJob) => {
     await supabase.from("scraping_jobs").update({ status: "queued", error_message: null, tentativo: (job.tentativo || 1) + 1 }).eq("id", job.id);
     toast.info(`Riprova: ${job.url}`);
-    // Re-trigger n8n for single job retry
     try {
-      const settings = await getN8nSettings();
-      const webhookPath = settings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
-      await triggerN8nWebhook(webhookPath, {
-        session_id: job.session_id,
-        urls: [job.url],
-        retry_job_id: job.id,
+      // Try edge function first (always available), fallback to n8n
+      await supabase.functions.invoke("scrape-website", {
+        body: {
+          session_id: job.session_id,
+          urls: [job.url],
+          retry_job_id: job.id,
+        },
       });
     } catch (err: any) {
       toast.error(`Errore retry: ${err.message}`);
@@ -294,6 +329,24 @@ export default function ScraperWebsitesPage() {
         setDetailContact(data as unknown as Contact);
       });
     }
+  };
+
+  const handleLoadPreviousSession = async (prevSessionId: string) => {
+    setSessionId(prevSessionId);
+    const { data: sessData } = await supabase
+      .from("scraping_sessions")
+      .select("*")
+      .eq("id", prevSessionId)
+      .maybeSingle();
+    if (sessData) setSession(sessData as unknown as ScrapingSession);
+
+    const { data: jobsData } = await supabase
+      .from("scraping_jobs")
+      .select("*")
+      .eq("session_id", prevSessionId)
+      .limit(1000);
+    if (jobsData) setJobs(jobsData as unknown as ScrapingJob[]);
+    toast.success("Sessione caricata");
   };
 
   const queueStats = {
@@ -329,6 +382,11 @@ export default function ScraperWebsitesPage() {
           isRunning={isRunning}
           stats={queueStats}
         />
+
+        <WebScraperPreviousSessions
+          sessions={allSessions}
+          onLoad={handleLoadPreviousSession}
+        />
       </div>
 
       {/* Right — Results */}
@@ -341,13 +399,13 @@ export default function ScraperWebsitesPage() {
       </div>
 
       {/* Detail modal */}
-      {detailJob && (
-        <WebScraperDetailModal
-          job={detailJob}
-          contact={detailContact}
-          onClose={() => { setDetailJob(null); setDetailContact(null); }}
-        />
-      )}
+      <WebScraperDetailModal
+        job={detailJob}
+        contact={detailContact}
+        open={!!detailJob}
+        onOpenChange={(open) => { if (!open) { setDetailJob(null); setDetailContact(null); } }}
+      />
+
       {/* Stop confirmation dialog */}
       <AlertDialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
         <AlertDialogContent>

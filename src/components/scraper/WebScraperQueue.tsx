@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,8 +9,18 @@ import {
   CheckCircle, XCircle, Loader2, Clock, RotateCcw, Globe,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
 import type { WebScraperConfig } from "@/pages/ScraperWebsites";
 import type { ScrapingJob } from "@/types";
+
+const MAX_QUEUE_SIZE = 500;
+const URL_RE = /^(https?:\/\/)?([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+
+function isValidUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  return URL_RE.test(trimmed);
+}
 
 interface Props {
   urls: string[];
@@ -38,9 +49,46 @@ export function WebScraperQueue({
 
   const handleAddUrl = () => {
     if (!urlInput.trim()) return;
-    const newUrls = urlInput.split("\n").map((u) => u.trim()).filter(Boolean);
-    onAddUrls(newUrls);
+    const lines = urlInput.split("\n").map((u) => u.trim()).filter(Boolean);
+
+    // Validate URLs
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    for (const line of lines) {
+      if (isValidUrl(line)) {
+        valid.push(line);
+      } else {
+        invalid.push(line);
+      }
+    }
+
+    if (invalid.length > 0) {
+      toast.warning(`${invalid.length} URL non validi scartati`, {
+        description: invalid.slice(0, 3).join(", ") + (invalid.length > 3 ? "..." : ""),
+      });
+    }
+
+    // Rate limit check
+    const currentTotal = urls.length + jobs.length;
+    if (currentTotal + valid.length > MAX_QUEUE_SIZE) {
+      const allowed = Math.max(0, MAX_QUEUE_SIZE - currentTotal);
+      if (allowed === 0) {
+        toast.error(`Limite massimo ${MAX_QUEUE_SIZE} URL raggiunto`);
+        return;
+      }
+      toast.warning(`Solo ${allowed} URL aggiunti (limite ${MAX_QUEUE_SIZE})`);
+      onAddUrls(valid.slice(0, allowed));
+    } else {
+      onAddUrls(valid);
+    }
     setUrlInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAddUrl();
+    }
   };
 
   // Merge pending URLs and active jobs for display
@@ -57,17 +105,18 @@ export function WebScraperQueue({
 
   return (
     <div className="flex flex-col h-full gap-3">
-      {/* URL Input */}
+      {/* URL Input — Textarea for multiline */}
       <div className="space-y-2">
         <div className="flex gap-2">
-          <Input
+          <Textarea
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="Incolla URL (uno per riga)..."
-            className="font-mono text-xs bg-accent border-border"
-            onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
+            placeholder="Incolla URL (uno per riga, Shift+Enter per nuova riga)..."
+            className="font-mono text-xs bg-accent border-border min-h-[60px] max-h-[120px] resize-y"
+            onKeyDown={handleKeyDown}
+            rows={2}
           />
-          <Button size="sm" onClick={handleAddUrl} className="shrink-0">
+          <Button size="sm" onClick={handleAddUrl} className="shrink-0 self-end">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
