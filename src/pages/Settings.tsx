@@ -345,7 +345,8 @@ function AiModelSelector() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data?.valore) setModel(data.valore);
+        if (data?.valore) setModel(data.valore);
+      });
     });
   }, []);
 
