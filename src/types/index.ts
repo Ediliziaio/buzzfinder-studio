@@ -26,6 +26,8 @@ export interface Contact {
   email_confidence: number;
   email_valid: boolean;
   email_quality: string | null;
+  email_validato: boolean | null;
+  email_validato_at: string | null;
   sito_web: string | null;
   indirizzo: string | null;
   citta: string | null;
