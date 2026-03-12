@@ -138,6 +138,11 @@ Deno.serve(async (req: Request) => {
 
           case "cambia_pipeline_stage": {
             const params = rule.azione_params as { nuovo_stage: string };
+            if (!exec.campaign_id) {
+              console.warn(`cambia_pipeline_stage: campaign_id null per exec ${exec.id}, skip`);
+              risultato = { skipped: true, motivo: "campaign_id mancante, impossibile trovare recipient" };
+              break;
+            }
             await supabase
               .from("campaign_recipients")
               .update({
