@@ -46,6 +46,7 @@ export default function CampaignDetailPage() {
   const [assignmentResult, setAssignmentResult] = useState<AssignmentResult | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [confirmingLaunch, setConfirmingLaunch] = useState(false);
+  const [callStats, setCallStats] = useState<{ totale: number; interessati: number; appuntamenti: number } | null>(null);
 
   useEffect(() => {
     if (!id) return;
