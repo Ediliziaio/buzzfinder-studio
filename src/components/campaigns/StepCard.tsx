@@ -19,7 +19,7 @@ interface Props {
 export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
   const [isExpanded, setIsExpanded] = useState(stepIndex === 1);
 
-  const canaleIcon = step.tipo === "email" ? "📧" : step.tipo === "whatsapp" ? "💬" : "📱";
+  const canaleIcon = step.tipo === "email" ? "📧" : step.tipo === "whatsapp" ? "💬" : step.tipo === "chiamata" ? "📞" : "📱";
   const invioLabel =
     step.delay_giorni === 0 && step.delay_ore === 0
       ? "Immediato"
