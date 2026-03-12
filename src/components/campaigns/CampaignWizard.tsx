@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { WizardStepRecipients } from "./WizardStepRecipients";
 import { WizardStepReview } from "./WizardStepReview";
 import { WizardStepAI } from "./WizardStepAI";
@@ -328,8 +328,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       // Populate recipients
       try {
         const inserted = await populateCampaignRecipients(newCampaign.id, data);
-        toast({
-          title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
+        toast.success(scheduledAt ? "Campagna schedulata" : "Campagna creata", {
           description: scheduledAt
             ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })} — ${inserted} destinatari`
             : `"${data.nome}" salvata come bozza — ${inserted} destinatari${isSequence ? ` — ${data.steps.length} step` : ""}`,
@@ -342,7 +341,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -481,7 +480,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                           .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
                           .eq("id", tpl.id)
                           .then(() => {});
-                        toast({ title: `Template "${tpl.nome}" applicato` });
+                        toast.success(`Template "${tpl.nome}" applicato`);
                         setStep(1);
                       }}
                       className={cn(

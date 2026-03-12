@@ -1,30 +1,18 @@
 
 
-# Bug Fix — CampaignWizard toast import
+## Creazione Account Superadmin
 
-## Analysis Results
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-After reading all the files mentioned in the bug report, **nearly every reported bug is already fixed**:
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-| Bug | Status |
-|-----|--------|
-| AI-01 handle-reply schema | ✅ Already uses `chiave`/`valore` via `callAI` helper |
-| AI-02 handle-reply FK | ✅ No `contatto_id` in current code |
-| AI-03 validate-emails schema | ✅ Already uses `chiave`/`valore` (lines 123-127) |
-| AI-04 process-sequence n8n_settings | ✅ Uses `getAppSetting` helper with `app_settings` |
-| AI-05 process-sequence `sito` | ✅ Uses `sito_web` (line 197) |
-| AI-06 process-sequence `contatto_id` | ✅ Uses `contact_id` (line 197) |
-| AI-07 CampaignDetail launch flow | ✅ Calls `assign-senders`, `initializeSequence`, creates executions |
-| AI-08 CampaignWizard AI fields | ✅ Saves all AI fields (lines 292-303) |
-| AI-09 CampaignWizard toast | **❌ REAL BUG** — uses `@/hooks/use-toast` |
-| AI-10 Settings API keys | Already has AI agent tab with keys |
-| AI-11 Sender tab | Separate concern, not blocking |
-| Pausa → in_pausa | ✅ Already saves `in_pausa` to DB (line 280) |
-| Cancel future executions on pause | ✅ Already implemented (lines 285-289) |
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-## Only Fix Needed
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-**File**: `src/components/campaigns/CampaignWizard.tsx` line 21
-- Change `import { toast } from "@/hooks/use-toast"` → `import { toast } from "sonner"`
-- Update 3 toast calls from `toast({ title, description })` to `toast.success()` / `toast.error()` format
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 
