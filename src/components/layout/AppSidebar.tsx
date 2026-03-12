@@ -66,6 +66,8 @@ const navGroups: NavGroup[] = [
       { title: "Template", path: "/templates", icon: FileText },
       { title: "Follow-up", path: "/follow-up", icon: GitBranch },
       { title: "Unibox", path: "/unibox", icon: MessageSquare, badgeKey: "unibox" },
+      { title: "Chiamate AI", path: "/calls", icon: Phone },
+      { title: "Automazioni", path: "/automations", icon: Zap },
     ],
   },
   {
