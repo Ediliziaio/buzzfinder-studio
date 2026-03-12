@@ -151,12 +151,14 @@ Deno.serve(async (req: Request) => {
 
     if (statoNormalizzato === "completed" && (trascrizioneTestuale || summary)) {
       const apiKey = await getAppSetting(userId, "anthropic_api_key");
+      const aiModel = await getAppSetting(userId, "ai_model_attivo");
 
       if (apiKey) {
         const analisi = await estraiEsitoDaConversazione(
           trascrizioneTestuale,
           summary || "",
-          apiKey
+          apiKey,
+          aiModel || undefined
         );
         esito = analisi.esito;
         sentiment = analisi.sentiment;
