@@ -5,14 +5,39 @@ import {
   flexRender,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Star, ExternalLink, Linkedin, Facebook, Instagram } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Star, ExternalLink, Linkedin, Facebook, Instagram, Download } from "lucide-react";
 import type { Contact, ScrapingJob } from "@/types";
 
 interface Props {
   enrichedContacts: (Contact & { _jobs?: ScrapingJob[] })[];
   jobs: ScrapingJob[];
   onDetailClick: (job: ScrapingJob) => void;
+}
+
+function exportResultsCsv(completedJobs: ScrapingJob[]) {
+  const headers = ["URL", "Email", "Telefoni", "LinkedIn", "Facebook", "Instagram", "Tempo (s)"];
+  const rows = completedJobs.map((j) => {
+    const social = (j.social_found || {}) as Record<string, string>;
+    return [
+      j.url,
+      (j.emails_found || []).join("; "),
+      (j.phones_found || []).join("; "),
+      social.linkedin || "",
+      social.facebook || "",
+      social.instagram || "",
+      j.processing_time_ms ? (j.processing_time_ms / 1000).toFixed(1) : "",
+    ];
+  });
+
+  const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `scraper-risultati-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Props) {
@@ -60,7 +85,6 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
       cell: ({ row }) => {
         const emails = row.original.emails_found || [];
         if (emails.length === 0) return null;
-        // Heuristic: more emails = higher confidence
         const stars = Math.min(emails.length, 3);
         const color = stars >= 3 ? "text-primary" : stars >= 2 ? "text-warning" : "text-destructive";
         return (
@@ -143,6 +167,16 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
             <span>Con telefono: <span className="text-foreground">{completedJobs.filter((j) => (j.phones_found?.length || 0) > 0).length}</span></span>
           </div>
         </div>
+        {completedJobs.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="font-mono text-[10px] h-7"
+            onClick={() => exportResultsCsv(completedJobs)}
+          >
+            <Download className="h-3 w-3 mr-1" /> ESPORTA CSV
+          </Button>
+        )}
       </div>
 
       {completedJobs.length === 0 ? (
