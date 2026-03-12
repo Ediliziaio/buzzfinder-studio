@@ -52,6 +52,7 @@ export default function CampaignDetailPage() {
     if (!id) return;
     loadCampaign();
     loadRecipients();
+    loadCallStats();
 
     const channel = supabase
       .channel(`campaign-${id}`)
