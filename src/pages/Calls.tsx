@@ -243,7 +243,7 @@ export default function Calls() {
                         <TableCell className="font-mono text-sm">{c.contacts?.azienda || "—"}</TableCell>
                         <TableCell className="font-mono text-sm">{c.phone_number_to}</TableCell>
                         <TableCell><Badge className={sb.cls}>{sb.label}</Badge></TableCell>
-                        <TableCell className="font-mono text-sm">{c.stato === "calling" ? liveDurata(c) : "—"}</TableCell>
+                        <TableCell className="font-mono text-sm" data-tick={tick}>{c.stato === "calling" ? liveDurata(c) : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
                             await supabase.from("call_sessions").update({ stato: "cancelled" }).eq("id", c.id);
