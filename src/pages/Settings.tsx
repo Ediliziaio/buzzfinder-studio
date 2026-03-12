@@ -312,7 +312,9 @@ function BlocklistEditor() {
   const [value, setValue] = useState("");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").maybeSingle().then(({ data }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data?.valore) setValue(data.valore);
     });
   }, []);
