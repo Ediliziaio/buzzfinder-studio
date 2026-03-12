@@ -6,6 +6,80 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/* ── SSRF Protection ── */
+const PRIVATE_IP_RANGES = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\./,
+  /^::1$/,
+  /^fc00:/i,
+  /^fe80:/i,
+  /^fd/i,
+];
+
+const BLOCKED_HOSTS = new Set([
+  "localhost",
+  "metadata.google.internal",
+  "metadata.google",
+  "169.254.169.254",
+  "metadata",
+  "kubernetes.default",
+]);
+
+function validateScrapeUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+
+  // Only allow http/https
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block known internal hosts
+  if (BLOCKED_HOSTS.has(hostname)) return false;
+  if (hostname.endsWith(".local") || hostname.endsWith(".internal")) return false;
+
+  // Block private/reserved IPs
+  for (const re of PRIVATE_IP_RANGES) {
+    if (re.test(hostname)) return false;
+  }
+
+  // Must have at least one dot (real domain)
+  if (!hostname.includes(".")) return false;
+
+  return true;
+}
+
+/* ── Rate limiter per domain ── */
+const domainInflight = new Map<string, number>();
+const MAX_PER_DOMAIN = 3;
+
+function getDomain(url: string): string {
+  try { return new URL(url).hostname.toLowerCase(); } catch { return url; }
+}
+
+async function acquireDomainSlot(domain: string): Promise<void> {
+  while ((domainInflight.get(domain) ?? 0) >= MAX_PER_DOMAIN) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  domainInflight.set(domain, (domainInflight.get(domain) ?? 0) + 1);
+}
+
+function releaseDomainSlot(domain: string): void {
+  const cur = domainInflight.get(domain) ?? 1;
+  if (cur <= 1) domainInflight.delete(domain);
+  else domainInflight.set(domain, cur - 1);
+}
+
 /* ── Regex helpers ── */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
 const PHONE_IT_RE =
@@ -55,6 +129,13 @@ function extractSocial(html: string): Record<string, string> {
 }
 
 async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
+  if (!validateScrapeUrl(url)) {
+    throw new Error("URL non valido o non autorizzato");
+  }
+
+  const domain = getDomain(url);
+  await acquireDomainSlot(domain);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -71,6 +152,7 @@ async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
     return await res.text();
   } finally {
     clearTimeout(timer);
+    releaseDomainSlot(domain);
   }
 }
 
@@ -81,7 +163,7 @@ function extractContactPageLinks(html: string, baseUrl: string): string[] {
   while ((m = re.exec(html)) !== null) {
     try {
       const full = new URL(m[1], baseUrl).href;
-      links.push(full);
+      if (validateScrapeUrl(full)) links.push(full);
     } catch { /* ignore */ }
   }
   return [...new Set(links)].slice(0, 5);
@@ -104,7 +186,6 @@ async function scrapeUrl(
   let allPhones = html.match(PHONE_IT_RE) || [];
   const social = extractSocial(html);
 
-  // If crawlDepth includes contacts, try sub-pages
   if (crawlDepth === "homepage_contacts") {
     const subLinks = extractContactPageLinks(html, url);
     for (const link of subLinks) {
@@ -142,11 +223,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Pre-validate all URLs upfront
+    if (urls?.length) {
+      for (const u of urls) {
+        const full = u.startsWith("http") ? u : `https://${u}`;
+        if (!validateScrapeUrl(full)) {
+          return new Response(
+            JSON.stringify({ error: `URL non valido o non autorizzato: ${u}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // Verify session exists
     const { data: session } = await sb
       .from("scraping_sessions")
       .select("id, user_id, status")
@@ -159,7 +252,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Mark session running
     await sb
       .from("scraping_sessions")
       .update({ status: "running", started_at: new Date().toISOString() })
@@ -169,7 +261,6 @@ Deno.serve(async (req) => {
     const delayMs = config?.delay_ms || 1500;
     const crawlDepth = config?.crawl_depth || "homepage";
 
-    // Get jobs to process
     let jobsToProcess: Array<{ id: string; url: string; contact_id: string | null }>;
     if (retry_job_id) {
       const { data } = await sb
@@ -190,7 +281,6 @@ Deno.serve(async (req) => {
     let errors = 0;
 
     for (const job of jobsToProcess) {
-      // Check if session was paused/stopped
       const { data: currentSession } = await sb
         .from("scraping_sessions")
         .select("status")
@@ -200,7 +290,18 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Mark processing
+      // Validate URL before processing
+      if (!validateScrapeUrl(job.url)) {
+        await sb.from("scraping_jobs").update({
+          status: "failed",
+          error_message: "URL non valido o non autorizzato",
+          processing_time_ms: 0,
+          updated_at: new Date().toISOString(),
+        }).eq("id", job.id);
+        errors++;
+        continue;
+      }
+
       await sb
         .from("scraping_jobs")
         .update({ status: "processing", updated_at: new Date().toISOString() })
@@ -232,7 +333,6 @@ Deno.serve(async (req) => {
         errors++;
       }
 
-      // Update session progress
       const total = jobsToProcess.length;
       const processed = completed + errors;
       await sb.from("scraping_sessions").update({
@@ -241,13 +341,11 @@ Deno.serve(async (req) => {
         totale_errori: errors,
       }).eq("id", session_id);
 
-      // Delay between requests
       if (delayMs > 0) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
 
-    // Mark session completed
     await sb.from("scraping_sessions").update({
       status: "completed",
       completed_at: new Date().toISOString(),
