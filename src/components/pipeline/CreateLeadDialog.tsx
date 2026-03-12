@@ -20,7 +20,7 @@ type ContactResult = { id: string; nome: string | null; cognome: string | null; 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onAdd: (input: { contact_id: string; campaign_id?: string; stage?: string }) => void;
+  onAdd: (input: { contact_id: string; campaign_id?: string; stage?: string; valore_stimato?: number }) => void;
 }
 
 export function CreateLeadDialog({ open, onOpenChange, onAdd }: Props) {
@@ -62,6 +62,7 @@ export function CreateLeadDialog({ open, onOpenChange, onAdd }: Props) {
       contact_id: selected.id,
       campaign_id: campaignId !== "none" ? campaignId : undefined,
       stage,
+      valore_stimato: parseFloat(valore) || 0,
     });
     reset();
     onOpenChange(false);

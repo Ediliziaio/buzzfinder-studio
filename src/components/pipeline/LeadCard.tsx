@@ -2,9 +2,10 @@ import { useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { Euro } from "lucide-react";
+import { Euro, Trash2 } from "lucide-react";
 
 export interface PipelineLeadWithRelations {
   id: string;
@@ -13,8 +14,10 @@ export interface PipelineLeadWithRelations {
   valore_stimato: number;
   pipeline_updated: string;
   created_at: string;
+  contact_id?: string | null;
+  campaign_id?: string | null;
   contact?: { nome: string | null; cognome: string | null; azienda: string; email: string | null } | null;
-  campaign?: { nome: string } | null;
+  campaign?: { id?: string; nome: string } | null;
 }
 
 const NEXT_STAGES: Record<string, string[]> = {
@@ -41,9 +44,10 @@ interface Props {
   onMoveStage: (leadId: string, newStage: string) => void;
   onUpdateNote: (leadId: string, note: string) => void;
   onUpdateValue: (leadId: string, value: number) => void;
+  onDelete?: (leadId: string) => void;
 }
 
-export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
+export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote, onUpdateValue, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -113,6 +117,28 @@ export function LeadCard({ lead, currentStage, onMoveStage, onUpdateNote, onUpda
                 </Button>
               ))}
             </div>
+          )}
+          {/* Delete button */}
+          {onDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-destructive text-xs font-mono w-full mt-1">
+                  <Trash2 className="h-3 w-3 mr-1" /> Rimuovi lead
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rimuovere questo lead?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Il lead "{lead.contact?.nome || ""} {lead.contact?.cognome || ""} — {lead.contact?.azienda}" verrà rimosso dalla pipeline. Il contatto non verrà eliminato.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(lead.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Rimuovi</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       )}

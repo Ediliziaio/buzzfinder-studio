@@ -13,7 +13,7 @@ export function usePipeline() {
     queryFn: async (): Promise<PipelineLeadWithRelations[]> => {
       const { data, error } = await supabase
         .from("pipeline_leads")
-        .select("*, contacts(nome, cognome, azienda, email), campaigns(nome)")
+        .select("*, contacts(nome, cognome, azienda, email), campaigns(id, nome)")
         .order("pipeline_updated", { ascending: false });
       if (error) throw error;
       return (data || []).map((d: any) => ({
@@ -23,6 +23,8 @@ export function usePipeline() {
         valore_stimato: Number(d.valore_stimato || 0),
         pipeline_updated: d.pipeline_updated,
         created_at: d.created_at,
+        contact_id: d.contact_id,
+        campaign_id: d.campaign_id,
         contact: d.contacts,
         campaign: d.campaigns,
       }));
@@ -82,20 +84,49 @@ export function usePipeline() {
   });
 
   const addLead = useMutation({
-    mutationFn: async (input: { contact_id: string; campaign_id?: string; inbox_message_id?: string; stage?: string }) => {
+    mutationFn: async (input: { contact_id: string; campaign_id?: string; inbox_message_id?: string; stage?: string; valore_stimato?: number }) => {
       const user_id = await getCurrentUserId();
+
+      // Dedup check: prevent duplicate leads for same contact
+      const { data: existing } = await supabase
+        .from("pipeline_leads")
+        .select("id")
+        .eq("contact_id", input.contact_id)
+        .eq("user_id", user_id)
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error("Questo contatto è già presente nella pipeline");
+      }
+
       const { error } = await supabase.from("pipeline_leads").insert({
         user_id,
         contact_id: input.contact_id,
         campaign_id: input.campaign_id || null,
         inbox_message_id: input.inbox_message_id || null,
         pipeline_stage: input.stage || "interessato",
+        valore_stimato: input.valore_stimato || 0,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pipeline-leads"] });
       toast.success("Lead aggiunto alla pipeline");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const deleteLead = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("pipeline_leads")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipeline-leads"] });
+      toast.success("Lead rimosso dalla pipeline");
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -107,5 +138,6 @@ export function usePipeline() {
     updateNote: (id: string, note: string) => updateNote.mutate({ id, note }),
     updateValue: (id: string, value: number) => updateValue.mutate({ id, value }),
     addLead: addLead.mutate,
+    deleteLead: (id: string) => deleteLead.mutate(id),
   };
 }

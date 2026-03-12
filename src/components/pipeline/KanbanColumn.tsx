@@ -16,9 +16,10 @@ interface Props {
   onMoveStage: (leadId: string, newStage: string) => void;
   onUpdateNote: (leadId: string, note: string) => void;
   onUpdateValue: (leadId: string, value: number) => void;
+  onDelete?: (leadId: string) => void;
 }
 
-export function KanbanColumn({ stage, leads, totalValue, conversionRate, onMoveStage, onUpdateNote, onUpdateValue }: Props) {
+export function KanbanColumn({ stage, leads, totalValue, conversionRate, onMoveStage, onUpdateNote, onUpdateValue, onDelete }: Props) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -66,6 +67,7 @@ export function KanbanColumn({ stage, leads, totalValue, conversionRate, onMoveS
             onMoveStage={onMoveStage}
             onUpdateNote={onUpdateNote}
             onUpdateValue={onUpdateValue}
+            onDelete={onDelete}
           />
         ))}
         {leads.length === 0 && (
