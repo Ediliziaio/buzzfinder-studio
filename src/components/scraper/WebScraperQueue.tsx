@@ -46,6 +46,35 @@ export function WebScraperQueue({
 }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+      const lines = text.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
+      // Skip header if it looks like one
+      const start = /^(url|sito|website|link|domain)/i.test(lines[0] || "") ? 1 : 0;
+      const extracted: string[] = [];
+      for (let i = start; i < lines.length; i++) {
+        // Take first column if CSV has multiple columns
+        const col = lines[i].split(/[,;\t]/)[0].replace(/^["']|["']$/g, "").trim();
+        if (col && isValidUrl(col)) extracted.push(col);
+      }
+      if (extracted.length === 0) {
+        toast.error("Nessun URL valido trovato nel CSV");
+      } else {
+        onAddUrls(extracted);
+        toast.success(`${extracted.length} URL importati da CSV`);
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
 
   const handleAddUrl = () => {
     if (!urlInput.trim()) return;
