@@ -131,7 +131,7 @@ export default function Automations() {
     if (filterExecStato !== "all") query = query.eq("stato", filterExecStato);
     const { data } = await query;
     setExecs((data as unknown as typeof execs) || []);
-  }, [filterExecStato]);
+  }, [filterExecStato, execLimit]);
 
   useEffect(() => { fetchRules(); fetchExecs(); }, [fetchRules, fetchExecs]);
 
