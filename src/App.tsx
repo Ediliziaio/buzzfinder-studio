@@ -25,6 +25,8 @@ import PipelinePage from "@/pages/Pipeline";
 import SendersPage from "@/pages/Senders";
 import DeliverabilityPage from "@/pages/Deliverability";
 import TemplatesPage from "@/pages/Templates";
+import CallsPage from "@/pages/Calls";
+import AutomationsPage from "@/pages/Automations";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
