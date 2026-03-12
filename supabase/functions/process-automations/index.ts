@@ -51,12 +51,26 @@ Deno.serve(async (req: Request) => {
   try {
     const { batch_size = 20 } = await req.json().catch(() => ({}));
 
-    const { data: executions, error } = await supabase
+    // Extract user_id from JWT for multi-tenant isolation
+    let filterUserId: string | null = null;
+    if (token !== serviceRoleKey) {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) filterUserId = user.id;
+    }
+
+    let execQuery = supabase
       .from("automation_executions")
       .select("*, automation_rules(*)")
       .eq("stato", "pending")
       .order("created_at", { ascending: true })
       .limit(batch_size);
+
+    // If called by authenticated user, only process their executions
+    if (filterUserId) {
+      execQuery = execQuery.eq("user_id", filterUserId);
+    }
+
+    const { data: executions, error } = await execQuery;
 
     if (error) throw error;
     if (!executions?.length) {
