@@ -372,10 +372,10 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
         attiva: true,
         campaign_id: campaignId || null,
         trigger_tipo: triggerTipo,
-        trigger_params: triggerParams,
-        condizioni: [],
+        trigger_params: triggerParams as unknown as import("@/integrations/supabase/types").Json,
+        condizioni: [] as unknown as import("@/integrations/supabase/types").Json,
         azione_tipo: azioneTipo,
-        azione_params: azioneParams,
+        azione_params: azioneParams as unknown as import("@/integrations/supabase/types").Json,
         max_esecuzioni_per_contatto: maxExec,
         cooldown_ore: cooldown,
       };
