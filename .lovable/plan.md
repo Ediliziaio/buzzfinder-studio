@@ -1,36 +1,18 @@
 
 
-# Piano: Cron Job pg_cron per process-automations
+## Creazione Account Superadmin
 
-## Stato attuale
-Il bottone "Processa coda" esiste già nella pagina Automazioni ed è funzionante. Manca solo il cron job automatico.
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-## Cosa farò
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-### 1. Abilitare le estensioni `pg_cron` e `pg_net`
-Creerò una migrazione SQL per abilitare entrambe le estensioni necessarie per invocare Edge Functions su schedule.
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-### 2. Creare il cron job
-Eseguirò una query SQL (non migrazione, contiene dati specifici del progetto) per schedulare `process-automations` ogni 5 minuti:
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-```sql
-SELECT cron.schedule(
-  'process-automations-every-5min',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://tiqzzhycqmspdpzqcbdo.supabase.co/functions/v1/process-automations',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
-    body := '{"batch_size": 50}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
-
-Questo invocherà automaticamente la Edge Function ogni 5 minuti con l'anon key. La funzione processerà tutte le automazioni pending in coda.
-
-### Note tecniche
-- Il cron job usa l'anon key (non service_role), quindi la Edge Function processerà solo le esecuzioni accessibili
-- La funzione `process-automations` ha già `verify_jwt = false` nel config.toml, quindi l'anon key funziona come bearer token senza problemi
-- Il bottone manuale resta disponibile per processamento immediato
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 
