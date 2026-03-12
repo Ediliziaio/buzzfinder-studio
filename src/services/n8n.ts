@@ -22,10 +22,24 @@ export async function checkN8nHealth(): Promise<boolean> {
 }
 
 export async function getN8nSettings() {
-  const { data } = await supabase
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData?.user?.id;
+
+  let query = supabase
     .from("app_settings")
     .select("chiave, valore")
-    .in("chiave", ["n8n_instance_url", "n8n_api_key", "n8n_webhook_scrape_maps", "n8n_webhook_scrape_websites", "n8n_webhook_send_emails", "n8n_webhook_send_sms", "n8n_webhook_send_whatsapp", "n8n_webhook_campaign_control"]);
+    .in("chiave", [
+      "n8n_instance_url", "n8n_api_key",
+      "n8n_webhook_scrape_maps", "n8n_webhook_scrape_websites",
+      "n8n_webhook_send_emails", "n8n_webhook_send_sms",
+      "n8n_webhook_send_whatsapp", "n8n_webhook_campaign_control",
+    ]);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data } = await query;
 
   const settings: Record<string, string> = {};
   data?.forEach((s) => {

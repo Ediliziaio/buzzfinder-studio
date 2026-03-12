@@ -21,6 +21,44 @@ interface RequestBody {
   };
 }
 
+interface PlaceResult {
+  place_id: string;
+  name: string;
+  formatted_address?: string;
+  geometry?: { location?: { lat: number; lng: number } };
+  rating?: number;
+  user_ratings_total?: number;
+  types?: string[];
+  permanently_closed?: boolean;
+}
+
+/** Fetch Place Details for a single place_id */
+async function fetchPlaceDetails(placeId: string, apiKey: string) {
+  const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  detailsUrl.searchParams.set("place_id", placeId);
+  detailsUrl.searchParams.set("key", apiKey);
+  detailsUrl.searchParams.set("fields", "formatted_phone_number,international_phone_number,website,url,address_components");
+  detailsUrl.searchParams.set("language", "it");
+
+  const res = await fetch(detailsUrl.toString());
+  const data = await res.json();
+  return data.result || {};
+}
+
+/** Pre-filter places before expensive Detail calls */
+function preFilterPlace(
+  place: PlaceResult,
+  ratingMin: number,
+  recensioniMin: number
+): boolean {
+  if (place.permanently_closed) return false;
+  const rating = place.rating ?? 0;
+  const reviewsCount = place.user_ratings_total ?? 0;
+  if (ratingMin > 0 && rating < ratingMin) return false;
+  if (recensioniMin > 0 && reviewsCount < recensioniMin) return false;
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -70,7 +108,7 @@ Deno.serve(async (req) => {
         .eq("id", session_id);
     }
 
-    // Get Google Maps API key from app_settings (filtered by user_id)
+    // Get Google Maps API key filtered by user_id
     const { data: apiKeySetting } = await supabase
       .from("app_settings")
       .select("valore")
@@ -105,7 +143,6 @@ Deno.serve(async (req) => {
     const placesData = await placesRes.json();
 
     if (placesData.status === "INVALID_REQUEST" && next_page_token) {
-      // Page token not yet valid, retry after delay
       return new Response(
         JSON.stringify({ done: false, next_page_token, total_importati: 0, retry: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -124,7 +161,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const places = placesData.results || [];
+    const places: PlaceResult[] = placesData.results || [];
     let importedCount = 0;
     const soloConSito = filtri?.solo_con_sito ?? false;
     const soloConTelefono = filtri?.solo_con_telefono ?? false;
@@ -141,98 +178,107 @@ Deno.serve(async (req) => {
     let totaleTrovati = currentSession?.totale_trovati ?? 0;
     let totaleImportati = currentSession?.totale_importati ?? 0;
 
+    // --- PHASE 1: Pre-filter places using data already in Text Search response ---
+    // This avoids expensive Place Details calls for places that would be filtered out anyway.
+    const candidatePlaces: PlaceResult[] = [];
     for (const place of places) {
-      // Check if max_results reached
+      if (totaleImportati + candidatePlaces.length >= max_results) break;
+      totaleTrovati++;
+      if (!preFilterPlace(place, ratingMin, recensioniMin)) continue;
+      candidatePlaces.push(place);
+    }
+
+    // --- PHASE 2: Batch check duplicates for all candidates at once (single query) ---
+    const placeIds = candidatePlaces.map((p) => p.place_id);
+    const { data: existingContacts } = await supabase
+      .from("contacts")
+      .select("google_maps_place_id")
+      .in("google_maps_place_id", placeIds.length > 0 ? placeIds : ["__none__"])
+      .eq("user_id", session.user_id);
+
+    const existingPlaceIds = new Set((existingContacts || []).map((c) => c.google_maps_place_id));
+
+    // Filter out duplicates before calling Details API
+    const newCandidates = candidatePlaces.filter((p) => !existingPlaceIds.has(p.place_id));
+
+    // --- PHASE 3: Fetch Place Details only for non-duplicate, pre-filtered places ---
+    // Process in small batches of 5 concurrent requests to stay within timeouts
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < newCandidates.length; i += BATCH_SIZE) {
       if (totaleImportati >= max_results) break;
 
-      totaleTrovati++;
-
-      // Skip permanently closed
-      if (place.permanently_closed) continue;
-
-      // Get place details for phone/website
-      const detailsUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-      detailsUrl.searchParams.set("place_id", place.place_id);
-      detailsUrl.searchParams.set("key", apiKey);
-      detailsUrl.searchParams.set("fields", "formatted_phone_number,international_phone_number,website,url,address_components,types");
-      detailsUrl.searchParams.set("language", "it");
-
-      const detailsRes = await fetch(detailsUrl.toString());
-      const detailsData = await detailsRes.json();
-      const details = detailsData.result || {};
-
-      const website = details.website || null;
-      const phone = details.international_phone_number || details.formatted_phone_number || null;
-      const rating = place.rating ?? 0;
-      const reviewsCount = place.user_ratings_total ?? 0;
-
-      // Apply filters
-      if (soloConSito && !website) continue;
-      if (soloConTelefono && !phone) continue;
-      if (ratingMin > 0 && rating < ratingMin) continue;
-      if (recensioniMin > 0 && reviewsCount < recensioniMin) continue;
-
-      // Check for duplicates by place_id
-      const { data: existing } = await supabase
-        .from("contacts")
-        .select("id")
-        .eq("google_maps_place_id", place.place_id)
-        .eq("user_id", session.user_id)
-        .maybeSingle();
-
-      if (existing) continue;
-
-      // Extract address components
-      const addressComponents = details.address_components || [];
-      let provincia = "";
-      let cap = "";
-      let regione = "";
-      for (const comp of addressComponents) {
-        if (comp.types?.includes("administrative_area_level_2")) provincia = comp.short_name;
-        if (comp.types?.includes("administrative_area_level_1")) regione = comp.long_name;
-        if (comp.types?.includes("postal_code")) cap = comp.long_name;
-      }
-
-      // Normalize phone
-      let telefonoNormalizzato: string | null = null;
-      if (phone) {
-        telefonoNormalizzato = phone.replace(/[\s\-()]/g, "");
-        if (!telefonoNormalizzato.startsWith("+")) {
-          telefonoNormalizzato = "+39" + telefonoNormalizzato;
-        }
-      }
-
-      // Extract categories from types
-      const categories = (place.types || []).filter(
-        (t: string) => !["point_of_interest", "establishment"].includes(t)
+      const batch = newCandidates.slice(i, i + BATCH_SIZE);
+      const detailsResults = await Promise.all(
+        batch.map((place) => fetchPlaceDetails(place.place_id, apiKey))
       );
 
-      const contact = {
-        azienda: place.name,
-        indirizzo: place.formatted_address || null,
-        citta: citta,
-        provincia: provincia || null,
-        cap: cap || null,
-        regione: regione || null,
-        telefono: phone,
-        telefono_normalizzato: telefonoNormalizzato,
-        sito_web: website,
-        google_maps_place_id: place.place_id,
-        google_rating: rating || null,
-        google_reviews_count: reviewsCount || null,
-        google_categories: categories,
-        lat: place.geometry?.location?.lat || null,
-        lng: place.geometry?.location?.lng || null,
-        fonte: "google_maps",
-        stato: "nuovo",
-        user_id: session.user_id,
-        scraping_session_id: session_id,
-      };
+      for (let j = 0; j < batch.length; j++) {
+        if (totaleImportati >= max_results) break;
 
-      const { error: insertErr } = await supabase.from("contacts").insert(contact);
-      if (!insertErr) {
-        importedCount++;
-        totaleImportati++;
+        const place = batch[j];
+        const details = detailsResults[j];
+
+        const website = details.website || null;
+        const phone = details.international_phone_number || details.formatted_phone_number || null;
+        const rating = place.rating ?? 0;
+        const reviewsCount = place.user_ratings_total ?? 0;
+
+        // Post-detail filters (require website/phone from details)
+        if (soloConSito && !website) continue;
+        if (soloConTelefono && !phone) continue;
+
+        // Extract address components
+        const addressComponents = details.address_components || [];
+        let provincia = "";
+        let cap = "";
+        let regione = "";
+        for (const comp of addressComponents) {
+          if (comp.types?.includes("administrative_area_level_2")) provincia = comp.short_name;
+          if (comp.types?.includes("administrative_area_level_1")) regione = comp.long_name;
+          if (comp.types?.includes("postal_code")) cap = comp.long_name;
+        }
+
+        // Normalize phone
+        let telefonoNormalizzato: string | null = null;
+        if (phone) {
+          telefonoNormalizzato = phone.replace(/[\s\-()]/g, "");
+          if (!telefonoNormalizzato.startsWith("+")) {
+            telefonoNormalizzato = "+39" + telefonoNormalizzato;
+          }
+        }
+
+        // Extract categories from types
+        const categories = (place.types || []).filter(
+          (t: string) => !["point_of_interest", "establishment"].includes(t)
+        );
+
+        const contact = {
+          azienda: place.name,
+          indirizzo: place.formatted_address || null,
+          citta: citta,
+          provincia: provincia || null,
+          cap: cap || null,
+          regione: regione || null,
+          telefono: phone,
+          telefono_normalizzato: telefonoNormalizzato,
+          sito_web: website,
+          google_maps_place_id: place.place_id,
+          google_rating: rating || null,
+          google_reviews_count: reviewsCount || null,
+          google_categories: categories,
+          lat: place.geometry?.location?.lat || null,
+          lng: place.geometry?.location?.lng || null,
+          fonte: "google_maps",
+          stato: "nuovo",
+          user_id: session.user_id,
+          scraping_session_id: session_id,
+        };
+
+        const { error: insertErr } = await supabase.from("contacts").insert(contact);
+        if (!insertErr) {
+          importedCount++;
+          totaleImportati++;
+        }
       }
     }
 
