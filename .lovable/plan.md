@@ -1,18 +1,36 @@
 
 
-## Creazione Account Superadmin
+# Piano: Cron Job pg_cron per process-automations
 
-Per creare l'account con le credenziali specificate, servono due passaggi:
+## Stato attuale
+Il bottone "Processa coda" esiste già nella pagina Automazioni ed è funzionante. Manca solo il cron job automatico.
 
-### Passaggio 1 — Abilitare auto-conferma email
-Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
+## Cosa farò
 
-### Passaggio 2 — Registrazione
-Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
-- **Email**: `f.andriciuc@overthemol.com`
-- **Password**: `Password2025!`
+### 1. Abilitare le estensioni `pg_cron` e `pg_net`
+Creerò una migrazione SQL per abilitare entrambe le estensioni necessarie per invocare Edge Functions su schedule.
 
-L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
+### 2. Creare il cron job
+Eseguirò una query SQL (non migrazione, contiene dati specifici del progetto) per schedulare `process-automations` ogni 5 minuti:
 
-> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
+```sql
+SELECT cron.schedule(
+  'process-automations-every-5min',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://tiqzzhycqmspdpzqcbdo.supabase.co/functions/v1/process-automations',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
+    body := '{"batch_size": 50}'::jsonb
+  ) AS request_id;
+  $$
+);
+```
+
+Questo invocherà automaticamente la Edge Function ogni 5 minuti con l'anon key. La funzione processerà tutte le automazioni pending in coda.
+
+### Note tecniche
+- Il cron job usa l'anon key (non service_role), quindi la Edge Function processerà solo le esecuzioni accessibili
+- La funzione `process-automations` ha già `verify_jwt = false` nel config.toml, quindi l'anon key funziona come bearer token senza problemi
+- Il bottone manuale resta disponibile per processamento immediato
 
