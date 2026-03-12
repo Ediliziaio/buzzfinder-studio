@@ -10,7 +10,7 @@ import { useCampaigns } from "@/hooks/useCampaigns";
 import { useActiveCampaigns } from "@/hooks/useActiveCampaigns";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { Campaign } from "@/types";
 
 export default function CampaignsPage() {
