@@ -110,6 +110,7 @@ export default function Automations() {
   const [showWizard, setShowWizard] = useState(false);
   const [editRule, setEditRule] = useState<AutomationRule | null>(null);
   const [filterExecStato, setFilterExecStato] = useState("all");
+  const [execLimit, setExecLimit] = useState(100);
 
   const fetchRules = useCallback(async () => {
     const { data, error } = await supabase
