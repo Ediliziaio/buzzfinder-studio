@@ -60,7 +60,7 @@ export default function CampaignsPage() {
     try {
       const { error } = await supabase.from("campaigns").delete().eq("id", campaign.id);
       if (error) throw error;
-      toast({ title: "Campagna eliminata" });
+      toast.success("Campagna eliminata");
       refetch();
     } catch (err: any) {
       toast({ title: "Errore", description: err.message, variant: "destructive" });
