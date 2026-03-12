@@ -4,7 +4,7 @@ export type ContactFonte = 'google_maps' | 'csv_import' | 'manuale' | 'web_scrap
 export type ScrapingSessionTipo = 'google_maps' | 'website';
 export type ScrapingSessionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
 export type ScrapingJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'skipped';
-export type CampaignTipo = 'email' | 'sms' | 'whatsapp';
+export type CampaignTipo = 'email' | 'sms' | 'whatsapp' | 'chiamata';
 export type CampaignStato = 'bozza' | 'schedulata' | 'in_corso' | 'completata' | 'in_pausa' | 'errore' | 'archiviata';
 export type CampaignTipoCampagna = 'blast' | 'sequence' | 'drip';
 export type CampaignRecipientStato = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'failed' | 'bounced' | 'unsubscribed';
@@ -168,7 +168,7 @@ export interface Campaign {
 export interface SequenceStep {
   id?: string;
   step_number: number;
-  tipo: 'email' | 'whatsapp' | 'sms';
+  tipo: 'email' | 'whatsapp' | 'sms' | 'chiamata';
   delay_giorni: number;
   delay_ore: number;
   condizione: 'always' | 'if_no_reply' | 'if_no_open' | 'if_opened';
@@ -178,6 +178,9 @@ export interface SequenceStep {
   ab_padre_id?: string;
   ab_nome?: string;
   ab_peso: number;
+  elevenlabs_agent_id?: string;
+  chiamata_script?: string;
+  chiamata_obiettivo?: string;
 }
 
 export interface CampaignStep extends SequenceStep {

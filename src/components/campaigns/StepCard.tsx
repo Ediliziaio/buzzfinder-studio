@@ -19,7 +19,7 @@ interface Props {
 export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
   const [isExpanded, setIsExpanded] = useState(stepIndex === 1);
 
-  const canaleIcon = step.tipo === "email" ? "📧" : step.tipo === "whatsapp" ? "💬" : "📱";
+  const canaleIcon = step.tipo === "email" ? "📧" : step.tipo === "whatsapp" ? "💬" : step.tipo === "chiamata" ? "📞" : "📱";
   const invioLabel =
     step.delay_giorni === 0 && step.delay_ore === 0
       ? "Immediato"
@@ -66,8 +66,8 @@ export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
           {/* Channel */}
           <div>
             <Label className="font-mono text-xs">CANALE</Label>
-            <div className="flex gap-2 mt-1">
-              {(["email", "whatsapp", "sms"] as const).map((t) => (
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {(["email", "whatsapp", "sms", "chiamata"] as const).map((t) => (
                 <Button
                   key={t}
                   size="sm"
@@ -75,7 +75,7 @@ export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
                   className="text-xs"
                   onClick={() => onEdit({ ...step, tipo: t })}
                 >
-                  {t === "email" ? "📧 Email" : t === "whatsapp" ? "💬 WhatsApp" : "📱 SMS"}
+                  {t === "email" ? "📧 Email" : t === "whatsapp" ? "💬 WhatsApp" : t === "chiamata" ? "📞 Chiamata AI" : "📱 SMS"}
                 </Button>
               ))}
             </div>
@@ -122,6 +122,41 @@ export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
                   {(step.messaggio || "").length}/160 caratteri
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Chiamata AI content */}
+          {step.tipo === "chiamata" && (
+            <div className="space-y-3">
+              <div>
+                <Label className="font-mono text-xs">OBIETTIVO CHIAMATA</Label>
+                <Textarea
+                  value={step.chiamata_obiettivo || ""}
+                  onChange={(e) => onEdit({ ...step, chiamata_obiettivo: e.target.value })}
+                  rows={3}
+                  placeholder="Fissa una demo di 30 minuti per presentare i nostri servizi..."
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="font-mono text-xs">SCRIPT / CONTESTO</Label>
+                <Textarea
+                  value={step.chiamata_script || ""}
+                  onChange={(e) => onEdit({ ...step, chiamata_script: e.target.value })}
+                  rows={3}
+                  placeholder="Il lead ha aperto la nostra email 3 volte. Fai riferimento al servizio X..."
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="font-mono text-xs">ID AGENTE ELEVENLABS (opzionale)</Label>
+                <Input
+                  value={step.elevenlabs_agent_id || ""}
+                  onChange={(e) => onEdit({ ...step, elevenlabs_agent_id: e.target.value })}
+                  placeholder="agent_... (lascia vuoto per usare il default)"
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
             </div>
           )}
 

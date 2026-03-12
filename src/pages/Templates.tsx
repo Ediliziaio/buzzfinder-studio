@@ -31,7 +31,7 @@ const tipoColors: Record<string, string> = {
 
 interface TemplateFormData {
   nome: string;
-  tipo: "email" | "sms" | "whatsapp";
+  tipo: "email" | "sms" | "whatsapp" | "chiamata";
   subject: string;
   body_html: string;
   sender_email: string;
@@ -215,7 +215,7 @@ export default function TemplatesPage() {
               </div>
               <div className="space-y-1">
                 <Label className="font-mono text-xs text-muted-foreground">Tipo</Label>
-                <Select value={form.tipo} onValueChange={(v: "email" | "sms" | "whatsapp") => setForm({ ...form, tipo: v })}>
+                <Select value={form.tipo} onValueChange={(v: "email" | "sms" | "whatsapp" | "chiamata") => setForm({ ...form, tipo: v })}>
                   <SelectTrigger className="font-mono text-xs">
                     <SelectValue />
                   </SelectTrigger>

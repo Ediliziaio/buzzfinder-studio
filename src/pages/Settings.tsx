@@ -49,7 +49,7 @@ export default function SettingsPage() {
         const rows = [headers.join(","), ...data.map(r => headers.map(h => { const v = (r as any)[h]; return v == null ? "" : String(v).includes(",") ? `"${v}"` : String(v); }).join(","))];
         downloadCsv(rows.join("\n"), `attivita_export_${new Date().toISOString().slice(0, 10)}.csv`);
       } else if (type === "backup") {
-        const tables = ["contacts", "campaigns", "campaign_recipients", "campaign_steps", "campaign_step_executions", "campaign_templates", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs", "sender_pool", "sender_daily_stats", "inbox_messages", "email_events", "unsubscribes", "suppression_list", "blacklist_checks", "follow_up_sequences", "follow_up_steps", "follow_up_log", "pipeline_leads"] as const;
+        const tables = ["contacts", "campaigns", "campaign_recipients", "campaign_steps", "campaign_step_executions", "campaign_templates", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs", "sender_pool", "sender_daily_stats", "inbox_messages", "email_events", "unsubscribes", "suppression_list", "blacklist_checks", "follow_up_sequences", "follow_up_steps", "follow_up_log", "pipeline_leads", "call_sessions", "automation_rules", "automation_executions"] as const;
         const backup: Record<string, unknown[]> = {};
         for (const table of tables) { const { data } = await supabase.from(table).select("*"); backup[table] = data || []; }
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
@@ -83,6 +83,7 @@ export default function SettingsPage() {
           <TabsTrigger value="orari" className="font-mono text-xs">Orari Invio</TabsTrigger>
           <TabsTrigger value="tracking" className="font-mono text-xs">Tracking</TabsTrigger>
           <TabsTrigger value="ai" className="font-mono text-xs">AI</TabsTrigger>
+          <TabsTrigger value="ai_calls" className="font-mono text-xs">📞 AI & Chiamate</TabsTrigger>
           <TabsTrigger value="ricezione" className="font-mono text-xs">Ricezione</TabsTrigger>
           <TabsTrigger value="agenti" className="font-mono text-xs">🤖 Agenti AI</TabsTrigger>
           <TabsTrigger value="export" className="font-mono text-xs">Import/Export</TabsTrigger>
@@ -212,6 +213,36 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
+        {/* AI & Chiamate */}
+        <TabsContent value="ai_calls" className="space-y-4">
+          <Section title="ANTHROPIC (CLAUDE AI)">
+            <SettingField chiave="anthropic_api_key" label="Anthropic API Key" placeholder="sk-ant-..." isSecret categoria="api_keys" />
+            <div className="space-y-1">
+              <Label className="font-mono text-xs text-muted-foreground">Modello AI attivo</Label>
+              <AnthropicModelSelect />
+            </div>
+          </Section>
+          <Section title="ELEVENLABS CONVERSATIONAL AI" extra={<ElevenLabsTestButton />}>
+            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" />
+            <SettingField chiave="elevenlabs_agent_id_default" label="ID Agente Default" placeholder="agent_..." categoria="ai_calls" />
+            <SettingField chiave="elevenlabs_phone_number_id" label="Phone Number ID" placeholder="pn_..." categoria="ai_calls" />
+            <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline mt-1">
+              → Gestisci agenti su ElevenLabs Dashboard
+            </a>
+          </Section>
+          <Section title="IMPOSTAZIONI CHIAMATE AI">
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField chiave="chiamate_orario_inizio" label="Orario inizio chiamate" placeholder="09:00" type="time" categoria="ai_calls" />
+              <SettingField chiave="chiamate_orario_fine" label="Orario fine chiamate" placeholder="18:00" type="time" categoria="ai_calls" />
+            </div>
+            <SettingToggle chiave="chiamate_solo_lavorativi" label="Solo giorni lavorativi" description="Non effettuare chiamate nei weekend" categoria="ai_calls" defaultValue />
+            <div className="grid grid-cols-2 gap-4">
+              <SettingField chiave="chiamate_max_tentativi" label="Max tentativi per lead" placeholder="3" type="number" categoria="ai_calls" />
+              <SettingField chiave="chiamate_intervallo_min" label="Minuti tra tentativi" placeholder="60" type="number" categoria="ai_calls" />
+            </div>
+          </Section>
+        </TabsContent>
+
         {/* Ricezione Risposte */}
         <TabsContent value="ricezione">
           <WebhookGuideTab />
@@ -335,5 +366,70 @@ function AiModelSelector() {
         </SelectContent>
       </Select>
     </div>
+  );
+}
+
+function AnthropicModelSelect() {
+  const [model, setModel] = useState("claude-haiku-4-5-20251001");
+
+  useEffect(() => {
+    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").maybeSingle().then(({ data }) => {
+      if (data?.valore) setModel(data.valore);
+    });
+  }, []);
+
+  const save = async (val: string) => {
+    setModel(val);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("app_settings").upsert(
+      { chiave: "ai_model_attivo", valore: val, categoria: "ai", user_id: user.id, updated_at: new Date().toISOString() } as any,
+      { onConflict: "chiave,user_id" }
+    );
+    toast.success("Modello AI aggiornato");
+  };
+
+  return (
+    <Select value={model} onValueChange={save}>
+      <SelectTrigger className="font-mono text-xs bg-accent border-border">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (veloce ed economico)</SelectItem>
+        <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 (alta qualità — 10x)</SelectItem>
+        <SelectItem value="moonshot-v1-32k">Kimi / Moonshot (alternativa)</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ElevenLabsTestButton() {
+  const [testing, setTesting] = useState(false);
+
+  const testConnection = async () => {
+    setTesting(true);
+    try {
+      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").maybeSingle();
+      const apiKey = data?.valore;
+      if (!apiKey) { toast.error("Inserisci prima la API Key ElevenLabs"); setTesting(false); return; }
+      const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": apiKey } });
+      if (res.ok) {
+        const user = await res.json();
+        toast.success(`✅ Connesso — Piano: ${user.subscription?.tier || "unknown"}`);
+      } else {
+        toast.error("❌ API Key non valida");
+      }
+    } catch {
+      toast.error("❌ Errore di connessione");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" className="font-mono text-xs gap-1.5" onClick={testConnection} disabled={testing}>
+      {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
+      {testing ? "Test..." : "Test ElevenLabs"}
+    </Button>
   );
 }

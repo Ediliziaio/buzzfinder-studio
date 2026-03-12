@@ -20,6 +20,9 @@ export function SequenceBuilder({ steps, onChange }: Props) {
       corpo_html: "",
       messaggio: "",
       ab_peso: 100,
+      elevenlabs_agent_id: "",
+      chiamata_script: "",
+      chiamata_obiettivo: "",
     };
     onChange([...steps, newStep]);
   };

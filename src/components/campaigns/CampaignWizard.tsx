@@ -32,6 +32,7 @@ const CANALI = [
   { value: "email" as CampaignTipo, label: "Email", icon: Mail, desc: "Invia email personalizzate", costPer: 0.001 },
   { value: "sms" as CampaignTipo, label: "SMS", icon: Phone, desc: "Messaggi brevi via SMS", costPer: 0.05 },
   { value: "whatsapp" as CampaignTipo, label: "WhatsApp", icon: MessageSquare, desc: "Template WhatsApp Business", costPer: 0.04 },
+  { value: "chiamata" as CampaignTipo, label: "Chiamata AI", icon: Phone, desc: "Chiamata AI ElevenLabs", costPer: 0.10 },
 ];
 
 export interface WhatsAppVariable {
@@ -320,6 +321,9 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
           messaggio: s.messaggio || null,
           ab_nome: s.ab_nome || null,
           ab_peso: s.ab_peso,
+          elevenlabs_agent_id: s.elevenlabs_agent_id || null,
+          chiamata_script: s.chiamata_script || null,
+          chiamata_obiettivo: s.chiamata_obiettivo || null,
         }));
         const { error: stepsErr } = await supabase.from("campaign_steps").insert(stepRows as any);
         if (stepsErr) throw stepsErr;
