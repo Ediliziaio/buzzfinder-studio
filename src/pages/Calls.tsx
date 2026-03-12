@@ -482,6 +482,12 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
   const [submitting, setSubmitting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reset state when dialog closes
+  const handleClose = () => {
+    setSearchQ(""); setSelected(null); setObiettivo(""); setContesto(""); setSchedula(false); setSchedulaAt("");
+    onClose();
+  };
+
   useEffect(() => {
     if (!searchQ || searchQ.length < 2) { setResults([]); return; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
