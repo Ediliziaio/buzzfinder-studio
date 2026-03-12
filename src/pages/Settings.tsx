@@ -421,7 +421,9 @@ function ElevenLabsTestButton() {
   const testConnection = async () => {
     setTesting(true);
     try {
-      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Non autenticato"); setTesting(false); return; }
+      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").eq("user_id", user.id).maybeSingle();
       const apiKey = data?.valore;
       if (!apiKey) { toast.error("Inserisci prima la API Key ElevenLabs"); setTesting(false); return; }
       const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": apiKey } });

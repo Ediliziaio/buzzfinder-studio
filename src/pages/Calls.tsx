@@ -494,9 +494,10 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
     debounceRef.current = setTimeout(async () => {
       const { data } = await supabase
         .from("contacts")
-        .select("id, nome, cognome, azienda, telefono")
+        .select("id, nome, cognome, azienda, telefono, telefono_dnc")
         .or(`azienda.ilike.%${searchQ}%,nome.ilike.%${searchQ}%`)
         .not("telefono", "is", null)
+        .neq("telefono_dnc", true)
         .limit(10);
       setResults((data as typeof results) || []);
     }, 300);

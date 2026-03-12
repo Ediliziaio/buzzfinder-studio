@@ -183,9 +183,25 @@ export default function Automations() {
           <h1 className="text-xl font-bold font-mono text-foreground">⚡ AUTOMAZIONI</h1>
           {activeCount > 0 && <Badge className="bg-primary/20 text-primary border-primary/30">{activeCount} attive</Badge>}
         </div>
-        <Button size="sm" onClick={() => { setEditRule(null); setShowWizard(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Nuova regola
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={async () => {
+            toast.info("Processamento coda...");
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await supabase.functions.invoke("process-automations", {
+              body: { batch_size: 50 },
+              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+            });
+            if (res.error) { toast.error("Errore: " + res.error.message); return; }
+            const d = res.data as any;
+            toast.success(`Processati: ${d?.processed || 0} | OK: ${d?.completed || 0} | Skip: ${d?.skipped || 0} | Errori: ${d?.failed || 0}`);
+            fetchExecs();
+          }}>
+            <Play className="h-4 w-4 mr-1" /> Processa coda
+          </Button>
+          <Button size="sm" onClick={() => { setEditRule(null); setShowWizard(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Nuova regola
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>

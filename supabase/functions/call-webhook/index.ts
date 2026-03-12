@@ -307,7 +307,14 @@ async function triggerAutomazioni(
     const { data: rules } = await query;
     if (!rules?.length) return;
 
-    for (const rule of rules) {
+    // Filter rules by specific esito if trigger_params.esito is set
+    const filteredRules = rules.filter((rule: any) => {
+      const ruleEsito = (rule.trigger_params as any)?.esito;
+      if (!ruleEsito || ruleEsito === "__any__") return true;
+      return ruleEsito === contesto.esito;
+    });
+
+    for (const rule of filteredRules) {
       // Controlla cooldown
       const { data: recentExec } = await supabase
         .from("automation_executions")

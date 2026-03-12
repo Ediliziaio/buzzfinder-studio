@@ -250,18 +250,24 @@ Deno.serve(async (req: Request) => {
             risultato = { skipped: true, motivo: `Azione ${rule.azione_tipo} non implementata` };
         }
 
+        const isSkipped = !!(risultato as any)?.skipped;
+        const finalStato = isSkipped ? "skipped" : "completed";
+
         await supabase.from("automation_executions").update({
-          stato: "completed",
+          stato: finalStato,
           azione_risultato: risultato,
           completato_at: new Date().toISOString(),
         }).eq("id", exec.id);
 
-        await supabase.from("automation_rules").update({
-          volte_eseguita: (rule.volte_eseguita || 0) + 1,
-          ultima_esecuzione: new Date().toISOString(),
-        }).eq("id", rule.id);
+        if (!isSkipped) {
+          await supabase.from("automation_rules").update({
+            volte_eseguita: (rule.volte_eseguita || 0) + 1,
+            ultima_esecuzione: new Date().toISOString(),
+          }).eq("id", rule.id);
+        }
 
-        results.completed++;
+        if (isSkipped) results.skipped++;
+        else results.completed++;
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
