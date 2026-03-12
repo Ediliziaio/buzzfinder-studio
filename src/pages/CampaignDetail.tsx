@@ -290,6 +290,10 @@ export default function CampaignDetailPage() {
         } catch (triggerErr) {
           console.error("campagna_avviata trigger error:", triggerErr);
         }
+
+        // If steps exist → process-sequence handles everything, no n8n needed
+        if (hasSteps) {
+          toast.success("🚀 Campagna avviata — il motore sequenze gestisce gli invii");
         } else {
           // No steps → fallback to n8n direct
           try {
