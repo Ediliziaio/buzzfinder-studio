@@ -530,19 +530,26 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {azioneConfig.map((a) => {
                 const AIcon = a.icon;
+                const isStub = a.tipo === "invia_email" || a.tipo === "aggiungi_a_sequenza";
                 return (
                   <button
                     key={a.tipo}
                     onClick={() => { setAzioneTipo(a.tipo); setAzioneParams({}); }}
-                    className={`p-3 rounded-lg border text-left transition-colors ${azioneTipo === a.tipo ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"}`}
+                    className={`p-3 rounded-lg border text-left transition-colors ${azioneTipo === a.tipo ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/50"} ${isStub ? "opacity-60" : ""}`}
                   >
                     <AIcon className="h-4 w-4 mb-1 text-primary" />
                     <div className="font-mono text-xs font-bold">{a.label}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{a.desc}</div>
+                    {isStub && <div className="text-[10px] text-warning font-mono mt-1">⚠ Non ancora attiva</div>}
                   </button>
                 );
               })}
             </div>
+            {isStubAction && (
+              <div className="p-2 rounded-md bg-warning/10 border border-warning/30 text-xs font-mono text-warning">
+                ⚠ Questa azione non è ancora implementata. La regola verrà salvata ma non produrrà effetti fino all'attivazione.
+              </div>
+            )}
 
             {/* Action-specific params */}
             {azioneTipo === "chiama_contatto" && (
