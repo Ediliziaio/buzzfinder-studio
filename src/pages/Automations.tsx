@@ -127,7 +127,7 @@ export default function Automations() {
       .from("automation_executions")
       .select("*, automation_rules(nome), contacts:contact_id(azienda)")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(execLimit);
     if (filterExecStato !== "all") query = query.eq("stato", filterExecStato);
     const { data } = await query;
     setExecs((data as unknown as typeof execs) || []);
