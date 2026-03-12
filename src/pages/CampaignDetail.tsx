@@ -271,7 +271,33 @@ export default function CampaignDetailPage() {
             if (recipients?.length) {
               const executions = [];
               for (const rule of rules) {
+                const ruleData = rule as any;
+                const maxExec = ruleData.max_esecuzioni_per_contatto ?? 1;
+                const cooldownOre = ruleData.cooldown_ore ?? 24;
+
                 for (const r of recipients) {
+                  // Check max executions per contact
+                  if (maxExec > 0) {
+                    const { count } = await supabase
+                      .from("automation_executions")
+                      .select("id", { count: "exact", head: true })
+                      .eq("rule_id", rule.id)
+                      .eq("contact_id", r.contact_id!);
+                    if ((count || 0) >= maxExec) continue;
+                  }
+
+                  // Check cooldown
+                  if (cooldownOre > 0) {
+                    const cooldownSince = new Date(Date.now() - cooldownOre * 3600 * 1000).toISOString();
+                    const { count: recentCount } = await supabase
+                      .from("automation_executions")
+                      .select("id", { count: "exact", head: true })
+                      .eq("rule_id", rule.id)
+                      .eq("contact_id", r.contact_id!)
+                      .gte("created_at", cooldownSince);
+                    if ((recentCount || 0) > 0) continue;
+                  }
+
                   executions.push({
                     user_id: userId,
                     rule_id: rule.id,

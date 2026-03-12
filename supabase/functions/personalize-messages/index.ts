@@ -236,10 +236,16 @@ Template corpo: ${campaign.body_text || campaign.body_html || ""}`;
 
         processed++;
 
+        // Atomic increment: re-read current value to avoid race conditions
+        const { data: currentCamp } = await supabase
+          .from("campaigns")
+          .select("ai_personalization_processed")
+          .eq("id", campaign_id)
+          .single();
         await supabase
           .from("campaigns")
           .update({
-            ai_personalization_processed: (campaign.ai_personalization_processed || 0) + processed,
+            ai_personalization_processed: ((currentCamp?.ai_personalization_processed as number) || 0) + 1,
           })
           .eq("id", campaign_id);
       } catch (e) {

@@ -170,6 +170,7 @@ Deno.serve(async (req: Request) => {
         )
       `)
       .eq("stato", "scheduled")
+      .eq("campaigns.stato", "in_corso")
       .lte("scheduled_at", new Date().toISOString())
       .limit(batch_size);
 

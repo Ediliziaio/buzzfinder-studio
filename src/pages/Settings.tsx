@@ -23,7 +23,9 @@ export default function SettingsPage() {
   const testN8n = async () => {
     setN8nStatus("testing");
     try {
-      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "n8n_instance_url").maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setN8nStatus("offline"); toast.error("Non autenticato"); return; }
+      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "n8n_instance_url").eq("user_id", user.id).maybeSingle();
       const url = data?.valore;
       if (!url) { setN8nStatus("offline"); toast.error("URL n8n non configurato"); return; }
       const start = Date.now();
