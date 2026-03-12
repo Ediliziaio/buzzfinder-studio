@@ -391,8 +391,23 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
     }
   }, [open, initial]);
 
+  // Stub warning for unimplemented actions
+  const isStubAction = azioneTipo === "invia_email" || azioneTipo === "aggiungi_a_sequenza";
+
   const handleSave = async () => {
     if (!nome.trim()) { toast.error("Inserisci un nome per la regola"); return; }
+
+    // Validate required action params
+    if (azioneTipo === "cambia_pipeline_stage" && !(azioneParams.nuovo_stage as string)) {
+      toast.error("Seleziona il nuovo stage per la pipeline"); return;
+    }
+    if (azioneTipo === "notifica_webhook" && !(azioneParams.url as string)?.trim()) {
+      toast.error("Inserisci l'URL del webhook"); return;
+    }
+    if (azioneTipo === "assegna_tag" && (!Array.isArray(azioneParams.tags) || (azioneParams.tags as string[]).length === 0)) {
+      toast.error("Inserisci almeno un tag"); return;
+    }
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
