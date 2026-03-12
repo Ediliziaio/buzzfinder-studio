@@ -49,7 +49,7 @@ export default function CampaignsPage() {
         costo_stimato_eur: campaign.costo_stimato_eur,
       } as any);
       if (error) throw error;
-      toast({ title: "Campagna duplicata" });
+      toast.success("Campagna duplicata");
       refetch();
     } catch (err: any) {
       toast({ title: "Errore", description: err.message, variant: "destructive" });
