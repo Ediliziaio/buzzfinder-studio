@@ -480,7 +480,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
                           .update({ utilizzi: (tpl.utilizzi || 0) + 1 } as any)
                           .eq("id", tpl.id)
                           .then(() => {});
-                        toast({ title: `Template "${tpl.nome}" applicato` });
+                        toast.success(`Template "${tpl.nome}" applicato`);
                         setStep(1);
                       }}
                       className={cn(
