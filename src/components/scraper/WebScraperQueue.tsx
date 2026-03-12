@@ -37,12 +37,16 @@ interface Props {
   onJobClick: (job: ScrapingJob) => void;
   onRetryJob?: (job: ScrapingJob) => void;
   isRunning: boolean;
+  isPausing?: boolean;
+  isPaused?: boolean;
+  onResume?: () => void;
   stats: { queued: number; processing: number; completed: number; failed: number };
 }
 
 export function WebScraperQueue({
   urls, jobs, config, onConfigChange, onAddUrls, onImportFromMaps, onImportFromContacts,
-  onStart, onPause, onStop, onClearQueue, onJobClick, onRetryJob, isRunning, stats,
+  onStart, onPause, onStop, onClearQueue, onJobClick, onRetryJob, isRunning,
+  isPausing, isPaused, onResume, stats,
 }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
@@ -56,11 +60,9 @@ export function WebScraperQueue({
       const text = evt.target?.result as string;
       if (!text) return;
       const lines = text.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
-      // Skip header if it looks like one
       const start = /^(url|sito|website|link|domain)/i.test(lines[0] || "") ? 1 : 0;
       const extracted: string[] = [];
       for (let i = start; i < lines.length; i++) {
-        // Take first column if CSV has multiple columns
         const col = lines[i].split(/[,;\t]/)[0].replace(/^["']|["']$/g, "").trim();
         if (col && isValidUrl(col)) extracted.push(col);
       }
@@ -72,32 +74,23 @@ export function WebScraperQueue({
       }
     };
     reader.readAsText(file);
-    // Reset input so same file can be re-selected
     e.target.value = "";
   };
 
   const handleAddUrl = () => {
     if (!urlInput.trim()) return;
     const lines = urlInput.split("\n").map((u) => u.trim()).filter(Boolean);
-
-    // Validate URLs
     const valid: string[] = [];
     const invalid: string[] = [];
     for (const line of lines) {
-      if (isValidUrl(line)) {
-        valid.push(line);
-      } else {
-        invalid.push(line);
-      }
+      if (isValidUrl(line)) valid.push(line);
+      else invalid.push(line);
     }
-
     if (invalid.length > 0) {
       toast.warning(`${invalid.length} URL non validi scartati`, {
         description: invalid.slice(0, 3).join(", ") + (invalid.length > 3 ? "..." : ""),
       });
     }
-
-    // Rate limit check
     const currentTotal = urls.length + jobs.length;
     if (currentTotal + valid.length > MAX_QUEUE_SIZE) {
       const allowed = Math.max(0, MAX_QUEUE_SIZE - currentTotal);
@@ -120,7 +113,6 @@ export function WebScraperQueue({
     }
   };
 
-  // Merge pending URLs and active jobs for display
   const displayItems: Array<{ type: "url" | "job"; url: string; job?: ScrapingJob }> = [
     ...jobs.map((j) => ({ type: "job" as const, url: j.url, job: j })),
     ...urls.filter((u) => !jobs.some((j) => j.url === u || j.url === `https://${u}`))
@@ -134,7 +126,7 @@ export function WebScraperQueue({
 
   return (
     <div className="flex flex-col h-full gap-3">
-      {/* URL Input — Textarea for multiline */}
+      {/* URL Input */}
       <div className="space-y-2">
         <div className="flex gap-2">
           <Textarea
@@ -267,7 +259,7 @@ export function WebScraperQueue({
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Stats + Controls (sticky bottom) */}
+      {/* Stats + Controls */}
       <div className="rounded-lg border border-border bg-card p-3 space-y-2">
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-muted-foreground">
           <span>In coda: <span className="text-foreground">{stats.queued}</span></span>
@@ -280,8 +272,35 @@ export function WebScraperQueue({
             Velocità: ~{avgTime}s/sito | Stimato fine: {Math.round((stats.queued * avgTime) / 60)}min
           </div>
         )}
+
+        {/* Pausing indicator */}
+        {isPausing && (
+          <div className="flex items-center gap-2 text-xs font-mono text-warning">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>In pausa... (job in corso in completamento)</span>
+          </div>
+        )}
+
         <div className="flex gap-2">
-          {!isRunning ? (
+          {isPaused && onResume ? (
+            <>
+              <Button onClick={onResume} className="flex-1 font-mono text-xs" size="sm">
+                <Play className="h-3 w-3 mr-1" /> RIPRENDI
+              </Button>
+              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+                <Square className="h-3 w-3 mr-1" /> STOP
+              </Button>
+            </>
+          ) : isPausing ? (
+            <>
+              <Button disabled variant="outline" className="flex-1 font-mono text-xs" size="sm">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" /> IN PAUSA...
+              </Button>
+              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+                <Square className="h-3 w-3 mr-1" /> STOP
+              </Button>
+            </>
+          ) : !isRunning ? (
             <Button onClick={onStart} className="flex-1 font-mono text-xs" size="sm" disabled={urls.length === 0 && jobs.length === 0}>
               <Play className="h-3 w-3 mr-1" /> AVVIA
             </Button>
