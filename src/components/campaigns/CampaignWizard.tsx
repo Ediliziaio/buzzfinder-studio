@@ -328,8 +328,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       // Populate recipients
       try {
         const inserted = await populateCampaignRecipients(newCampaign.id, data);
-        toast({
-          title: scheduledAt ? "Campagna schedulata" : "Campagna creata",
+        toast.success(scheduledAt ? "Campagna schedulata" : "Campagna creata", {
           description: scheduledAt
             ? `"${data.nome}" programmata per ${format(new Date(scheduledAt), "dd MMM yyyy 'alle' HH:mm", { locale: it })} — ${inserted} destinatari`
             : `"${data.nome}" salvata come bozza — ${inserted} destinatari${isSequence ? ` — ${data.steps.length} step` : ""}`,
