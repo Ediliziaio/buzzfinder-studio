@@ -10,7 +10,7 @@ export type CampaignTipoCampagna = 'blast' | 'sequence' | 'drip';
 export type CampaignRecipientStato = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'failed' | 'bounced' | 'unsubscribed';
 export type ActivityTipo = 'email_inviata' | 'email_aperta' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato' | 'chiamata_effettuata';
 export type ListTipo = 'statica' | 'dinamica';
-export type SettingCategoria = 'api_keys' | 'limiti' | 'scraping' | 'mittenti';
+export type SettingCategoria = 'api_keys' | 'limiti' | 'scraping' | 'mittenti' | 'elevenlabs' | 'chiamate' | 'notifiche';
 export type EmailEventTipo = 'open' | 'click' | 'bounce' | 'spam' | 'unsubscribe' | 'delivered';
 export type PipelineStageType = 'interessato' | 'richiesta_info' | 'meeting_fissato' | 'proposta_inviata' | 'vinto' | 'perso';
 
