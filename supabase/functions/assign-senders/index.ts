@@ -23,10 +23,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { campaign_id } = await req.json();
-    if (!campaign_id) {
-      return new Response(JSON.stringify({ error: "campaign_id richiesto" }), {
-        status: 400,
+    // Validate caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -35,6 +36,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const token = authHeader.replace("Bearer ", "");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (token !== serviceRoleKey) {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: "Token non valido" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const { campaign_id } = await req.json();
+    if (!campaign_id) {
+      return new Response(JSON.stringify({ error: "campaign_id richiesto" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 1. Fetch campaign
     const { data: campaign, error: cErr } = await supabase

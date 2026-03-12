@@ -51,7 +51,29 @@ Deno.serve(async (req: Request) => {
 
     if (!contact_id) return jsonError("contact_id obbligatorio", 400);
 
-    // 1. Carica contatto e verifica ownership
+    // 1. Verifica JWT — obbligatorio (tranne chiamate interne con service_role)
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonError("Authorization header richiesto", 401);
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    let callerId: string | null = null;
+
+    // Check if it's the service_role key (internal calls from process-automations)
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (token === serviceRoleKey) {
+      // Internal call — skip ownership check
+      callerId = null;
+    } else {
+      const { data: { user: caller }, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !caller) {
+        return jsonError("Token non valido o scaduto", 401);
+      }
+      callerId = caller.id;
+    }
+
+    // 2. Carica contatto
     const { data: contact, error: contactErr } = await supabase
       .from("contacts")
       .select("id, nome, cognome, azienda, telefono, email, citta, google_categories, sito_web, note, telefono_dnc, totale_chiamate, user_id")
@@ -61,14 +83,9 @@ Deno.serve(async (req: Request) => {
     if (contactErr || !contact) return jsonError("Contatto non trovato", 404);
     if (!contact.user_id) return jsonError("Contatto senza proprietario", 400);
 
-    // Verifica che il chiamante sia il proprietario del contatto
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user: caller } } = await supabase.auth.getUser(token);
-      if (caller && caller.id !== contact.user_id) {
-        return jsonError("Non autorizzato: il contatto non ti appartiene", 403);
-      }
+    // Verifica ownership (skip per chiamate interne service_role)
+    if (callerId && callerId !== contact.user_id) {
+      return jsonError("Non autorizzato: il contatto non ti appartiene", 403);
     }
 
     const userId = contact.user_id;

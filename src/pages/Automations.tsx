@@ -459,10 +459,26 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
                 <Input type="number" min={1} value={(triggerParams.giorni as number) || 3} onChange={(e) => setTriggerParams({ ...triggerParams, giorni: Number(e.target.value) })} />
               </div>
             )}
+            {triggerTipo === "risposta_ricevuta" && (
+              <div>
+                <Label className="text-xs font-mono">Etichetta risposta (opzionale)</Label>
+                <Select value={(triggerParams.etichetta as string) || "__any__"} onValueChange={(v) => setTriggerParams({ ...triggerParams, etichetta: v === "__any__" ? undefined : v })}>
+                  <SelectTrigger><SelectValue placeholder="Qualsiasi etichetta" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any__">Qualsiasi etichetta</SelectItem>
+                    <SelectItem value="interessato">Interessato</SelectItem>
+                    <SelectItem value="non_interessato">Non interessato</SelectItem>
+                    <SelectItem value="richiesta_info">Richiesta info</SelectItem>
+                    <SelectItem value="appuntamento_fissato">Appuntamento fissato</SelectItem>
+                    <SelectItem value="fuori_target">Fuori target</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {triggerTipo === "chiamata_esito" && (
               <div>
                 <Label className="text-xs font-mono">Esito specifico</Label>
-                <Select value={(triggerParams.esito as string) || ""} onValueChange={(v) => setTriggerParams({ ...triggerParams, esito: v })}>
+                <Select value={(triggerParams.esito as string) || "__any__"} onValueChange={(v) => setTriggerParams({ ...triggerParams, esito: v === "__any__" ? undefined : v })}>
                   <SelectTrigger><SelectValue placeholder="Seleziona esito" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="interessato">Interessato</SelectItem>

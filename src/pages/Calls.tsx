@@ -576,7 +576,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button variant="outline" onClick={handleClose}>Annulla</Button>
           <Button onClick={handleSubmit} disabled={submitting || !selected}>
             <Phone className="h-4 w-4 mr-1" /> {schedula ? "Schedula" : "Avvia chiamata"}
           </Button>

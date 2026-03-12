@@ -50,8 +50,11 @@ export default function SettingsPage() {
         downloadCsv(rows.join("\n"), `attivita_export_${new Date().toISOString().slice(0, 10)}.csv`);
       } else if (type === "backup") {
         const tables = ["contacts", "campaigns", "campaign_recipients", "campaign_steps", "campaign_step_executions", "campaign_templates", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs", "sender_pool", "sender_daily_stats", "inbox_messages", "email_events", "unsubscribes", "suppression_list", "blacklist_checks", "follow_up_sequences", "follow_up_steps", "follow_up_log", "pipeline_leads", "call_sessions", "automation_rules", "automation_executions"] as const;
-        const backup: Record<string, unknown[]> = {};
-        for (const table of tables) { const { data } = await supabase.from(table).select("*"); backup[table] = data || []; }
+        const results = await Promise.all(tables.map(async (table) => {
+          const { data } = await supabase.from(table).select("*");
+          return [table, data || []] as [string, unknown[]];
+        }));
+        const backup: Record<string, unknown[]> = Object.fromEntries(results);
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a"); a.href = url; a.download = `buzzfinder_backup_${new Date().toISOString().slice(0, 10)}.json`;
