@@ -341,7 +341,7 @@ export function CampaignWizard({ open, onOpenChange, onCreated }: CampaignWizard
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
