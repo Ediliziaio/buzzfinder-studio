@@ -83,6 +83,7 @@ export default function SettingsPage() {
           <TabsTrigger value="orari" className="font-mono text-xs">Orari Invio</TabsTrigger>
           <TabsTrigger value="tracking" className="font-mono text-xs">Tracking</TabsTrigger>
           <TabsTrigger value="ai" className="font-mono text-xs">AI</TabsTrigger>
+          <TabsTrigger value="ai_calls" className="font-mono text-xs">📞 AI & Chiamate</TabsTrigger>
           <TabsTrigger value="ricezione" className="font-mono text-xs">Ricezione</TabsTrigger>
           <TabsTrigger value="agenti" className="font-mono text-xs">🤖 Agenti AI</TabsTrigger>
           <TabsTrigger value="export" className="font-mono text-xs">Import/Export</TabsTrigger>
