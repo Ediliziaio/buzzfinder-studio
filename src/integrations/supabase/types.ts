@@ -1550,6 +1550,7 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           error_message: string | null
+          filtri: Json | null
           id: string
           max_results: number | null
           n8n_webhook_id: string | null
@@ -1572,6 +1573,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          filtri?: Json | null
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
@@ -1594,6 +1596,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          filtri?: Json | null
           id?: string
           max_results?: number | null
           n8n_webhook_id?: string | null
