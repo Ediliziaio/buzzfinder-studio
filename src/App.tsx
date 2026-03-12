@@ -25,6 +25,8 @@ import PipelinePage from "@/pages/Pipeline";
 import SendersPage from "@/pages/Senders";
 import DeliverabilityPage from "@/pages/Deliverability";
 import TemplatesPage from "@/pages/Templates";
+import CallsPage from "@/pages/Calls";
+import AutomationsPage from "@/pages/Automations";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +67,8 @@ function AppRoutes() {
         <Route path="/pipeline" element={<PipelinePage />} />
         <Route path="/senders" element={<SendersPage />} />
         <Route path="/deliverability" element={<DeliverabilityPage />} />
+        <Route path="/calls" element={<CallsPage />} />
+        <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
