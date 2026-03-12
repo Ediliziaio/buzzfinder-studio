@@ -26,6 +26,7 @@ const tipoIcons: Record<string, React.ReactNode> = {
   email: <Mail className="h-5 w-5" />,
   sms: <Phone className="h-5 w-5" />,
   whatsapp: <MessageSquare className="h-5 w-5" />,
+  chiamata: <Phone className="h-5 w-5" />,
 };
 
 interface RecipientWithContact extends CampaignRecipient {
