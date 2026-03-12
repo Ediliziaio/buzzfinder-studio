@@ -315,7 +315,8 @@ function BlocklistEditor() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data?.valore) setValue(data.valore);
+        if (data?.valore) setValue(data.valore);
+      });
     });
   }, []);
 
