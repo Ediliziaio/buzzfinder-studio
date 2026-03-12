@@ -25,6 +25,8 @@ import {
   ShieldCheck,
   Kanban,
   FileText,
+  Phone,
+  Zap,
 } from "lucide-react";
 
 interface NavItem {
