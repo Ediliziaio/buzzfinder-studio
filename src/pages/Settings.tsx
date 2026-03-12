@@ -382,7 +382,9 @@ function AnthropicModelSelect() {
   const [model, setModel] = useState("claude-haiku-4-5-20251001");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").maybeSingle().then(({ data }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data?.valore) setModel(data.valore);
     });
   }, []);
