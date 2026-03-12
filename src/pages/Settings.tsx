@@ -49,7 +49,7 @@ export default function SettingsPage() {
         const rows = [headers.join(","), ...data.map(r => headers.map(h => { const v = (r as any)[h]; return v == null ? "" : String(v).includes(",") ? `"${v}"` : String(v); }).join(","))];
         downloadCsv(rows.join("\n"), `attivita_export_${new Date().toISOString().slice(0, 10)}.csv`);
       } else if (type === "backup") {
-        const tables = ["contacts", "campaigns", "campaign_recipients", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs"] as const;
+        const tables = ["contacts", "campaigns", "campaign_recipients", "campaign_steps", "campaign_step_executions", "campaign_templates", "lists", "list_contacts", "contact_activities", "usage_log", "app_settings", "scraping_sessions", "scraping_jobs", "sender_pool", "sender_daily_stats", "inbox_messages", "email_events", "unsubscribes", "suppression_list", "blacklist_checks", "follow_up_sequences", "follow_up_steps", "follow_up_log", "pipeline_leads"] as const;
         const backup: Record<string, unknown[]> = {};
         for (const table of tables) { const { data } = await supabase.from(table).select("*"); backup[table] = data || []; }
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });

@@ -1,28 +1,18 @@
 
 
-# Bug Fix Plan — BuzzFinder Studio
+## Creazione Account Superadmin
 
-## Already Fixed (No Action Needed)
-BUG-01 through BUG-10, BUG-13, BUG-14, BUG-15, BUG-17, BUG-18, BUG-19, BUG-22, BUG-24, BUG-25 are all already resolved in the current codebase.
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-## Real Remaining Bugs
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-### 1. BUG-11 — `CampaignRecipient` missing pipeline/sender fields
-**File**: `src/types/index.ts` lines 200-214
-**Fix**: Add `pipeline_stage`, `pipeline_note`, `pipeline_updated`, `risposta_at` to the interface (these exist in DB schema).
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-### 2. BUG-12 — `Contact` missing validation/AI fields
-**File**: `src/types/index.ts` lines 18-53
-**Fix**: Add `email_validato`, `email_validato_at`, `ai_intro`, `ai_modello`, `ai_personalizzato_at` to the interface.
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-### 3. BUG-16 — Backup missing tables
-**File**: `src/pages/Settings.tsx` line 52
-**Fix**: Add `sender_pool`, `campaign_steps`, `campaign_step_executions`, `inbox_messages`, `email_events`, `unsubscribes`, `suppression_list`, `blacklist_checks`, `follow_up_sequences`, `follow_up_steps`, `follow_up_log`, `sender_daily_stats`, `pipeline_leads`, `campaign_templates` to the backup tables list.
-
-### 4. BUG-20 — `Campaigns.tsx` uses wrong toast import
-**File**: `src/pages/Campaigns.tsx` line 13
-**Fix**: Change `import { toast } from "@/hooks/use-toast"` to `import { toast } from "sonner"` and update any `toast({ title, description })` calls to `toast.success()` / `toast.error()` format.
-
-## Implementation
-4 targeted edits across 3 files. No database changes needed.
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 

@@ -26,6 +26,8 @@ export interface Contact {
   email_confidence: number;
   email_valid: boolean;
   email_quality: string | null;
+  email_validato: boolean | null;
+  email_validato_at: string | null;
   sito_web: string | null;
   indirizzo: string | null;
   citta: string | null;
@@ -48,6 +50,9 @@ export interface Contact {
   ultima_attivita: string | null;
   scraping_session_id: string | null;
   user_id: string | null;
+  ai_intro: string | null;
+  ai_modello: string | null;
+  ai_personalizzato_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -211,6 +216,10 @@ export interface CampaignRecipient {
   errore: string | null;
   messaggio_personalizzato: string | null;
   soggetto_personalizzato: string | null;
+  pipeline_stage: string | null;
+  pipeline_note: string | null;
+  pipeline_updated: string | null;
+  risposta_at: string | null;
 }
 
 // ── Contact Activity ─────────────────────────────────────────────────

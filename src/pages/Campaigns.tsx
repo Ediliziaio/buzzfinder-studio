@@ -10,7 +10,7 @@ import { useCampaigns } from "@/hooks/useCampaigns";
 import { useActiveCampaigns } from "@/hooks/useActiveCampaigns";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import type { Campaign } from "@/types";
 
 export default function CampaignsPage() {
@@ -49,10 +49,10 @@ export default function CampaignsPage() {
         costo_stimato_eur: campaign.costo_stimato_eur,
       } as any);
       if (error) throw error;
-      toast({ title: "Campagna duplicata" });
+      toast.success("Campagna duplicata");
       refetch();
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Errore duplicazione");
     }
   };
 
@@ -60,10 +60,10 @@ export default function CampaignsPage() {
     try {
       const { error } = await supabase.from("campaigns").delete().eq("id", campaign.id);
       if (error) throw error;
-      toast({ title: "Campagna eliminata" });
+      toast.success("Campagna eliminata");
       refetch();
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Errore eliminazione");
     }
   };
 
@@ -80,7 +80,7 @@ export default function CampaignsPage() {
         console.error(`Errore lancio campagna ${id}:`, err);
       }
     }
-    toast({ title: `${launched} campagna${launched > 1 ? "e" : ""} avviat${launched > 1 ? "e" : "a"}` });
+    toast.success(`${launched} campagna${launched > 1 ? "e" : ""} avviat${launched > 1 ? "e" : "a"}`);
     setSelectedCampaignIds(new Set());
     refetch();
     setBulkLaunching(false);
