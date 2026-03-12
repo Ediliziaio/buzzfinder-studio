@@ -1,0 +1,1 @@
+ALTER TABLE public.scraping_sessions ADD COLUMN interrupted_at timestamptz;
