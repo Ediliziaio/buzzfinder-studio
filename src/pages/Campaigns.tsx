@@ -52,7 +52,7 @@ export default function CampaignsPage() {
       toast.success("Campagna duplicata");
       refetch();
     } catch (err: any) {
-      toast({ title: "Errore", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Errore duplicazione");
     }
   };
 
