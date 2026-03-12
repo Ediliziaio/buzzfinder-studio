@@ -249,9 +249,47 @@ export default function CampaignDetailPage() {
 
         setCampaign(prev => prev ? { ...prev, stato: "in_corso" } as Campaign : null);
 
-        // If steps exist → process-sequence handles everything, no n8n needed
-        if (hasSteps) {
-          toast.success("🚀 Campagna avviata — il motore sequenze gestisce gli invii");
+        // Emit campagna_avviata automation trigger
+        try {
+          const userId = await getCurrentUserId();
+          const { data: rules } = await supabase
+            .from("automation_rules")
+            .select("id")
+            .eq("attiva", true)
+            .eq("trigger_tipo", "campagna_avviata")
+            .eq("user_id", userId)
+            .or(`campaign_id.eq.${campaign.id},campaign_id.is.null`);
+          
+          if (rules?.length) {
+            const { data: recipients } = await supabase
+              .from("campaign_recipients")
+              .select("contact_id")
+              .eq("campaign_id", campaign.id)
+              .not("contact_id", "is", null)
+              .limit(100);
+            
+            if (recipients?.length) {
+              const executions = [];
+              for (const rule of rules) {
+                for (const r of recipients) {
+                  executions.push({
+                    user_id: userId,
+                    rule_id: rule.id,
+                    contact_id: r.contact_id!,
+                    campaign_id: campaign.id,
+                    stato: "pending",
+                    trigger_contesto: { tipo: "campagna_avviata" },
+                  });
+                }
+              }
+              if (executions.length) {
+                await supabase.from("automation_executions").insert(executions as any);
+              }
+            }
+          }
+        } catch (triggerErr) {
+          console.error("campagna_avviata trigger error:", triggerErr);
+        }
         } else {
           // No steps → fallback to n8n direct
           try {
