@@ -243,7 +243,7 @@ export default function Calls() {
                         <TableCell className="font-mono text-sm">{c.contacts?.azienda || "—"}</TableCell>
                         <TableCell className="font-mono text-sm">{c.phone_number_to}</TableCell>
                         <TableCell><Badge className={sb.cls}>{sb.label}</Badge></TableCell>
-                        <TableCell className="font-mono text-sm">{c.stato === "calling" ? liveDurata(c) : "—"}</TableCell>
+                        <TableCell className="font-mono text-sm" data-tick={tick}>{c.stato === "calling" ? liveDurata(c) : "—"}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => {
                             await supabase.from("call_sessions").update({ stato: "cancelled" }).eq("id", c.id);
@@ -482,6 +482,12 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
   const [submitting, setSubmitting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reset state when dialog closes
+  const handleClose = () => {
+    setSearchQ(""); setSelected(null); setObiettivo(""); setContesto(""); setSchedula(false); setSchedulaAt("");
+    onClose();
+  };
+
   useEffect(() => {
     if (!searchQ || searchQ.length < 2) { setResults([]); return; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -513,9 +519,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
       if (res.error) throw new Error(res.error.message);
       toast.success(schedula ? "Chiamata schedulata!" : "Chiamata avviata!");
       onSuccess();
-      onClose();
-      // Reset
-      setSearchQ(""); setSelected(null); setObiettivo(""); setContesto(""); setSchedula(false);
+      handleClose();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Errore");
     } finally {
@@ -524,7 +528,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => onClose()}>
+    <Dialog open={open} onOpenChange={() => handleClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle className="font-mono">Nuova Chiamata AI</DialogTitle></DialogHeader>
         <div className="space-y-4">
@@ -572,7 +576,7 @@ function NewCallDialog({ open, onClose, onSuccess }: { open: boolean; onClose: (
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button variant="outline" onClick={handleClose}>Annulla</Button>
           <Button onClick={handleSubmit} disabled={submitting || !selected}>
             <Phone className="h-4 w-4 mr-1" /> {schedula ? "Schedula" : "Avvia chiamata"}
           </Button>

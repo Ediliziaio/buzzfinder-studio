@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -248,7 +249,23 @@ export default function Automations() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" onClick={() => { setEditRule(rule); setShowWizard(true); }}><Edit className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteRule(rule.id)}><Trash2 className="h-4 w-4" /></Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Eliminare questa regola?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              La regola "{rule.nome}" verrà eliminata permanentemente. Questa azione non è reversibile.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annulla</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteRule(rule.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Elimina</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 );
@@ -442,10 +459,26 @@ function RuleWizardDialog({ open, initial, onClose, onSaved }: {
                 <Input type="number" min={1} value={(triggerParams.giorni as number) || 3} onChange={(e) => setTriggerParams({ ...triggerParams, giorni: Number(e.target.value) })} />
               </div>
             )}
+            {triggerTipo === "risposta_ricevuta" && (
+              <div>
+                <Label className="text-xs font-mono">Etichetta risposta (opzionale)</Label>
+                <Select value={(triggerParams.etichetta as string) || "__any__"} onValueChange={(v) => setTriggerParams({ ...triggerParams, etichetta: v === "__any__" ? undefined : v })}>
+                  <SelectTrigger><SelectValue placeholder="Qualsiasi etichetta" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any__">Qualsiasi etichetta</SelectItem>
+                    <SelectItem value="interessato">Interessato</SelectItem>
+                    <SelectItem value="non_interessato">Non interessato</SelectItem>
+                    <SelectItem value="richiesta_info">Richiesta info</SelectItem>
+                    <SelectItem value="appuntamento_fissato">Appuntamento fissato</SelectItem>
+                    <SelectItem value="fuori_target">Fuori target</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {triggerTipo === "chiamata_esito" && (
               <div>
                 <Label className="text-xs font-mono">Esito specifico</Label>
-                <Select value={(triggerParams.esito as string) || ""} onValueChange={(v) => setTriggerParams({ ...triggerParams, esito: v })}>
+                <Select value={(triggerParams.esito as string) || "__any__"} onValueChange={(v) => setTriggerParams({ ...triggerParams, esito: v === "__any__" ? undefined : v })}>
                   <SelectTrigger><SelectValue placeholder="Seleziona esito" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="interessato">Interessato</SelectItem>

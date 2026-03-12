@@ -215,8 +215,19 @@ Deno.serve(async (req: Request) => {
         .eq("id", callSession.recipient_id);
     }
 
-    // Salva in inbox_messages con canale "chiamata" (Fix #2)
+    // Salva in inbox_messages con canale "chiamata" e dati contatto
     if (trascrizioneTestuale && userId) {
+      // Carica dati contatto per popolare da_nome/da_telefono
+      const { data: contactData } = await supabase
+        .from("contacts")
+        .select("nome, cognome, azienda, telefono")
+        .eq("id", callSession.contact_id)
+        .maybeSingle();
+
+      const daNome = contactData
+        ? `${contactData.nome || ""} ${contactData.cognome || ""} — ${contactData.azienda}`.trim()
+        : null;
+
       const etichettaMap: Record<string, string> = {
         "interessato": "interessato",
         "appuntamento": "appuntamento_fissato",
@@ -234,6 +245,8 @@ Deno.serve(async (req: Request) => {
         etichetta: etichettaMap[esito] || "non_categorizzato",
         etichetta_ai: true,
         note: noteAi || null,
+        da_nome: daNome,
+        da_telefono: contactData?.telefono || null,
       }).then(() => {}).catch((err) => {
         console.error("inbox_messages insert error:", err);
       });
