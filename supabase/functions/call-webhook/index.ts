@@ -23,7 +23,8 @@ async function getAppSetting(userId: string, chiave: string): Promise<string | n
 async function estraiEsitoDaConversazione(
   trascrizione: string,
   riassunto: string,
-  apiKey: string
+  apiKey: string,
+  modelName?: string
 ): Promise<{ esito: string; sentiment: string; note: string; data_richiamo: string | null }> {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -34,7 +35,7 @@ async function estraiEsitoDaConversazione(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: modelName || "claude-haiku-4-5-20251001",
         max_tokens: 200,
         messages: [{
           role: "user",
