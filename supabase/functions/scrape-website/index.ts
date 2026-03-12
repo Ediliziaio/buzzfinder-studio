@@ -1,10 +1,27 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+/* ── Dynamic CORS ── */
+function getAllowedOrigins(): string[] {
+  const env = Deno.env.get("ALLOWED_ORIGINS") || "";
+  const origins = env.split(",").map((o) => o.trim()).filter(Boolean);
+  // Fallback: Supabase project URL + Lovable preview/published
+  const projectUrl = Deno.env.get("SUPABASE_URL") || "";
+  if (projectUrl) origins.push(projectUrl);
+  origins.push("https://buzzfinder-studio.lovable.app");
+  return origins;
+}
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = getAllowedOrigins();
+  const matchedOrigin = allowed.find((o) => origin === o || origin.endsWith(".lovable.app"));
+  return {
+    "Access-Control-Allow-Origin": matchedOrigin || allowed[0] || "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
 
 /* ── SSRF Protection ── */
 const PRIVATE_IP_RANGES = [
