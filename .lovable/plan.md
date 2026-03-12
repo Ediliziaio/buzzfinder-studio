@@ -1,26 +1,44 @@
 
 
-# Analysis Complete — All Bugs Already Resolved
+# ElevenLabs AI Calls + Automation Rules Engine — Phase 1
 
-After verifying every file mentioned in the report against the actual codebase:
+## Overview
+Add the database schema for AI-powered phone calls (ElevenLabs) and a "if...then" automation rules engine, plus corresponding TypeScript types.
 
-| Reported Bug | Actual Status |
-|---|---|
-| AI-01 `handle-reply` key/value | ✅ Uses `chiave`/`valore` via `callAI` helper |
-| AI-02 `handle-reply` contatto_id | ✅ No `contatto_id` anywhere in edge functions |
-| AI-03 `validate-emails` key/value | ✅ Uses `.select("chiave, valore")` and `.in("chiave", ...)` (lines 121-127) |
-| AI-04 `process-sequence` n8n_settings | ✅ Uses `getAppSetting()` helper with `app_settings` (line 21) |
-| AI-05 `process-sequence` sito | ✅ Uses `sito_web` — no match for `"sito"` without `_web` |
-| AI-06 `process-sequence` contatto_id | ✅ Uses `contact_id` — zero matches for `contatto_id` |
-| AI-07 CampaignDetail launch flow | ✅ Already verified in previous analysis |
-| AI-08 CampaignWizard AI fields | ✅ Already verified — saves all AI fields |
-| AI-09 CampaignWizard toast | ✅ Already fixed — uses `sonner` |
-| AI-10 Settings API keys | ✅ AI agents tab exists with all keys |
-| AI-11 Settings sender tab | Separate concern, not a bug |
-| INCOER-03 config.toml | ✅ `verify_jwt = false` already set for handle-reply |
-| INCOER-04 validate-emails contatto_id | ✅ No `contatto_id` in the file |
+## What will be done
 
-**Verification method**: Ran regex search across all edge functions for `contatto_id`, `.eq("key"`, `.select("key`, `n8n_settings`, and `"sito"` — zero matches.
+### 1. Database Migration
+Run the provided SQL migration to create:
+- **`call_sessions`** table — one row per AI phone call, with transcription, sentiment, outcome, cost
+- **`automation_rules`** table — "IF trigger THEN action" rules engine
+- **`automation_executions`** table — execution log for automation rules
+- **`call_analytics`** view — aggregated call metrics per campaign
+- New columns on `sender_pool` (elevenlabs fields, chiamate_oggi, etc.)
+- New columns on `campaign_steps` (elevenlabs_agent_id, chiamata_script, etc.)
+- New columns on `contacts` (telefono_chiamabile, telefono_dnc, ultima_chiamata_at, etc.)
+- New entries in `app_settings` for ElevenLabs config keys
+- RLS policies, indexes, and realtime subscriptions
 
-**No code changes needed.** The codebase is already correct.
+**Note on RLS**: The provided migration uses permissive `USING (true)` policies for authenticated users. This is acceptable for Phase 1 but should be tightened to user-scoped policies later. The `app_settings` INSERT needs `user_id` — since these are global defaults, I'll adjust the INSERT to omit `user_id` (nullable column) so it doesn't conflict with existing RLS. Actually, looking at the RLS on `app_settings` (`user_id = auth.uid()`), rows without `user_id` won't be readable. I'll note this but proceed as specified — these seed values serve as documentation; actual values will be set per-user via the Settings UI.
+
+**Migration adjustment**: The `ON CONFLICT (chiave)` clause won't work because `app_settings` has a unique constraint on `(chiave, user_id)`, not just `chiave`. I'll change to `ON CONFLICT DO NOTHING` or remove the seed inserts entirely since users configure these via Settings UI.
+
+### 2. TypeScript Types (`src/types/index.ts`)
+Add to the file:
+- `CallStato`, `CallEsito` union types
+- `CallSession` interface
+- `AutomationTrigger`, `AutomationAzione` union types
+- `AutomationRule` interface with typed `condizioni` array
+- `AutomationExecution` interface
+- Extend `Contact` with 5 new call-related fields
+- Extend `SettingCategoria` with `'elevenlabs'` | `'chiamate'` | `'notifiche'`
+- Add `'chiamata'` to `ActivityTipo`
+
+### 3. Files Changed
+| File | Change |
+|------|--------|
+| Database (migration tool) | Full SQL migration |
+| `src/types/index.ts` | New types + extended interfaces |
+
+No frontend UI changes in this phase — this is schema-only.
 
