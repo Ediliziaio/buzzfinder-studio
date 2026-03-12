@@ -469,6 +469,33 @@ export default function CampaignDetailPage() {
         <KpiCard label="COSTO" value={`€${Number(campaign.costo_reale_eur || 0).toFixed(2)}`} icon={<Euro className="h-4 w-4" />} />
       </div>
 
+      {/* Call Stats Widget */}
+      {callStats && callStats.totale > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-primary" />
+              <span className="terminal-header text-primary">CHIAMATE AI</span>
+            </div>
+            <a href={`/calls`} className="font-mono text-[10px] text-primary hover:underline">
+              → Vedi tutte le chiamate
+            </a>
+          </div>
+          <div className="flex items-center gap-6 mt-2">
+            <span className="font-mono text-xs text-muted-foreground">
+              Effettuate: <span className="text-foreground font-semibold">{callStats.totale}</span>
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">
+              Interessati: <span className="text-foreground font-semibold">{callStats.interessati}</span>
+              {callStats.totale > 0 && <span className="ml-1">({Math.round((callStats.interessati / callStats.totale) * 100)}%)</span>}
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">
+              Appuntamenti: <span className="text-foreground font-semibold">{callStats.appuntamenti}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* A/B Test Results */}
       {(campaign as any).ab_test_enabled && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-3">

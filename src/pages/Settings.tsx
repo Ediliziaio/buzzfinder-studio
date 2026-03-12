@@ -368,3 +368,68 @@ function AiModelSelector() {
     </div>
   );
 }
+
+function AnthropicModelSelect() {
+  const [model, setModel] = useState("claude-haiku-4-5-20251001");
+
+  useEffect(() => {
+    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").maybeSingle().then(({ data }) => {
+      if (data?.valore) setModel(data.valore);
+    });
+  }, []);
+
+  const save = async (val: string) => {
+    setModel(val);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("app_settings").upsert(
+      { chiave: "ai_model_attivo", valore: val, categoria: "ai", user_id: user.id, updated_at: new Date().toISOString() } as any,
+      { onConflict: "chiave,user_id" }
+    );
+    toast.success("Modello AI aggiornato");
+  };
+
+  return (
+    <Select value={model} onValueChange={save}>
+      <SelectTrigger className="font-mono text-xs bg-accent border-border">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (veloce ed economico)</SelectItem>
+        <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 (alta qualità — 10x)</SelectItem>
+        <SelectItem value="moonshot-v1-32k">Kimi / Moonshot (alternativa)</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ElevenLabsTestButton() {
+  const [testing, setTesting] = useState(false);
+
+  const testConnection = async () => {
+    setTesting(true);
+    try {
+      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").maybeSingle();
+      const apiKey = data?.valore;
+      if (!apiKey) { toast.error("Inserisci prima la API Key ElevenLabs"); setTesting(false); return; }
+      const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": apiKey } });
+      if (res.ok) {
+        const user = await res.json();
+        toast.success(`✅ Connesso — Piano: ${user.subscription?.tier || "unknown"}`);
+      } else {
+        toast.error("❌ API Key non valida");
+      }
+    } catch {
+      toast.error("❌ Errore di connessione");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" className="font-mono text-xs gap-1.5" onClick={testConnection} disabled={testing}>
+      {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
+      {testing ? "Test..." : "Test ElevenLabs"}
+    </Button>
+  );
+}

@@ -125,6 +125,41 @@ export function StepCard({ step, stepIndex, onEdit, onDelete }: Props) {
             </div>
           )}
 
+          {/* Chiamata AI content */}
+          {step.tipo === "chiamata" && (
+            <div className="space-y-3">
+              <div>
+                <Label className="font-mono text-xs">OBIETTIVO CHIAMATA</Label>
+                <Textarea
+                  value={step.chiamata_obiettivo || ""}
+                  onChange={(e) => onEdit({ ...step, chiamata_obiettivo: e.target.value })}
+                  rows={3}
+                  placeholder="Fissa una demo di 30 minuti per presentare i nostri servizi..."
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="font-mono text-xs">SCRIPT / CONTESTO</Label>
+                <Textarea
+                  value={step.chiamata_script || ""}
+                  onChange={(e) => onEdit({ ...step, chiamata_script: e.target.value })}
+                  rows={3}
+                  placeholder="Il lead ha aperto la nostra email 3 volte. Fai riferimento al servizio X..."
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="font-mono text-xs">ID AGENTE ELEVENLABS (opzionale)</Label>
+                <Input
+                  value={step.elevenlabs_agent_id || ""}
+                  onChange={(e) => onEdit({ ...step, elevenlabs_agent_id: e.target.value })}
+                  placeholder="agent_... (lascia vuoto per usare il default)"
+                  className="font-mono text-sm mt-1"
+                />
+              </div>
+            </div>
+          )}
+
           {/* A/B Testing */}
           <div className="border border-border rounded-lg p-3 bg-muted/30">
             <div className="flex items-center justify-between">
