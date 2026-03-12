@@ -410,7 +410,7 @@ function CallDetailDialog({ call, onClose, onRefresh }: {
           {/* Meta */}
           <div className="grid grid-cols-2 gap-2 text-sm font-mono">
             <div><span className="text-muted-foreground">Durata:</span> {fmtDurata(call.durata_secondi)}</div>
-            <div><span className="text-muted-foreground">Costo:</span> €{(call.costo_eur || 0).toFixed(2)}</div>
+            <div><span className="text-muted-foreground">Costo:</span> €{Number(call.costo_eur || 0).toFixed(2)}</div>
             <div><span className="text-muted-foreground">Inizio:</span> {call.started_at ? format(new Date(call.started_at), "dd/MM/yy HH:mm:ss") : "—"}</div>
             <div><span className="text-muted-foreground">Fine:</span> {call.ended_at ? format(new Date(call.ended_at), "dd/MM/yy HH:mm:ss") : "—"}</div>
           </div>
