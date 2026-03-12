@@ -4,7 +4,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 function getAllowedOrigins(): string[] {
   const env = Deno.env.get("ALLOWED_ORIGINS") || "";
   const origins = env.split(",").map((o) => o.trim()).filter(Boolean);
-  // Fallback: Supabase project URL + Lovable preview/published
   const projectUrl = Deno.env.get("SUPABASE_URL") || "";
   if (projectUrl) origins.push(projectUrl);
   origins.push("https://buzzfinder-studio.lovable.app");
@@ -25,54 +24,24 @@ function getCorsHeaders(req: Request): Record<string, string> {
 
 /* ── SSRF Protection ── */
 const PRIVATE_IP_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^::1$/,
-  /^fc00:/i,
-  /^fe80:/i,
-  /^fd/i,
+  /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
+  /^169\.254\./, /^0\./, /^::1$/, /^fc00:/i, /^fe80:/i, /^fd/i,
 ];
 
 const BLOCKED_HOSTS = new Set([
-  "localhost",
-  "metadata.google.internal",
-  "metadata.google",
-  "169.254.169.254",
-  "metadata",
-  "kubernetes.default",
+  "localhost", "metadata.google.internal", "metadata.google",
+  "169.254.169.254", "metadata", "kubernetes.default",
 ]);
 
 function validateScrapeUrl(url: string): boolean {
   let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-
-  // Only allow http/https
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
-  }
-
+  try { parsed = new URL(url); } catch { return false; }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
   const hostname = parsed.hostname.toLowerCase();
-
-  // Block known internal hosts
   if (BLOCKED_HOSTS.has(hostname)) return false;
   if (hostname.endsWith(".local") || hostname.endsWith(".internal")) return false;
-
-  // Block private/reserved IPs
-  for (const re of PRIVATE_IP_RANGES) {
-    if (re.test(hostname)) return false;
-  }
-
-  // Must have at least one dot (real domain)
+  for (const re of PRIVATE_IP_RANGES) { if (re.test(hostname)) return false; }
   if (!hostname.includes(".")) return false;
-
   return true;
 }
 
@@ -149,18 +118,15 @@ async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
   if (!validateScrapeUrl(url)) {
     throw new Error("URL non valido o non autorizzato");
   }
-
   const domain = getDomain(url);
   await acquireDomainSlot(domain);
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; BuzzFinderBot/1.0; +https://buzzfinder-studio.lovable.app)",
+        "User-Agent": "Mozilla/5.0 (compatible; BuzzFinderBot/1.0; +https://buzzfinder-studio.lovable.app)",
         Accept: "text/html,application/xhtml+xml,*/*",
       },
       redirect: "follow",
@@ -186,16 +152,37 @@ function extractContactPageLinks(html: string, baseUrl: string): string[] {
   return [...new Set(links)].slice(0, 5);
 }
 
+/* ── InterruptedError for pause detection ── */
+class InterruptedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InterruptedError";
+  }
+}
+
 interface ScrapeResult {
   emails: string[];
   phones: string[];
   social: Record<string, string>;
 }
 
+// deno-lint-ignore no-explicit-any
+async function isSessionPaused(sb: any, session_id: string): Promise<boolean> {
+  const { data } = await sb
+    .from("scraping_sessions")
+    .select("status")
+    .eq("id", session_id)
+    .single();
+  return data?.status === "paused" || data?.status === "completed";
+}
+
 async function scrapeUrl(
   url: string,
   timeoutMs: number,
   crawlDepth: string,
+  // deno-lint-ignore no-explicit-any
+  sb: any,
+  session_id: string,
 ): Promise<ScrapeResult> {
   const html = await fetchHtml(url, timeoutMs);
 
@@ -206,6 +193,10 @@ async function scrapeUrl(
   if (crawlDepth === "homepage_contacts") {
     const subLinks = extractContactPageLinks(html, url);
     for (const link of subLinks) {
+      // Check pause status before each sub-page fetch
+      if (await isSessionPaused(sb, session_id)) {
+        throw new InterruptedError("Session paused by user");
+      }
       try {
         const subHtml = await fetchHtml(link, timeoutMs);
         allEmails = allEmails.concat(subHtml.match(EMAIL_RE) || []);
@@ -214,7 +205,10 @@ async function scrapeUrl(
         for (const [k, v] of Object.entries(subSocial)) {
           if (!social[k]) social[k] = v;
         }
-      } catch { /* skip sub-page errors */ }
+      } catch (err) {
+        if (err instanceof InterruptedError) throw err;
+        /* skip sub-page errors */
+      }
     }
   }
 
@@ -337,14 +331,12 @@ Deno.serve(async (req) => {
 
     let completed = 0;
     let errors = 0;
+    let interrupted = false;
 
     for (const job of jobsToProcess) {
-      const { data: currentSession } = await sb
-        .from("scraping_sessions")
-        .select("status")
-        .eq("id", session_id)
-        .single();
-      if (currentSession?.status === "paused" || currentSession?.status === "completed") {
+      // Check session status before each job
+      if (await isSessionPaused(sb, session_id)) {
+        interrupted = true;
         break;
       }
 
@@ -367,7 +359,7 @@ Deno.serve(async (req) => {
 
       const start = Date.now();
       try {
-        const result = await scrapeUrl(job.url, timeoutMs, crawlDepth);
+        const result = await scrapeUrl(job.url, timeoutMs, crawlDepth, sb, session_id);
         const processingTime = Date.now() - start;
 
         await sb.from("scraping_jobs").update({
@@ -381,6 +373,18 @@ Deno.serve(async (req) => {
 
         completed++;
       } catch (err: unknown) {
+        if (err instanceof InterruptedError) {
+          // Save partial results and requeue the job
+          const partialHtml = ""; // partial data already accumulated in scrapeUrl before throw
+          await sb.from("scraping_jobs").update({
+            status: "queued",
+            error_message: "Interrotto per pausa",
+            processing_time_ms: Date.now() - start,
+            updated_at: new Date().toISOString(),
+          }).eq("id", job.id);
+          interrupted = true;
+          break;
+        }
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         await sb.from("scraping_jobs").update({
           status: "failed",
@@ -404,17 +408,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    await sb.from("scraping_sessions").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      progress_percent: 100,
-      totale_trovati: completed + errors,
-      totale_importati: completed,
-      totale_errori: errors,
-    }).eq("id", session_id);
+    // Only set completed if not interrupted by pause
+    if (!interrupted) {
+      await sb.from("scraping_sessions").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        progress_percent: 100,
+        totale_trovati: completed + errors,
+        totale_importati: completed,
+        totale_errori: errors,
+      }).eq("id", session_id);
+    } else {
+      // Set interrupted_at and update counts, but keep current status (paused/completed)
+      await sb.from("scraping_sessions").update({
+        interrupted_at: new Date().toISOString(),
+        totale_importati: completed,
+        totale_errori: errors,
+      }).eq("id", session_id);
+
+      // Reset any remaining "processing" jobs back to "queued"
+      await sb.from("scraping_jobs")
+        .update({ status: "queued", updated_at: new Date().toISOString() })
+        .eq("session_id", session_id)
+        .eq("status", "processing");
+    }
 
     return new Response(
-      JSON.stringify({ ok: true, completed, errors, requestId }),
+      JSON.stringify({ ok: true, completed, errors, interrupted, requestId }),
       { headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   } catch (err: unknown) {

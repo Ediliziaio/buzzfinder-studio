@@ -55,6 +55,16 @@ export default function ScraperWebsitesPage() {
 
   const { sessions: allSessions } = useScrapingSessions();
 
+  // Derive isPausing: session is paused but some jobs are still processing
+  const isPausing = useMemo(() => {
+    return session?.status === "paused" && jobs.some((j) => j.status === "processing");
+  }, [session, jobs]);
+
+  // Derive isPaused (fully paused, no processing jobs left)
+  const isPaused = useMemo(() => {
+    return session?.status === "paused" && !jobs.some((j) => j.status === "processing");
+  }, [session, jobs]);
+
   // Subscribe to session updates
   useEffect(() => {
     if (!sessionId) return;
@@ -230,7 +240,6 @@ export default function ScraperWebsitesPage() {
       await supabase.from("scraping_jobs").insert(jobInserts);
 
       if (useEdgeFunction) {
-        // Use autonomous edge function
         await toast.promise(
           supabase.functions.invoke("scrape-website", {
             body: {
@@ -252,7 +261,6 @@ export default function ScraperWebsitesPage() {
           }
         );
       } else {
-        // Use n8n
         const webhookPath = n8nSettings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
         await toast.promise(
           triggerN8nWebhook(webhookPath, {
@@ -283,9 +291,48 @@ export default function ScraperWebsitesPage() {
 
   const handlePause = async () => {
     if (!sessionId) return;
-    const { error } = await supabase.from("scraping_sessions").update({ status: "paused" }).eq("id", sessionId);
+    const { error } = await supabase.from("scraping_sessions").update({ status: "paused", paused_at: new Date().toISOString() }).eq("id", sessionId);
     if (error) toast.error("Errore durante la pausa");
     else toast.info("Scraping in pausa", { duration: 5000 });
+  };
+
+  const handleResume = async () => {
+    if (!sessionId) return;
+    try {
+      // Reset stale "processing" jobs (stuck for >2 min) back to "queued"
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      await supabase
+        .from("scraping_jobs")
+        .update({ status: "queued", error_message: null, updated_at: new Date().toISOString() })
+        .eq("session_id", sessionId)
+        .eq("status", "processing")
+        .lt("updated_at", twoMinAgo);
+
+      // Update session to running
+      await supabase.from("scraping_sessions").update({
+        status: "running",
+        resumed_at: new Date().toISOString(),
+      }).eq("id", sessionId);
+
+      // Re-invoke the edge function with same session_id (it will pick up queued jobs)
+      await supabase.functions.invoke("scrape-website", {
+        body: {
+          session_id: sessionId,
+          urls: [], // empty - function will read queued jobs from DB
+          config: {
+            timeout_sec: config.timeoutSec,
+            delay_ms: config.delayMs,
+            max_retries: config.maxRetries,
+            crawl_depth: config.crawlDepth,
+            search_pages: config.searchPages,
+          },
+        },
+      });
+
+      toast.success("Scraping ripreso!");
+    } catch (err: any) {
+      toast.error(err.message || "Errore ripresa scraping");
+    }
   };
 
   const handleStop = async () => {
@@ -295,16 +342,32 @@ export default function ScraperWebsitesPage() {
   const confirmStop = async () => {
     setShowStopConfirm(false);
     if (!sessionId) return;
-    const { error } = await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", sessionId);
-    if (error) toast.error("Errore durante lo stop");
-    else toast.info("Scraping fermato");
+
+    // Set session as completed with interrupted_at
+    const { error } = await supabase.from("scraping_sessions").update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      interrupted_at: new Date().toISOString(),
+    }).eq("id", sessionId);
+
+    if (error) {
+      toast.error("Errore durante lo stop");
+      return;
+    }
+
+    // Reset remaining processing/queued jobs
+    await supabase.from("scraping_jobs")
+      .update({ status: "failed", error_message: "Fermato dall'utente", updated_at: new Date().toISOString() })
+      .eq("session_id", sessionId)
+      .in("status", ["processing", "queued"]);
+
+    toast.info("Scraping fermato");
   };
 
   const handleRetryJob = async (job: ScrapingJob) => {
     await supabase.from("scraping_jobs").update({ status: "queued", error_message: null, tentativo: (job.tentativo || 1) + 1 }).eq("id", job.id);
     toast.info(`Riprova: ${job.url}`);
     try {
-      // Try edge function first (always available), fallback to n8n
       await supabase.functions.invoke("scrape-website", {
         body: {
           session_id: job.session_id,
@@ -380,6 +443,9 @@ export default function ScraperWebsitesPage() {
           onJobClick={handleShowDetail}
           onRetryJob={handleRetryJob}
           isRunning={isRunning}
+          isPausing={isPausing}
+          isPaused={isPaused}
+          onResume={handleResume}
           stats={queueStats}
         />
 
