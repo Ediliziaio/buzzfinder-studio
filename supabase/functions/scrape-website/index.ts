@@ -226,17 +226,52 @@ async function scrapeUrl(
 }
 
 Deno.serve(async (req) => {
+  const cors = getCorsHeaders(req);
+  const requestId = crypto.randomUUID();
+  const withHeaders = (extra: Record<string, string> = {}) => ({
+    ...cors,
+    "X-Request-ID": requestId,
+    ...extra,
+  });
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: withHeaders() });
   }
 
   try {
+    /* ── JWT Authentication ── */
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: withHeaders({ "Content-Type": "application/json" }) },
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Token non valido" }),
+        { status: 401, headers: withHeaders({ "Content-Type": "application/json" }) },
+      );
+    }
+    const authenticatedUserId = claimsData.claims.sub as string;
+
     const { session_id, urls, config, retry_job_id } = await req.json();
 
     if (!session_id || (!urls?.length && !retry_job_id)) {
       return new Response(
         JSON.stringify({ error: "session_id and urls required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -247,14 +282,12 @@ Deno.serve(async (req) => {
         if (!validateScrapeUrl(full)) {
           return new Response(
             JSON.stringify({ error: `URL non valido o non autorizzato: ${u}` }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            { status: 400, headers: withHeaders({ "Content-Type": "application/json" }) },
           );
         }
       }
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
     const { data: session } = await sb
@@ -265,7 +298,15 @@ Deno.serve(async (req) => {
     if (!session) {
       return new Response(
         JSON.stringify({ error: "Session not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 404, headers: withHeaders({ "Content-Type": "application/json" }) },
+      );
+    }
+
+    /* ── Ownership check ── */
+    if (session.user_id !== authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ error: "Accesso negato: sessione non appartenente all'utente" }),
+        { status: 403, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
