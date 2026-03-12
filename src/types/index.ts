@@ -53,6 +53,12 @@ export interface Contact {
   ai_intro: string | null;
   ai_modello: string | null;
   ai_personalizzato_at: string | null;
+  // Chiamate AI
+  telefono_chiamabile: boolean;
+  telefono_dnc: boolean;
+  ultima_chiamata_at: string | null;
+  totale_chiamate: number;
+  esito_ultima_chiamata: string | null;
   created_at: string;
   updated_at: string;
 }
