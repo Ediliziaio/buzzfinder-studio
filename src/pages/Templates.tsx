@@ -31,7 +31,7 @@ const tipoColors: Record<string, string> = {
 
 interface TemplateFormData {
   nome: string;
-  tipo: "email" | "sms" | "whatsapp";
+  tipo: "email" | "sms" | "whatsapp" | "chiamata";
   subject: string;
   body_html: string;
   sender_email: string;
