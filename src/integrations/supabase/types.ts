@@ -44,6 +44,152 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_executions: {
+        Row: {
+          azione_risultato: Json | null
+          campaign_id: string | null
+          completato_at: string | null
+          contact_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          rule_id: string
+          stato: string
+          trigger_contesto: Json | null
+          user_id: string
+        }
+        Insert: {
+          azione_risultato?: Json | null
+          campaign_id?: string | null
+          completato_at?: string | null
+          contact_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          rule_id: string
+          stato?: string
+          trigger_contesto?: Json | null
+          user_id: string
+        }
+        Update: {
+          azione_risultato?: Json | null
+          campaign_id?: string | null
+          completato_at?: string | null
+          contact_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          rule_id?: string
+          stato?: string
+          trigger_contesto?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_executions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "automation_executions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_executions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_executions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          attiva: boolean
+          azione_params: Json
+          azione_tipo: string
+          campaign_id: string | null
+          condizioni: Json
+          cooldown_ore: number | null
+          created_at: string
+          descrizione: string | null
+          id: string
+          max_esecuzioni_per_contatto: number | null
+          nome: string
+          trigger_params: Json
+          trigger_tipo: string
+          ultima_esecuzione: string | null
+          updated_at: string
+          user_id: string
+          volte_eseguita: number
+        }
+        Insert: {
+          attiva?: boolean
+          azione_params?: Json
+          azione_tipo: string
+          campaign_id?: string | null
+          condizioni?: Json
+          cooldown_ore?: number | null
+          created_at?: string
+          descrizione?: string | null
+          id?: string
+          max_esecuzioni_per_contatto?: number | null
+          nome: string
+          trigger_params?: Json
+          trigger_tipo: string
+          ultima_esecuzione?: string | null
+          updated_at?: string
+          user_id: string
+          volte_eseguita?: number
+        }
+        Update: {
+          attiva?: boolean
+          azione_params?: Json
+          azione_tipo?: string
+          campaign_id?: string | null
+          condizioni?: Json
+          cooldown_ore?: number | null
+          created_at?: string
+          descrizione?: string | null
+          id?: string
+          max_esecuzioni_per_contatto?: number | null
+          nome?: string
+          trigger_params?: Json
+          trigger_tipo?: string
+          ultima_esecuzione?: string | null
+          updated_at?: string
+          user_id?: string
+          volte_eseguita?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "automation_rules_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blacklist_checks: {
         Row: {
           blacklists: string[]
@@ -78,6 +224,139 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "sender_pool"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_sessions: {
+        Row: {
+          agent_id: string
+          automation_rule_id: string | null
+          campaign_id: string | null
+          contact_id: string
+          costo_eur: number | null
+          created_at: string
+          data_richiamo: string | null
+          durata_secondi: number | null
+          elevenlabs_call_id: string | null
+          ended_at: string | null
+          error_message: string | null
+          esito: string | null
+          execution_id: string | null
+          id: string
+          minuti_fatturati: number | null
+          note_ai: string | null
+          phone_number_from: string | null
+          phone_number_to: string
+          recipient_id: string | null
+          recording_url: string | null
+          riassunto_ai: string | null
+          scheduled_at: string | null
+          sentiment: string | null
+          started_at: string | null
+          stato: string
+          trascrizione: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          automation_rule_id?: string | null
+          campaign_id?: string | null
+          contact_id: string
+          costo_eur?: number | null
+          created_at?: string
+          data_richiamo?: string | null
+          durata_secondi?: number | null
+          elevenlabs_call_id?: string | null
+          ended_at?: string | null
+          error_message?: string | null
+          esito?: string | null
+          execution_id?: string | null
+          id?: string
+          minuti_fatturati?: number | null
+          note_ai?: string | null
+          phone_number_from?: string | null
+          phone_number_to: string
+          recipient_id?: string | null
+          recording_url?: string | null
+          riassunto_ai?: string | null
+          scheduled_at?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          stato?: string
+          trascrizione?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          automation_rule_id?: string | null
+          campaign_id?: string | null
+          contact_id?: string
+          costo_eur?: number | null
+          created_at?: string
+          data_richiamo?: string | null
+          durata_secondi?: number | null
+          elevenlabs_call_id?: string | null
+          ended_at?: string | null
+          error_message?: string | null
+          esito?: string | null
+          execution_id?: string | null
+          id?: string
+          minuti_fatturati?: number | null
+          note_ai?: string | null
+          phone_number_from?: string | null
+          phone_number_to?: string
+          recipient_id?: string | null
+          recording_url?: string | null
+          riassunto_ai?: string | null
+          scheduled_at?: string | null
+          sentiment?: string | null
+          started_at?: string | null
+          stato?: string
+          trascrizione?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "call_sessions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_step_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_call_sessions_automation"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
             referencedColumns: ["id"]
           },
         ]
@@ -141,6 +420,13 @@ export type Database = {
           triggered_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "campaign_recipients_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -215,6 +501,13 @@ export type Database = {
             foreignKeyName: "campaign_step_executions_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "campaign_step_executions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -247,12 +540,16 @@ export type Database = {
           ab_padre_id: string | null
           ab_peso: number
           campaign_id: string
+          chiamata_obiettivo: string | null
+          chiamata_script: string | null
           condizione: string
           corpo_html: string | null
           created_at: string
           delay_giorni: number
           delay_ore: number
+          elevenlabs_agent_id: string | null
           id: string
+          max_tentativi_chiamata: number | null
           messaggio: string | null
           soggetto: string | null
           stat_aperti: number
@@ -267,12 +564,16 @@ export type Database = {
           ab_padre_id?: string | null
           ab_peso?: number
           campaign_id: string
+          chiamata_obiettivo?: string | null
+          chiamata_script?: string | null
           condizione?: string
           corpo_html?: string | null
           created_at?: string
           delay_giorni?: number
           delay_ore?: number
+          elevenlabs_agent_id?: string | null
           id?: string
+          max_tentativi_chiamata?: number | null
           messaggio?: string | null
           soggetto?: string | null
           stat_aperti?: number
@@ -287,12 +588,16 @@ export type Database = {
           ab_padre_id?: string | null
           ab_peso?: number
           campaign_id?: string
+          chiamata_obiettivo?: string | null
+          chiamata_script?: string | null
           condizione?: string
           corpo_html?: string | null
           created_at?: string
           delay_giorni?: number
           delay_ore?: number
+          elevenlabs_agent_id?: string | null
           id?: string
+          max_tentativi_chiamata?: number | null
           messaggio?: string | null
           soggetto?: string | null
           stat_aperti?: number
@@ -309,6 +614,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaign_steps"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
           },
           {
             foreignKeyName: "campaign_steps_campaign_id_fkey"
@@ -607,6 +919,13 @@ export type Database = {
             foreignKeyName: "contact_activities_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -635,6 +954,7 @@ export type Database = {
           email_valid: boolean | null
           email_validato: boolean | null
           email_validato_at: string | null
+          esito_ultima_chiamata: string | null
           facebook_url: string | null
           fonte: string | null
           google_categories: string[] | null
@@ -656,8 +976,12 @@ export type Database = {
           stato: string | null
           tags: string[] | null
           telefono: string | null
+          telefono_chiamabile: boolean | null
+          telefono_dnc: boolean | null
           telefono_normalizzato: string | null
+          totale_chiamate: number | null
           ultima_attivita: string | null
+          ultima_chiamata_at: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -676,6 +1000,7 @@ export type Database = {
           email_valid?: boolean | null
           email_validato?: boolean | null
           email_validato_at?: string | null
+          esito_ultima_chiamata?: string | null
           facebook_url?: string | null
           fonte?: string | null
           google_categories?: string[] | null
@@ -697,8 +1022,12 @@ export type Database = {
           stato?: string | null
           tags?: string[] | null
           telefono?: string | null
+          telefono_chiamabile?: boolean | null
+          telefono_dnc?: boolean | null
           telefono_normalizzato?: string | null
+          totale_chiamate?: number | null
           ultima_attivita?: string | null
+          ultima_chiamata_at?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -717,6 +1046,7 @@ export type Database = {
           email_valid?: boolean | null
           email_validato?: boolean | null
           email_validato_at?: string | null
+          esito_ultima_chiamata?: string | null
           facebook_url?: string | null
           fonte?: string | null
           google_categories?: string[] | null
@@ -738,8 +1068,12 @@ export type Database = {
           stato?: string | null
           tags?: string[] | null
           telefono?: string | null
+          telefono_chiamabile?: boolean | null
+          telefono_dnc?: boolean | null
           telefono_normalizzato?: string | null
+          totale_chiamate?: number | null
           ultima_attivita?: string | null
+          ultima_chiamata_at?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -862,6 +1196,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "follow_up_sequences_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "follow_up_sequences_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -990,6 +1331,13 @@ export type Database = {
             foreignKeyName: "inbox_messages_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "inbox_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -1103,6 +1451,13 @@ export type Database = {
           valore_stimato?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "pipeline_leads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "pipeline_leads_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1303,18 +1658,24 @@ export type Database = {
         Row: {
           attivo: boolean | null
           bounce_rate: number | null
+          chiamate_oggi: number
           created_at: string | null
           dkim_ok: boolean | null
           dmarc_ok: boolean | null
           dominio: string | null
+          durata_media_sec: number | null
+          elevenlabs_agent_id: string | null
+          elevenlabs_phone_id: string | null
           email_from: string | null
           email_nome: string | null
           health_score: number | null
           id: string
           inviati_oggi: number | null
+          max_chiamate_day: number
           max_per_day: number | null
           nome: string
           note: string | null
+          phone_number: string | null
           reply_to: string | null
           resend_api_key: string | null
           sms_api_key: string | null
@@ -1343,18 +1704,24 @@ export type Database = {
         Insert: {
           attivo?: boolean | null
           bounce_rate?: number | null
+          chiamate_oggi?: number
           created_at?: string | null
           dkim_ok?: boolean | null
           dmarc_ok?: boolean | null
           dominio?: string | null
+          durata_media_sec?: number | null
+          elevenlabs_agent_id?: string | null
+          elevenlabs_phone_id?: string | null
           email_from?: string | null
           email_nome?: string | null
           health_score?: number | null
           id?: string
           inviati_oggi?: number | null
+          max_chiamate_day?: number
           max_per_day?: number | null
           nome: string
           note?: string | null
+          phone_number?: string | null
           reply_to?: string | null
           resend_api_key?: string | null
           sms_api_key?: string | null
@@ -1383,18 +1750,24 @@ export type Database = {
         Update: {
           attivo?: boolean | null
           bounce_rate?: number | null
+          chiamate_oggi?: number
           created_at?: string | null
           dkim_ok?: boolean | null
           dmarc_ok?: boolean | null
           dominio?: string | null
+          durata_media_sec?: number | null
+          elevenlabs_agent_id?: string | null
+          elevenlabs_phone_id?: string | null
           email_from?: string | null
           email_nome?: string | null
           health_score?: number | null
           id?: string
           inviati_oggi?: number | null
+          max_chiamate_day?: number
           max_per_day?: number | null
           nome?: string
           note?: string | null
+          phone_number?: string | null
           reply_to?: string | null
           resend_api_key?: string | null
           sms_api_key?: string | null
@@ -1452,6 +1825,13 @@ export type Database = {
             foreignKeyName: "suppression_list_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "suppression_list_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -1486,6 +1866,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "unsubscribes_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "unsubscribes_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1534,6 +1921,13 @@ export type Database = {
             foreignKeyName: "usage_log_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "call_analytics"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "usage_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -1541,7 +1935,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      call_analytics: {
+        Row: {
+          appuntamenti: number | null
+          campaign_id: string | null
+          completate: number | null
+          costo_totale_eur: number | null
+          da_richiamare: number | null
+          durata_media_sec: number | null
+          interessati: number | null
+          no_risposta: number | null
+          nome: string | null
+          tasso_interesse: number | null
+          totale_chiamate: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_health_score: {

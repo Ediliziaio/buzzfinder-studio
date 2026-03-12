@@ -8,9 +8,9 @@ export type CampaignTipo = 'email' | 'sms' | 'whatsapp';
 export type CampaignStato = 'bozza' | 'schedulata' | 'in_corso' | 'completata' | 'in_pausa' | 'errore' | 'archiviata';
 export type CampaignTipoCampagna = 'blast' | 'sequence' | 'drip';
 export type CampaignRecipientStato = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'failed' | 'bounced' | 'unsubscribed';
-export type ActivityTipo = 'email_inviata' | 'email_aperta' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato';
+export type ActivityTipo = 'email_inviata' | 'email_aperta' | 'sms_inviato' | 'whatsapp_inviato' | 'nota' | 'stato_cambiato' | 'importato' | 'chiamata_effettuata';
 export type ListTipo = 'statica' | 'dinamica';
-export type SettingCategoria = 'api_keys' | 'limiti' | 'scraping' | 'mittenti';
+export type SettingCategoria = 'api_keys' | 'limiti' | 'scraping' | 'mittenti' | 'elevenlabs' | 'chiamate' | 'notifiche';
 export type EmailEventTipo = 'open' | 'click' | 'bounce' | 'spam' | 'unsubscribe' | 'delivered';
 export type PipelineStageType = 'interessato' | 'richiesta_info' | 'meeting_fissato' | 'proposta_inviata' | 'vinto' | 'perso';
 
@@ -53,6 +53,12 @@ export interface Contact {
   ai_intro: string | null;
   ai_modello: string | null;
   ai_personalizzato_at: string | null;
+  // Chiamate AI
+  telefono_chiamabile: boolean;
+  telefono_dnc: boolean;
+  ultima_chiamata_at: string | null;
+  totale_chiamate: number;
+  esito_ultima_chiamata: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -448,4 +454,94 @@ export interface ContactFilters {
   hasTelefono?: boolean;
   dateFrom?: string;
   dateTo?: string;
+}
+
+// ── Chiamate AI ElevenLabs ──────────────────────────────────────────
+export type CallStato =
+  | 'scheduled' | 'calling' | 'completed' | 'no_answer'
+  | 'busy' | 'failed' | 'voicemail' | 'cancelled';
+
+export type CallEsito =
+  | 'interessato' | 'non_interessato' | 'richiama'
+  | 'appuntamento' | 'da_analizzare' | 'altro';
+
+export interface CallSession {
+  id: string;
+  created_at: string;
+  user_id: string;
+  campaign_id: string | null;
+  contact_id: string;
+  recipient_id: string | null;
+  execution_id: string | null;
+  automation_rule_id: string | null;
+  elevenlabs_call_id: string | null;
+  agent_id: string;
+  phone_number_from: string | null;
+  phone_number_to: string;
+  stato: CallStato;
+  scheduled_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  durata_secondi: number | null;
+  trascrizione: string | null;
+  riassunto_ai: string | null;
+  sentiment: 'positivo' | 'neutro' | 'negativo' | null;
+  esito: CallEsito | null;
+  data_richiamo: string | null;
+  note_ai: string | null;
+  costo_eur: number;
+  minuti_fatturati: number;
+  error_message: string | null;
+  recording_url: string | null;
+  contacts?: Pick<Contact, 'id' | 'nome' | 'cognome' | 'azienda' | 'telefono'>;
+}
+
+// ── Automation Rules Engine ─────────────────────────────────────────
+export type AutomationTrigger =
+  | 'email_aperta' | 'email_cliccata' | 'risposta_ricevuta'
+  | 'risposta_etichetta' | 'no_risposta_dopo' | 'pipeline_stage_cambiato'
+  | 'chiamata_completata' | 'chiamata_esito' | 'contatto_aggiunto'
+  | 'campagna_avviata' | 'manuale';
+
+export type AutomationAzione =
+  | 'chiama_contatto' | 'aggiungi_a_sequenza' | 'cambia_pipeline_stage'
+  | 'invia_email' | 'assegna_tag' | 'notifica_slack'
+  | 'notifica_webhook' | 'aspetta_e_poi';
+
+export interface AutomationRule {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  nome: string;
+  descrizione: string | null;
+  attiva: boolean;
+  campaign_id: string | null;
+  trigger_tipo: AutomationTrigger;
+  trigger_params: Record<string, unknown>;
+  condizioni: Array<{
+    campo: string;
+    operatore: 'eq' | 'neq' | 'gt' | 'lt' | 'is_null' | 'not_null' | 'contains' | 'in';
+    valore: unknown;
+  }>;
+  azione_tipo: AutomationAzione;
+  azione_params: Record<string, unknown>;
+  max_esecuzioni_per_contatto: number;
+  cooldown_ore: number;
+  volte_eseguita: number;
+  ultima_esecuzione: string | null;
+}
+
+export interface AutomationExecution {
+  id: string;
+  created_at: string;
+  user_id: string;
+  rule_id: string;
+  contact_id: string;
+  campaign_id: string | null;
+  stato: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  trigger_contesto: Record<string, unknown>;
+  azione_risultato: Record<string, unknown>;
+  error_message: string | null;
+  completato_at: string | null;
 }
