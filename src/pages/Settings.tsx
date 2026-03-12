@@ -312,8 +312,11 @@ function BlocklistEditor() {
   const [value, setValue] = useState("");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").maybeSingle().then(({ data }) => {
-      if (data?.valore) setValue(data.valore);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "email_blocklist").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.valore) setValue(data.valore);
+      });
     });
   }, []);
 
@@ -339,8 +342,11 @@ function AiModelSelector() {
   const [model, setModel] = useState("gemini-flash");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").maybeSingle().then(({ data }) => {
-      if (data?.valore) setModel(data.valore);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "ai_model_default").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.valore) setModel(data.valore);
+      });
     });
   }, []);
 
@@ -376,8 +382,11 @@ function AnthropicModelSelect() {
   const [model, setModel] = useState("claude-haiku-4-5-20251001");
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").maybeSingle().then(({ data }) => {
-      if (data?.valore) setModel(data.valore);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "ai_model_attivo").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.valore) setModel(data.valore);
+      });
     });
   }, []);
 
@@ -412,7 +421,9 @@ function ElevenLabsTestButton() {
   const testConnection = async () => {
     setTesting(true);
     try {
-      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Non autenticato"); setTesting(false); return; }
+      const { data } = await supabase.from("app_settings").select("valore").eq("chiave", "elevenlabs_api_key").eq("user_id", user.id).maybeSingle();
       const apiKey = data?.valore;
       if (!apiKey) { toast.error("Inserisci prima la API Key ElevenLabs"); setTesting(false); return; }
       const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": apiKey } });

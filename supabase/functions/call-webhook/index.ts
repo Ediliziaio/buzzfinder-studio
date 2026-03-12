@@ -23,7 +23,8 @@ async function getAppSetting(userId: string, chiave: string): Promise<string | n
 async function estraiEsitoDaConversazione(
   trascrizione: string,
   riassunto: string,
-  apiKey: string
+  apiKey: string,
+  modelName?: string
 ): Promise<{ esito: string; sentiment: string; note: string; data_richiamo: string | null }> {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -34,7 +35,7 @@ async function estraiEsitoDaConversazione(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: modelName || "claude-haiku-4-5-20251001",
         max_tokens: 200,
         messages: [{
           role: "user",
@@ -150,12 +151,14 @@ Deno.serve(async (req: Request) => {
 
     if (statoNormalizzato === "completed" && (trascrizioneTestuale || summary)) {
       const apiKey = await getAppSetting(userId, "anthropic_api_key");
+      const aiModel = await getAppSetting(userId, "ai_model_attivo");
 
       if (apiKey) {
         const analisi = await estraiEsitoDaConversazione(
           trascrizioneTestuale,
           summary || "",
-          apiKey
+          apiKey,
+          aiModel || undefined
         );
         esito = analisi.esito;
         sentiment = analisi.sentiment;
@@ -304,7 +307,14 @@ async function triggerAutomazioni(
     const { data: rules } = await query;
     if (!rules?.length) return;
 
-    for (const rule of rules) {
+    // Filter rules by specific esito if trigger_params.esito is set
+    const filteredRules = rules.filter((rule: any) => {
+      const ruleEsito = (rule.trigger_params as any)?.esito;
+      if (!ruleEsito || ruleEsito === "__any__") return true;
+      return ruleEsito === contesto.esito;
+    });
+
+    for (const rule of filteredRules) {
       // Controlla cooldown
       const { data: recentExec } = await supabase
         .from("automation_executions")

@@ -51,12 +51,26 @@ Deno.serve(async (req: Request) => {
   try {
     const { batch_size = 20 } = await req.json().catch(() => ({}));
 
-    const { data: executions, error } = await supabase
+    // Extract user_id from JWT for multi-tenant isolation
+    let filterUserId: string | null = null;
+    if (token !== serviceRoleKey) {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) filterUserId = user.id;
+    }
+
+    let execQuery = supabase
       .from("automation_executions")
       .select("*, automation_rules(*)")
       .eq("stato", "pending")
       .order("created_at", { ascending: true })
       .limit(batch_size);
+
+    // If called by authenticated user, only process their executions
+    if (filterUserId) {
+      execQuery = execQuery.eq("user_id", filterUserId);
+    }
+
+    const { data: executions, error } = await execQuery;
 
     if (error) throw error;
     if (!executions?.length) {
@@ -124,6 +138,11 @@ Deno.serve(async (req: Request) => {
 
           case "cambia_pipeline_stage": {
             const params = rule.azione_params as { nuovo_stage: string };
+            if (!exec.campaign_id) {
+              console.warn(`cambia_pipeline_stage: campaign_id null per exec ${exec.id}, skip`);
+              risultato = { skipped: true, motivo: "campaign_id mancante, impossibile trovare recipient" };
+              break;
+            }
             await supabase
               .from("campaign_recipients")
               .update({
@@ -231,18 +250,24 @@ Deno.serve(async (req: Request) => {
             risultato = { skipped: true, motivo: `Azione ${rule.azione_tipo} non implementata` };
         }
 
+        const isSkipped = !!(risultato as any)?.skipped;
+        const finalStato = isSkipped ? "skipped" : "completed";
+
         await supabase.from("automation_executions").update({
-          stato: "completed",
+          stato: finalStato,
           azione_risultato: risultato,
           completato_at: new Date().toISOString(),
         }).eq("id", exec.id);
 
-        await supabase.from("automation_rules").update({
-          volte_eseguita: (rule.volte_eseguita || 0) + 1,
-          ultima_esecuzione: new Date().toISOString(),
-        }).eq("id", rule.id);
+        if (!isSkipped) {
+          await supabase.from("automation_rules").update({
+            volte_eseguita: (rule.volte_eseguita || 0) + 1,
+            ultima_esecuzione: new Date().toISOString(),
+          }).eq("id", rule.id);
+        }
 
-        results.completed++;
+        if (isSkipped) results.skipped++;
+        else results.completed++;
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
