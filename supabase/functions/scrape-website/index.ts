@@ -262,9 +262,9 @@ Deno.serve(async (req) => {
 
     const { session_id, urls, config, retry_job_id } = await req.json();
 
-    if (!session_id || (!urls?.length && !retry_job_id)) {
+    if (!session_id) {
       return new Response(
-        JSON.stringify({ error: "session_id and urls required" }),
+        JSON.stringify({ error: "session_id required" }),
         { status: 400, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
