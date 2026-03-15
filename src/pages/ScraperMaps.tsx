@@ -110,7 +110,10 @@ export default function ScraperMapsPage() {
           },
         });
 
-        if (error) throw new Error(error.message || "Errore Edge Function");
+        if (error) {
+          const realMessage = data?.error || error.message || "Errore Edge Function";
+          throw new Error(realMessage);
+        }
         if (data?.aborted) break;
         if (data?.error) throw new Error(data.error);
         if (data?.retry) {
