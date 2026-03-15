@@ -16,6 +16,33 @@ import { ClaudeCoworkSetup } from "@/components/settings/ClaudeCoworkSetup";
 import { KimiSetup } from "@/components/settings/KimiSetup";
 import { OpenClawSetup } from "@/components/settings/OpenClawSetup";
 
+// --- API Key Validators ---
+const validateGoogleMapsKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (data.status === "REQUEST_DENIED") return "API Key non valida o API non abilitata";
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
+
+const validateScrapingBeeKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://app.scrapingbee.com/api/v1/usage?api_key=${encodeURIComponent(key)}`);
+    if (res.status === 401 || res.status === 403) return "API Key non valida";
+    if (!res.ok) return `Errore verifica (HTTP ${res.status})`;
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
+
+const validateElevenLabsKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": key } });
+    if (!res.ok) return "API Key non valida";
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
+
 export default function SettingsPage() {
   const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
   const [exporting, setExporting] = useState<string | null>(null);
