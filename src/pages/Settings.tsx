@@ -134,7 +134,7 @@ export default function SettingsPage() {
             <SettingField chiave="zerobounce_api_key" label="ZeroBounce API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />
           </Section>
           <Section title="GOOGLE MAPS">
-            <SettingField chiave="google_maps_api_key" label="Google Maps Places API Key" placeholder="AIza..." isSecret categoria="api_keys" />
+            <SettingField chiave="google_maps_api_key" label="Google Maps Places API Key" placeholder="AIza..." isSecret categoria="api_keys" validator={validateGoogleMapsKey} />
           </Section>
           <Section title="SCRAPINGBEE">
             <SettingField chiave="scrapingbee_api_key" label="ScrapingBee API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />
