@@ -255,7 +255,7 @@ export default function SettingsPage() {
             </div>
           </Section>
           <Section title="ELEVENLABS CONVERSATIONAL AI" extra={<ElevenLabsTestButton />}>
-            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" />
+            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" validator={validateElevenLabsKey} />
             <SettingField chiave="elevenlabs_agent_id_default" label="ID Agente Default" placeholder="agent_..." categoria="ai_calls" />
             <SettingField chiave="elevenlabs_phone_number_id" label="Phone Number ID" placeholder="pn_..." categoria="ai_calls" />
             <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline mt-1">
