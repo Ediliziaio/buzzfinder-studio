@@ -137,7 +137,7 @@ export default function SettingsPage() {
             <SettingField chiave="google_maps_api_key" label="Google Maps Places API Key" placeholder="AIza..." isSecret categoria="api_keys" validator={validateGoogleMapsKey} />
           </Section>
           <Section title="SCRAPINGBEE">
-            <SettingField chiave="scrapingbee_api_key" label="ScrapingBee API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />
+            <SettingField chiave="scrapingbee_api_key" label="ScrapingBee API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" validator={validateScrapingBeeKey} />
           </Section>
           <Section title="META WHATSAPP BUSINESS">
             <SettingField chiave="meta_access_token" label="Meta Access Token" placeholder="EAAa..." isSecret categoria="api_keys" />
