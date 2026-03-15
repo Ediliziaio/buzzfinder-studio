@@ -1,41 +1,18 @@
 
 
-# Piano: Bottone Salva + Validazione API Keys in Impostazioni
+## Creazione Account Superadmin
 
-## Situazione attuale
-- I `SettingField` salvano automaticamente su blur (onBlur) — non c'e' un bottone "Salva" esplicito
-- Nessuna validazione delle API key inserite
+Per creare l'account con le credenziali specificate, servono due passaggi:
 
-## Modifiche
+### Passaggio 1 — Abilitare auto-conferma email
+Attivare la conferma automatica delle email nel sistema di autenticazione, così l'account sarà subito operativo senza dover verificare l'email.
 
-### 1. Bottone "Salva tutte le impostazioni" nell'header della pagina Settings
-Aggiungere un bottone "Salva" nell'header accanto al titolo "IMPOSTAZIONI". Al click:
-- Raccoglie tutti i valori correnti dei SettingField
-- Li salva in batch su `app_settings`
-- Mostra toast di conferma
+### Passaggio 2 — Registrazione
+Una volta abilitata l'auto-conferma, potrai registrarti direttamente dalla pagina di login attuale (`/auth`) cliccando su **"Primo accesso? Crea account"** e inserendo:
+- **Email**: `f.andriciuc@overthemol.com`
+- **Password**: `Password2025!`
 
-**Approccio**: Modificare `SettingField` per esporre il valore corrente tramite un ref/callback pattern, oppure (piu' semplice) mantenere il salvataggio su blur ma aggiungere un bottone "Salva" che triggera il salvataggio di tutti i campi visibili. Il modo piu' pulito: usare un **context** `SettingsFormContext` che raccoglie tutti i campi registrati e il bottone Salva li flusha tutti.
+L'account sarà immediatamente attivo e potrai accedere alla piattaforma.
 
-### 2. Validazione API Keys
-Aggiungere una funzione `validateApiKey` che testa le API key principali al salvataggio. Per ogni provider:
-
-| Provider | Endpoint di test | Check |
-|----------|-----------------|-------|
-| Resend | `POST https://api.resend.com/emails` con body vuoto → 422 = key valida, 401 = invalida | status !== 401 |
-| Google Maps | `GET https://maps.googleapis.com/maps/api/place/textsearch/json?query=test&key=KEY` | `status !== "REQUEST_DENIED"` |
-| ScrapingBee | `GET https://app.scrapingbee.com/api/v1/usage?api_key=KEY` | status 200 |
-| ElevenLabs | Gia' implementato (`ElevenLabsTestButton`) |
-| Anthropic | Non testabile da browser (CORS) — skip |
-
-Al salvataggio, se una key e' stata modificata e il provider supporta la validazione, testare e mostrare errore specifico con toast rosso se invalida.
-
-### 3. Indicatore stato validazione nel SettingField
-Aggiungere un prop opzionale `validator` al `SettingField`. Dopo il salvataggio, se il validator e' presente, viene chiamato. Se fallisce, mostra icona ❌ rossa e toast di errore.
-
-## File coinvolti
-
-| File | Modifiche |
-|------|-----------|
-| `src/pages/Settings.tsx` | Aggiungere bottone "Salva" nell'header, logica salvataggio batch, definizione validatori per le key principali |
-| `src/components/settings/SettingField.tsx` | Aggiungere prop `validator?: (val: string) => Promise<string | null>`, stato `error`, icona errore, chiamata validator dopo save |
+> Nota: dopo la creazione dell'account, disabiliterò l'auto-conferma per mantenere la sicurezza in produzione.
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Settings, Loader2, Download, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,33 @@ import { AIModelSelector } from "@/components/settings/AIModelSelector";
 import { ClaudeCoworkSetup } from "@/components/settings/ClaudeCoworkSetup";
 import { KimiSetup } from "@/components/settings/KimiSetup";
 import { OpenClawSetup } from "@/components/settings/OpenClawSetup";
+
+// --- API Key Validators ---
+const validateGoogleMapsKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (data.status === "REQUEST_DENIED") return "API Key non valida o API non abilitata";
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
+
+const validateScrapingBeeKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://app.scrapingbee.com/api/v1/usage?api_key=${encodeURIComponent(key)}`);
+    if (res.status === 401 || res.status === 403) return "API Key non valida";
+    if (!res.ok) return `Errore verifica (HTTP ${res.status})`;
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
+
+const validateElevenLabsKey = async (key: string): Promise<string | null> => {
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user", { headers: { "xi-api-key": key } });
+    if (!res.ok) return "API Key non valida";
+    return null;
+  } catch { return "Impossibile verificare la chiave"; }
+};
 
 export default function SettingsPage() {
   const [n8nStatus, setN8nStatus] = useState<"idle" | "testing" | "online" | "offline">("idle");
@@ -107,10 +134,10 @@ export default function SettingsPage() {
             <SettingField chiave="zerobounce_api_key" label="ZeroBounce API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />
           </Section>
           <Section title="GOOGLE MAPS">
-            <SettingField chiave="google_maps_api_key" label="Google Maps Places API Key" placeholder="AIza..." isSecret categoria="api_keys" />
+            <SettingField chiave="google_maps_api_key" label="Google Maps Places API Key" placeholder="AIza..." isSecret categoria="api_keys" validator={validateGoogleMapsKey} />
           </Section>
           <Section title="SCRAPINGBEE">
-            <SettingField chiave="scrapingbee_api_key" label="ScrapingBee API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" />
+            <SettingField chiave="scrapingbee_api_key" label="ScrapingBee API Key" placeholder="Inserisci API key..." isSecret categoria="api_keys" validator={validateScrapingBeeKey} />
           </Section>
           <Section title="META WHATSAPP BUSINESS">
             <SettingField chiave="meta_access_token" label="Meta Access Token" placeholder="EAAa..." isSecret categoria="api_keys" />
@@ -228,7 +255,7 @@ export default function SettingsPage() {
             </div>
           </Section>
           <Section title="ELEVENLABS CONVERSATIONAL AI" extra={<ElevenLabsTestButton />}>
-            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" />
+            <SettingField chiave="elevenlabs_api_key" label="ElevenLabs API Key" placeholder="sk_..." isSecret categoria="api_keys" validator={validateElevenLabsKey} />
             <SettingField chiave="elevenlabs_agent_id_default" label="ID Agente Default" placeholder="agent_..." categoria="ai_calls" />
             <SettingField chiave="elevenlabs_phone_number_id" label="Phone Number ID" placeholder="pn_..." categoria="ai_calls" />
             <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline mt-1">
