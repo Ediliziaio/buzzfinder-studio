@@ -407,17 +407,14 @@ export default function ScraperMapsPage() {
         tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
       }
     }
-    // Always query ALL shops/crafts/offices/amenities (indexed, fast) + specific tag clauses.
-    // Filter client-side by name — this finds Italian businesses by their name
-    // (e.g. "Infissi Rossi") even when they lack specific OSM craft/shop tags.
-    const broadClauses = [
-      `nwr["shop"](around:${r},${lat},${lon})`,
-      `nwr["craft"](around:${r},${lat},${lon})`,
-      `nwr["office"](around:${r},${lat},${lon})`,
-      `nwr["amenity"](around:${r},${lat},${lon})`,
-    ];
-    const allClauses = [...new Set([...broadClauses, ...tagClauses])];
-    const effectiveLim = Math.min(lim * 4, 2000);
+    // TWO PATHS:
+    // 1. Keyword has specific OSM tags (ristorante, bar...) → indexed tag query, fast, large radius
+    // 2. Keyword unknown (infissi, serramenti...) → name regex search, like Google Maps by name
+    const useBroadFallback = tagClauses.length === 0;
+    const allClauses = useBroadFallback
+      ? [`nwr["name"~"${sq}",i](around:${r},${lat},${lon})`]
+      : [...new Set(tagClauses)];
+    const effectiveLim = lim;
     const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${effectiveLim};`;
 
     // 2. Overpass from browser (not blocked unlike edge functions)
@@ -436,18 +433,18 @@ export default function ScraperMapsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elements: any[] = ovData.elements || [];
 
-    // Accept if: name contains keyword OR element has a specific tag from tagClauses
+    // Name regex already filtered by Overpass for broad fallback → accept all with name.
+    // For tag-matched results: accept if tag matches OR name loosely matches keyword.
     const expectedTagPairs = new Set(
       tagClauses.map((c) => { const m = c.match(/\["(\w+)"="([^"]+)"\]/); return m ? `${m[1]}=${m[2]}` : ""; }).filter(Boolean)
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const candidates = elements.filter((el: any) => {
       const t = el.tags || {}; if (!t.name) return false;
+      if (useBroadFallback) return true; // name regex already did filtering in Overpass
       if (t.name.toLowerCase().includes(ql)) return true;
-      if (expectedTagPairs.size > 0) {
-        for (const [k, v] of Object.entries(t)) {
-          if (expectedTagPairs.has(`${k}=${v}`)) return true;
-        }
+      for (const [k, v] of Object.entries(t)) {
+        if (expectedTagPairs.has(`${k}=${v}`)) return true;
       }
       return false;
     }).slice(0, loopConfig.maxResults * 2);

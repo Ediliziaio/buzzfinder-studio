@@ -344,14 +344,25 @@ interface Settlement {
   placeType: string; // city | town | village | hamlet
 }
 
-/** Adaptive radius (metres) by settlement size */
+/** Adaptive radius (metres) for indexed tag queries */
 function radiusForPlace(placeType: string): number {
   switch (placeType) {
-    case "city":   return 15000;
-    case "town":   return 8000;
+    case "city":    return 15000;
+    case "town":    return 8000;
     case "village": return 4000;
-    case "hamlet": return 2000;
-    default:       return 5000;
+    case "hamlet":  return 2000;
+    default:        return 5000;
+  }
+}
+
+/** Smaller radius for name-regex queries (avoids Overpass timeout) */
+function nameRadiusForPlace(placeType: string): number {
+  switch (placeType) {
+    case "city":    return 8000;
+    case "town":    return 4000;
+    case "village": return 2000;
+    case "hamlet":  return 1000;
+    default:        return 3000;
   }
 }
 
@@ -492,17 +503,11 @@ export default function ScraperRegionalePage() {
       user_id: string
     ): Promise<{ imported: number; withEmail: number }> => {
       const { lat, lon, name, placeType } = settlement;
-      const r = radiusForPlace(placeType); // adaptive radius
       const ql = kw.toLowerCase();
+      const sq = kw.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
-      // Strategy: always query ALL shops/crafts/offices/amenities (all indexed, fast),
-      // then filter client-side by name containing the keyword.
-      // This mirrors exactly how Scraper Maps works for Italian B2B categories:
-      // most Italian OSM businesses don't have specific craft/shop tags, they just
-      // have the keyword in their business name (e.g. "Infissi Rossi").
-      // Additionally, if OSM_TAG_MAP has specific tags for this keyword, include them
-      // so category-tagged businesses (e.g. amenity=restaurant) are also captured.
-      const tagClauses: string[] = [];
+      // ── Step 1: Check if keyword has specific OSM tags ──────────────────────
+      const rawTagClauses: string[] = []; // raw tag conditions e.g. '["amenity"="restaurant"]'
       for (const [key, clauses] of Object.entries(OSM_TAG_MAP)) {
         const match =
           ql === key ||
@@ -510,54 +515,40 @@ export default function ScraperRegionalePage() {
           key.includes(ql) ||
           (ql.length >= 5 && key.startsWith(ql.slice(0, 5))) ||
           (key.length >= 5 && ql.startsWith(key.slice(0, 5)));
-        if (match) {
-          tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
-        }
+        if (match) rawTagClauses.push(...clauses);
       }
-      // Always include broad indexed queries (never use slow name-regex in Overpass)
-      const broadClauses = [
-        `nwr["shop"](around:${r},${lat},${lon})`,
-        `nwr["craft"](around:${r},${lat},${lon})`,
-        `nwr["office"](around:${r},${lat},${lon})`,
-        `nwr["amenity"](around:${r},${lat},${lon})`,
-      ];
-      const allClauses = [...new Set([...broadClauses, ...tagClauses])];
-      const lim = 2000; // fetch many, filter client-side
-      const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
+      const hasSpecificTags = rawTagClauses.length > 0;
 
-      // Same fetch pattern as ScraperMaps (no AbortController — server enforces 60s timeout)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tryOvCity = async (url: string): Promise<any> => {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `data=${encodeURIComponent(ovQ)}`,
-        });
-        if (!res.ok) throw new Error(`Overpass ${res.status}`);
-        return res.json();
-      };
+      // ── Step 2: Build Overpass query ─────────────────────────────────────────
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let ovData: any;
-      try {
-        ovData = await Promise.any([
-          tryOvCity("https://overpass-api.de/api/interpreter"),
-          tryOvCity("https://overpass.kumi.systems/api/interpreter"),
-        ]);
-      } catch {
-        throw new Error(`Overpass non raggiungibile per ${name}`);
+
+      if (hasSpecificTags) {
+        // FAST PATH: keyword maps to specific OSM tags (ristorante → amenity=restaurant etc.)
+        // These are indexed queries → very fast regardless of radius
+        const r = radiusForPlace(placeType);
+        const ovClauses = [...new Set(rawTagClauses)].map((c) => `nwr${c}(around:${r},${lat},${lon})`);
+        const lim = Math.min(max * 3, 1000);
+        const ovQ = `[out:json][timeout:60];(${ovClauses.join(";")};);out body center ${lim};`;
+        ovData = await overpassPost(ovQ, 35000);
+      } else {
+        // NAME SEARCH PATH: keyword not in OSM_TAG_MAP (infissi, serramenti, pavimenti...)
+        // Use name regex search — SAME as Scraper Maps does for single city.
+        // Use smaller radius to stay within timeout for big cities.
+        const r = nameRadiusForPlace(placeType);
+        const lim = Math.min(max * 2, 500);
+        const ovQ = `[out:json][timeout:30];nwr["name"~"${sq}",i](around:${r},${lat},${lon});out body center ${lim};`;
+        ovData = await overpassPost(ovQ, 35000); // 35s browser > 30s server timeout
       }
-      if (ovData?.remark?.includes("timed out")) {
-        throw new Error(`Overpass timeout per ${name}`);
-      }
+
       if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const elements: any[] = ovData?.elements || [];
+      const elements: any[] = ovData.elements || [];
 
-      // Build a set of expected tag key=value pairs from tagClauses for fast lookup
-      // e.g. ["amenity"="restaurant"] → "amenity=restaurant"
+      // ── Step 3: Client-side filter ───────────────────────────────────────────
       const expectedTagPairs = new Set(
-        tagClauses.map((c) => {
+        rawTagClauses.map((c) => {
           const m = c.match(/\["(\w+)"="([^"]+)"\]/);
           return m ? `${m[1]}=${m[2]}` : "";
         }).filter(Boolean)
@@ -568,20 +559,15 @@ export default function ScraperRegionalePage() {
         .filter((el: any) => {
           const t = el.tags || {};
           if (!t.name) return false;
-          // Accept if name contains keyword (primary strategy for Italian OSM data)
+          if (!hasSpecificTags) return true; // name regex already filtered by Overpass
+          // For tagged categories: accept if name loosely matches OR has the specific tag
           if (t.name.toLowerCase().includes(ql)) return true;
-          // Accept if element has a specific OSM tag matching the keyword category
-          if (expectedTagPairs.size > 0) {
-            for (const [k, v] of Object.entries(t)) {
-              if (expectedTagPairs.has(`${k}=${v}`)) return true;
-            }
+          for (const [k, v] of Object.entries(t)) {
+            if (expectedTagPairs.has(`${k}=${v}`)) return true;
           }
           return false;
         })
-        .filter((el: any, idx: number, arr: any[]) => {
-          // Deduplicate by OSM id
-          return arr.findIndex((e: any) => e.id === el.id) === idx;
-        })
+        .filter((el: any, idx: number, arr: any[]) => arr.findIndex((e: any) => e.id === el.id) === idx)
         .slice(0, max * 2);
 
       // Bulk dedup
