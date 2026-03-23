@@ -489,9 +489,12 @@ export default function ScraperRegionalePage() {
     }
   }, [log]);
 
+  const [citiesOk, setCitiesOk] = useState(0);
+  const [citiesErr, setCitiesErr] = useState(0);
+
   const addLog = useCallback((line: string) => {
     const ts = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    setLog((prev) => [...prev, `[${ts}] ${line}`].slice(-50));
+    setLog((prev) => [...prev, `[${ts}] ${line}`].slice(-200));
   }, []);
 
   // ─── Per-city scraping ─────────────────────────────────────────────────────
@@ -502,7 +505,8 @@ export default function ScraperRegionalePage() {
       kw: string,
       max: number,
       parentSessionId: string,
-      user_id: string
+      user_id: string,
+      logFn?: (msg: string) => void
     ): Promise<{ imported: number; withEmail: number }> => {
       const { lat, lon, name, placeType } = settlement;
       const ql = kw.toLowerCase();
@@ -527,21 +531,22 @@ export default function ScraperRegionalePage() {
 
       if (hasSpecificTags) {
         // FAST PATH: keyword maps to specific OSM tags (ristorante → amenity=restaurant etc.)
-        // These are indexed queries → very fast regardless of radius
         const r = radiusForPlace(placeType);
         const ovClauses = [...new Set(rawTagClauses)].map((c) => `nwr${c}(around:${r},${lat},${lon})`);
         const lim = Math.min(max * 3, 1000);
         const ovQ = `[out:json][timeout:60];(${ovClauses.join(";")};);out body center ${lim};`;
-        ovData = await overpassPost(ovQ, 35000);
+        logFn?.(`  → tag query r=${r}m lim=${lim}`);
+        ovData = await overpassPost(ovQ, 40000);
       } else {
         // NAME SEARCH PATH: keyword not in OSM_TAG_MAP (infissi, serramenti, pavimenti...)
-        // Use name regex search — SAME as Scraper Maps does for single city.
-        // Use smaller radius to stay within timeout for big cities.
         const r = nameRadiusForPlace(placeType);
         const lim = Math.min(max * 2, 500);
-        const ovQ = `[out:json][timeout:30];nwr["name"~"${sq}",i](around:${r},${lat},${lon});out body center ${lim};`;
-        ovData = await overpassPost(ovQ, 35000); // 35s browser > 30s server timeout
+        const ovQ = `[out:json][timeout:35];nwr["name"~"${sq}",i](around:${r},${lat},${lon});out body center ${lim};`;
+        logFn?.(`  → name query r=${r}m lim=${lim}`);
+        ovData = await overpassPost(ovQ, 40000);
       }
+
+      logFn?.(`  → Overpass: ${ovData?.elements?.length ?? 0} elementi${ovData?._failed ? " (FALLITO)" : ""}`);
 
       // If both Overpass servers failed, re-throw so the caller can log it clearly
       if (ovData?._failed) throw new Error("Overpass non raggiungibile (timeout/network)");
@@ -640,6 +645,8 @@ export default function ScraperRegionalePage() {
         exSet.add(elName);
       }
 
+      logFn?.(`  → candidati: ${candidates.length}, nuovi: ${rows.length}`);
+
       // Bulk insert in chunks of 100
       let imported = 0;
       for (let i = 0; i < rows.length; i += 100) {
@@ -647,7 +654,10 @@ export default function ScraperRegionalePage() {
         const chunk = rows.slice(i, i + 100);
         const { error: ie } = await supabase.from("contacts").insert(chunk);
         if (!ie) imported += chunk.length;
-        else console.error(`Insert error in ${name}:`, ie.message, ie.details);
+        else {
+          logFn?.(`  ✗ insert error: ${ie.message}`);
+          console.error(`Insert error in ${name}:`, ie.message, ie.details);
+        }
       }
 
       return { imported, withEmail: emailCount };
@@ -679,6 +689,8 @@ export default function ScraperRegionalePage() {
     setCurrentCityIndex(0);
     setTotalFound(0);
     setTotalWithEmail(0);
+    setCitiesOk(0);
+    setCitiesErr(0);
     setSessionStatus("fetching");
 
     try {
@@ -756,13 +768,16 @@ export default function ScraperRegionalePage() {
         const settlement = fetchedSettlements[i];
         setCurrentCityIndex(i + 1);
 
+        // Pass logFn for first 5 cities so we can see debug details
+        const verboseLog = i < 5 ? addLog : undefined;
         try {
           const { imported, withEmail } = await scrapeCity(
             settlement,
             keyword,
             maxPerCity,
             sid,
-            user_id
+            user_id,
+            verboseLog
           );
           cumulativeFound += imported;
           cumulativeEmail += withEmail;
@@ -770,17 +785,27 @@ export default function ScraperRegionalePage() {
           setTotalWithEmail(cumulativeEmail);
 
           const emailNote = withEmail > 0 ? ` (${withEmail} email)` : "";
-          addLog(`✓ ${settlement.name} [${settlement.region}]: ${imported} ${keyword}${emailNote}`);
+          if (imported > 0) {
+            addLog(`✓ ${settlement.name}: +${imported}${emailNote}`);
+            setCitiesOk((n) => n + 1);
+          }
+          // Only log zeros for verbose cities (first 5); skip to keep log clean
+          else if (i < 5) {
+            addLog(`○ ${settlement.name}: 0 risultati`);
+          }
 
-          // Update session progress
-          const progressPercent = Math.round(((i + 1) / fetchedSettlements.length) * 100);
-          await supabase.from("scraping_sessions").update({
-            totale_importati: cumulativeFound,
-            progress_percent: progressPercent,
-          }).eq("id", sid);
+          // Update session progress every 10 cities
+          if (i % 10 === 0) {
+            const progressPercent = Math.round(((i + 1) / fetchedSettlements.length) * 100);
+            void supabase.from("scraping_sessions").update({
+              totale_importati: cumulativeFound,
+              progress_percent: progressPercent,
+            }).eq("id", sid);
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Errore";
-          addLog(`✗ ${settlement.name}: ${msg}`);
+          setCitiesErr((n) => n + 1);
+          if (i < 5 || msg.includes("insert")) addLog(`✗ ${settlement.name}: ${msg}`);
         }
 
         // Delay between cities
@@ -1134,13 +1159,23 @@ export default function ScraperRegionalePage() {
               <div className="text-xs text-muted-foreground font-mono mb-0.5">Con Email</div>
               <div className="text-lg font-bold font-mono text-foreground">{totalWithEmail}</div>
             </div>
+            <div className="rounded border border-border bg-background/50 p-2 text-center">
+              <div className="text-xs text-muted-foreground font-mono mb-0.5">Con risultati</div>
+              <div className="text-lg font-bold font-mono text-green-400">{citiesOk}</div>
+            </div>
+            {citiesErr > 0 && (
+              <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-center">
+                <div className="text-xs text-muted-foreground font-mono mb-0.5">Errori</div>
+                <div className="text-lg font-bold font-mono text-destructive">{citiesErr}</div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Terminal log */}
         <div className="flex-1 rounded-lg border border-border bg-card flex flex-col overflow-hidden">
           <div className="terminal-header text-xs px-4 py-2 border-b border-border shrink-0">
-            LOG — ULTIMI 50 EVENTI
+            LOG — ULTIMI 200 EVENTI
           </div>
           <div
             ref={logRef}
