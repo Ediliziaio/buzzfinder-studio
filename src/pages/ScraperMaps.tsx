@@ -86,76 +86,289 @@ export default function ScraperMapsPage() {
 
   // Italian term → OSM Overpass tag clauses (supports common B2B/B2C categories)
   const OSM_TAG_MAP: Record<string, string[]> = {
-    ristorante: ['["amenity"="restaurant"]', '["amenity"="fast_food"]'],
+    // ── Cibo & Bevande ─────────────────────────────────────────────────────
+    ristorante: ['["amenity"="restaurant"]'],
     trattoria: ['["amenity"="restaurant"]'],
     osteria: ['["amenity"="restaurant"]'],
     pizzeria: ['["amenity"="restaurant"]'],
+    sushi: ['["amenity"="restaurant"]'],
+    cinese: ['["amenity"="restaurant"]'],
     bar: ['["amenity"="bar"]', '["amenity"="cafe"]'],
     caffè: ['["amenity"="cafe"]'],
     caffe: ['["amenity"="cafe"]'],
-    hotel: ['["tourism"="hotel"]', '["tourism"="guest_house"]'],
-    albergo: ['["tourism"="hotel"]'],
-    farmacia: ['["amenity"="pharmacy"]'],
-    dentista: ['["amenity"="dentist"]'],
-    medico: ['["amenity"="doctors"]', '["amenity"="clinic"]'],
-    clinica: ['["amenity"="clinic"]'],
-    banca: ['["amenity"="bank"]'],
-    idraulico: ['["craft"="plumber"]'],
-    idraulici: ['["craft"="plumber"]'],
-    elettricista: ['["craft"="electrician"]'],
-    elettricisti: ['["craft"="electrician"]'],
-    parrucchiere: ['["shop"="hairdresser"]'],
-    parrucchieri: ['["shop"="hairdresser"]'],
-    estetista: ['["shop"="beauty"]'],
-    estetiste: ['["shop"="beauty"]'],
-    supermercato: ['["shop"="supermarket"]'],
-    ferramenta: ['["shop"="hardware"]'],
-    falegname: ['["craft"="carpenter"]'],
-    falegnami: ['["craft"="carpenter"]'],
-    falegnamerie: ['["craft"="carpenter"]'],
-    geometra: ['["office"="surveyor"]'],
-    geometri: ['["office"="surveyor"]'],
-    avvocato: ['["office"="lawyer"]'],
-    avvocati: ['["office"="lawyer"]'],
-    commercialista: ['["office"="accountant"]'],
-    commercialisti: ['["office"="accountant"]'],
-    serramentist: ['["craft"="window_construction"]', '["shop"="doors"]'],
-    'imprese edil': ['["craft"="construction"]'],
-    muratore: ['["craft"="mason"]'],
-    muratori: ['["craft"="mason"]'],
+    caffetteria: ['["amenity"="cafe"]'],
+    pasticceria: ['["shop"="pastry"]'],
+    gelateria: ['["shop"="ice_cream"]'],
+    gelato: ['["shop"="ice_cream"]'],
     panificio: ['["shop"="bakery"]'],
     panetteria: ['["shop"="bakery"]'],
     forno: ['["shop"="bakery"]'],
-    pasticceria: ['["shop"="pastry"]'],
-    gelateria: ['["shop"="ice_cream"]'],
-    ottico: ['["shop"="optician"]'],
-    ottici: ['["shop"="optician"]'],
+    alimentari: ['["shop"="convenience"]', '["shop"="supermarket"]'],
+    supermercato: ['["shop"="supermarket"]'],
+    macelleria: ['["shop"="butcher"]'],
+    pescheria: ['["shop"="seafood"]'],
+    salumeria: ['["shop"="deli"]'],
+    gastronomia: ['["shop"="deli"]'],
+    enoteca: ['["shop"="wine"]'],
+    cantina: ['["craft"="winery"]', '["shop"="wine"]'],
+    birrificio: ['["craft"="brewery"]'],
+    ortofrutta: ['["shop"="greengrocer"]'],
+    hamburgeria: ['["amenity"="fast_food"]'],
+    kebab: ['["amenity"="fast_food"]'],
+    piadineria: ['["amenity"="fast_food"]'],
+    rosticceria: ['["amenity"="fast_food"]'],
+    pub: ['["amenity"="pub"]'],
+    torrefazione: ['["craft"="roaster"]'],
+    // ── Alloggio ───────────────────────────────────────────────────────────
+    hotel: ['["tourism"="hotel"]'],
+    albergo: ['["tourism"="hotel"]'],
+    relais: ['["tourism"="hotel"]'],
+    locanda: ['["tourism"="hotel"]'],
+    ostello: ['["tourism"="hostel"]'],
+    bnb: ['["tourism"="guest_house"]'],
+    affittacamere: ['["tourism"="guest_house"]'],
+    agriturismo: ['["tourism"="guest_house"]'],
+    campeggio: ['["tourism"="camp_site"]'],
+    // ── Sanità ─────────────────────────────────────────────────────────────
+    farmacia: ['["amenity"="pharmacy"]'],
+    dentista: ['["amenity"="dentist"]'],
+    odontoiatr: ['["amenity"="dentist"]'],
+    medico: ['["amenity"="doctors"]', '["amenity"="clinic"]'],
+    clinica: ['["amenity"="clinic"]'],
+    ambulatorio: ['["amenity"="clinic"]'],
+    ospedale: ['["amenity"="hospital"]'],
     veterinario: ['["amenity"="veterinary"]'],
-    veterinari: ['["amenity"="veterinary"]'],
-    meccanico: ['["shop"="car_repair"]'],
-    officina: ['["shop"="car_repair"]'],
-    gommista: ['["shop"="tyres"]'],
-    gommisti: ['["shop"="tyres"]'],
-    libreria: ['["shop"="books"]'],
-    abbigliamento: ['["shop"="clothes"]'],
-    scarpe: ['["shop"="shoes"]'],
-    gioielleria: ['["shop"="jewelry"]'],
-    gioiellerie: ['["shop"="jewelry"]'],
-    fiorista: ['["shop"="florist"]'],
-    fioristi: ['["shop"="florist"]'],
-    profumeria: ['["shop"="perfumery"]'],
-    profumerie: ['["shop"="perfumery"]'],
+    veterinar: ['["amenity"="veterinary"]'],
     fisioterapist: ['["healthcare"="physiotherapist"]'],
-    impresa: ['["craft"="construction"]'],
+    fisioterapia: ['["healthcare"="physiotherapist"]'],
+    psicologo: ['["healthcare"="psychotherapist"]'],
+    psicolog: ['["healthcare"="psychotherapist"]'],
+    nutrizionist: ['["healthcare"="dietitian"]'],
+    osteopat: ['["healthcare"="osteopath"]'],
+    logopedist: ['["healthcare"="speech_therapist"]'],
+    erboristeria: ['["shop"="herbalist"]'],
+    erborist: ['["shop"="herbalist"]'],
+    // ── Finanza & Legale ───────────────────────────────────────────────────
+    banca: ['["amenity"="bank"]'],
+    assicurazioni: ['["office"="insurance"]'],
+    assicurazione: ['["office"="insurance"]'],
+    avvocato: ['["office"="lawyer"]'],
+    avvocati: ['["office"="lawyer"]'],
+    legale: ['["office"="lawyer"]'],
     notaio: ['["office"="notary"]'],
     notai: ['["office"="notary"]'],
-    psicologo: ['["healthcare"="psychotherapist"]'],
-    psicologi: ['["healthcare"="psychotherapist"]'],
+    commercialista: ['["office"="accountant"]'],
+    consulenza: ['["office"="consulting"]'],
+    consulente: ['["office"="consulting"]'],
+    finanziaria: ['["office"="financial"]'],
+    // ── Architettura & Ingegneria ──────────────────────────────────────────
+    geometra: ['["office"="surveyor"]'],
+    geometri: ['["office"="surveyor"]'],
+    architetto: ['["office"="architect"]'],
+    architettura: ['["office"="architect"]'],
+    ingegnere: ['["office"="engineer"]'],
+    ingegneria: ['["office"="engineer"]'],
+    // ── Immobiliare ────────────────────────────────────────────────────────
+    immobiliare: ['["office"="estate_agent"]'],
+    immobili: ['["office"="estate_agent"]'],
+    // ── Edilizia & Costruzioni ─────────────────────────────────────────────
+    'imprese edil': ['["craft"="construction"]'],
+    'impresa edil': ['["craft"="construction"]'],
+    impresa: ['["craft"="construction"]'],
+    costruzioni: ['["craft"="construction"]'],
+    edilizia: ['["craft"="construction"]'],
+    muratore: ['["craft"="mason"]'],
+    muratori: ['["craft"="mason"]'],
+    ristrutturazione: ['["craft"="construction"]'],
+    ristrutturazioni: ['["craft"="construction"]'],
+    cartongesso: ['["craft"="construction"]'],
+    ponteggi: ['["craft"="scaffolder"]'],
+    demolizione: ['["craft"="demolition_contractor"]'],
+    demolizioni: ['["craft"="demolition_contractor"]'],
+    impermeabilizzazione: ['["craft"="waterproofer"]'],
+    coibentazione: ['["craft"="insulation"]'],
+    isolamento: ['["craft"="insulation"]'],
+    cappotto: ['["craft"="insulation"]'],
+    // ── Infissi & Serramenti ───────────────────────────────────────────────
+    infissi: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    infisso: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    serramenti: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    serramento: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    serramentist: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    finestre: ['["craft"="window_construction"]'],
+    finestra: ['["craft"="window_construction"]'],
+    porte: ['["shop"="doors"]'],
+    portoni: ['["shop"="doors"]'],
+    // ── Pavimenti & Rivestimenti ───────────────────────────────────────────
+    pavimenti: ['["craft"="floorer"]', '["shop"="flooring"]'],
+    pavimento: ['["craft"="floorer"]', '["shop"="flooring"]'],
+    parquet: ['["craft"="floorer"]'],
+    piastrelle: ['["shop"="tiles"]'],
+    ceramiche: ['["shop"="tiles"]'],
+    ceramica: ['["shop"="tiles"]'],
+    rivestimenti: ['["shop"="tiles"]', '["craft"="floorer"]'],
+    marmista: ['["craft"="stonemason"]'],
+    marmo: ['["craft"="stonemason"]'],
+    granito: ['["craft"="stonemason"]'],
+    // ── Coperture ─────────────────────────────────────────────────────────
+    coperture: ['["craft"="roofer"]'],
+    tetto: ['["craft"="roofer"]'],
+    tetti: ['["craft"="roofer"]'],
+    lattoniere: ['["craft"="roofer"]'],
+    lattoneria: ['["craft"="roofer"]'],
+    // ── Pittura ───────────────────────────────────────────────────────────
+    imbianchino: ['["craft"="painter"]'],
+    imbianchini: ['["craft"="painter"]'],
+    pittore: ['["craft"="painter"]'],
+    tinteggiatura: ['["craft"="painter"]'],
+    verniciatura: ['["craft"="painter"]'],
+    pittura: ['["craft"="painter"]'],
+    // ── Idraulica & Termoidraulica ─────────────────────────────────────────
+    idraulico: ['["craft"="plumber"]'],
+    idraulici: ['["craft"="plumber"]'],
+    termoidraulico: ['["craft"="plumber"]'],
+    caldaie: ['["craft"="heating_engineer"]'],
+    caldaia: ['["craft"="heating_engineer"]'],
+    riscaldamento: ['["craft"="heating_engineer"]'],
+    sanitari: ['["shop"="bathroom_furnishing"]'],
+    bagno: ['["shop"="bathroom_furnishing"]'],
+    bagni: ['["shop"="bathroom_furnishing"]'],
+    // ── Climatizzazione ───────────────────────────────────────────────────
+    climatizzatori: ['["craft"="hvac"]'],
+    climatizzatore: ['["craft"="hvac"]'],
+    climatizzazione: ['["craft"="hvac"]'],
+    condizionatori: ['["craft"="hvac"]'],
+    condizionatore: ['["craft"="hvac"]'],
+    ventilazione: ['["craft"="hvac"]'],
+    // ── Elettricità ───────────────────────────────────────────────────────
+    elettricista: ['["craft"="electrician"]'],
+    elettricisti: ['["craft"="electrician"]'],
+    impianti: ['["craft"="electrician"]', '["craft"="plumber"]'],
+    // ── Fotovoltaico ──────────────────────────────────────────────────────
+    fotovoltaico: ['["craft"="solar_panel_installer"]', '["shop"="energy"]'],
+    fotovoltaici: ['["craft"="solar_panel_installer"]'],
+    // ── Falegnameria ──────────────────────────────────────────────────────
+    falegname: ['["craft"="carpenter"]'],
+    falegnami: ['["craft"="carpenter"]'],
+    falegnamerie: ['["craft"="carpenter"]'],
+    falegnameria: ['["craft"="carpenter"]'],
+    // ── Fabbri & Carpenteria ──────────────────────────────────────────────
+    fabbro: ['["craft"="locksmith"]', '["craft"="metal_construction"]'],
+    fabbri: ['["craft"="locksmith"]', '["craft"="metal_construction"]'],
+    carpenteria: ['["craft"="metal_construction"]'],
+    serratura: ['["craft"="locksmith"]'],
+    serrature: ['["craft"="locksmith"]'],
+    cancelli: ['["craft"="metal_construction"]'],
+    recinzioni: ['["craft"="metal_construction"]'],
+    saldatura: ['["craft"="welder"]'],
+    // ── Vetro ─────────────────────────────────────────────────────────────
+    vetro: ['["craft"="glazier"]'],
+    vetreria: ['["craft"="glazier"]'],
+    specchi: ['["craft"="glazier"]'],
+    // ── Tende ─────────────────────────────────────────────────────────────
+    tende: ['["shop"="curtain"]'],
+    tenda: ['["shop"="curtain"]'],
+    veneziane: ['["shop"="curtain"]'],
+    zanzariere: ['["shop"="curtain"]'],
+    // ── Cucine & Arredamento ──────────────────────────────────────────────
+    cucine: ['["shop"="kitchen"]'],
+    cucina: ['["shop"="kitchen"]'],
+    arredamento: ['["shop"="furniture"]'],
+    arredamenti: ['["shop"="furniture"]'],
+    mobili: ['["shop"="furniture"]'],
+    mobile: ['["shop"="furniture"]'],
+    // ── Sicurezza ─────────────────────────────────────────────────────────
+    antifurto: ['["shop"="security"]'],
+    allarme: ['["shop"="security"]'],
+    videosorveglianza: ['["shop"="security"]'],
+    sicurezza: ['["shop"="security"]'],
+    // ── Ascensori ─────────────────────────────────────────────────────────
+    ascensore: ['["craft"="elevator_constructor"]'],
+    ascensori: ['["craft"="elevator_constructor"]'],
+    montacarichi: ['["craft"="elevator_constructor"]'],
+    // ── Pulizie ───────────────────────────────────────────────────────────
+    pulizie: ['["craft"="cleaning"]'],
+    pulizia: ['["craft"="cleaning"]'],
+    lavanderia: ['["shop"="laundry"]'],
+    tintoria: ['["shop"="dry_cleaning"]'],
+    // ── Traslochi ─────────────────────────────────────────────────────────
+    traslochi: ['["craft"="mover"]'],
+    trasloco: ['["craft"="mover"]'],
+    // ── Auto & Moto ───────────────────────────────────────────────────────
+    meccanico: ['["shop"="car_repair"]'],
+    officina: ['["shop"="car_repair"]'],
+    autofficina: ['["shop"="car_repair"]'],
+    gommista: ['["shop"="tyres"]'],
+    gommisti: ['["shop"="tyres"]'],
+    pneumatici: ['["shop"="tyres"]'],
+    carrozzeria: ['["shop"="car_repair"]'],
+    autolavaggio: ['["amenity"="car_wash"]'],
+    autonoleggio: ['["shop"="car_rental"]'],
+    concessionaria: ['["shop"="car"]'],
+    moto: ['["shop"="motorcycle"]'],
+    bici: ['["shop"="bicycle"]'],
+    // ── Benessere & Bellezza ──────────────────────────────────────────────
+    parrucchiere: ['["shop"="hairdresser"]'],
+    parrucchieri: ['["shop"="hairdresser"]'],
+    acconciature: ['["shop"="hairdresser"]'],
+    barbiere: ['["shop"="barber"]'],
+    estetista: ['["shop"="beauty"]'],
+    estetiste: ['["shop"="beauty"]'],
+    estetica: ['["shop"="beauty"]'],
+    manicure: ['["shop"="nail_salon"]'],
+    unghie: ['["shop"="nail_salon"]'],
+    tatuaggi: ['["shop"="tattoo"]'],
+    spa: ['["leisure"="spa"]'],
+    massaggi: ['["leisure"="spa"]'],
+    // ── Sport & Tempo Libero ──────────────────────────────────────────────
     palestra: ['["leisure"="fitness_centre"]'],
     palestre: ['["leisure"="fitness_centre"]'],
+    fitness: ['["leisure"="fitness_centre"]'],
+    yoga: ['["leisure"="fitness_centre"]'],
     piscina: ['["leisure"="swimming_pool"]'],
     piscine: ['["leisure"="swimming_pool"]'],
-    autolavaggio: ['["amenity"="car_wash"]'],
+    danza: ['["leisure"="dance"]'],
+    // ── Viaggi ────────────────────────────────────────────────────────────
+    viaggi: ['["shop"="travel_agency"]'],
+    // ── Stampa & Grafica ──────────────────────────────────────────────────
+    tipografia: ['["craft"="printer"]'],
+    stampa: ['["craft"="printer"]'],
+    grafica: ['["office"="graphic_designer"]'],
+    // ── Negozi al Dettaglio ───────────────────────────────────────────────
+    ferramenta: ['["shop"="hardware"]'],
+    abbigliamento: ['["shop"="clothes"]'],
+    scarpe: ['["shop"="shoes"]'],
+    calzature: ['["shop"="shoes"]'],
+    gioielleria: ['["shop"="jewelry"]'],
+    gioiellerie: ['["shop"="jewelry"]'],
+    ottico: ['["shop"="optician"]'],
+    ottici: ['["shop"="optician"]'],
+    occhiali: ['["shop"="optician"]'],
+    profumeria: ['["shop"="perfumery"]'],
+    profumerie: ['["shop"="perfumery"]'],
+    fiorista: ['["shop"="florist"]'],
+    fioristi: ['["shop"="florist"]'],
+    fiori: ['["shop"="florist"]'],
+    libreria: ['["shop"="books"]'],
+    cartoleria: ['["shop"="stationery"]'],
+    cancelleria: ['["shop"="stationery"]'],
+    // ── Informatica & Elettronica ─────────────────────────────────────────
+    informatica: ['["shop"="computer"]'],
+    computer: ['["shop"="computer"]'],
+    elettronica: ['["shop"="electronics"]'],
+    telefonia: ['["shop"="mobile_phone"]'],
+    cellulare: ['["shop"="mobile_phone"]'],
+    smartphone: ['["shop"="mobile_phone"]'],
+    // ── Istruzione ────────────────────────────────────────────────────────
+    scuola: ['["amenity"="school"]'],
+    asilo: ['["amenity"="kindergarten"]'],
+    // ── Giardinaggio ─────────────────────────────────────────────────────
+    giardiniere: ['["craft"="gardener"]'],
+    giardinieri: ['["craft"="gardener"]'],
+    giardinaggio: ['["craft"="gardener"]'],
+    vivaio: ['["shop"="garden_centre"]'],
+    vivai: ['["shop"="garden_centre"]'],
+    // ── Fotografia ────────────────────────────────────────────────────────
     fotografia: ['["shop"="photo"]'],
     fotografo: ['["shop"="photo"]'],
   };
@@ -180,18 +393,32 @@ export default function ScraperMapsPage() {
     const lim = Math.min(loopConfig.maxResults, 1000);
     const ql = loopConfig.query.toLowerCase();
 
-    // Build Overpass clauses: prefer indexed tag clauses; fall back to regex name search
+    // Build Overpass clauses — flexible stem matching against OSM_TAG_MAP
     const tagClauses: string[] = [];
     for (const [key, clauses] of Object.entries(OSM_TAG_MAP)) {
-      if (ql.includes(key) || key.includes(ql.replace(/i$/, "")) || key.startsWith(ql.slice(0, 6))) {
+      const match =
+        ql === key ||
+        ql.includes(key) ||
+        key.includes(ql) ||
+        (ql.length >= 5 && key.startsWith(ql.slice(0, 5))) ||
+        (key.length >= 5 && ql.startsWith(key.slice(0, 5)));
+      if (match) {
         tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
       }
     }
-    // Use tag clauses only when available (indexed, fast). Name regex is a full-scan and can timeout.
+    // If no tag clauses: broad indexed query (shop/craft/office) + client-side filter
+    // This avoids slow regex full-scans that time out on Overpass
+    const useBroadFallback = tagClauses.length === 0;
     const allClauses = tagClauses.length > 0
       ? [...new Set(tagClauses)]
-      : [`nwr["name"~"${sq}",i](around:${r},${lat},${lon})`];
-    const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
+      : [
+          `nwr["shop"](around:${r},${lat},${lon})`,
+          `nwr["craft"](around:${r},${lat},${lon})`,
+          `nwr["office"](around:${r},${lat},${lon})`,
+        ];
+    // Broad fallback fetches more elements to compensate for client-side filtering
+    const effectiveLim = useBroadFallback ? Math.min(lim * 4, 2000) : lim;
+    const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${effectiveLim};`;
 
     // 2. Overpass from browser (not blocked unlike edge functions)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -208,14 +435,13 @@ export default function ScraperMapsPage() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elements: any[] = ovData.elements || [];
-    const useTagSearch = tagClauses.length > 0;
 
-    // In-memory filter: if tag-based search, accept all (Overpass already filtered);
-    // if name-only, require name match
+    // Tag-matched → accept all (Overpass already filtered by category)
+    // Broad fallback → filter client-side by name containing keyword
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const candidates = elements.filter((el: any) => {
       const t = el.tags || {}; if (!t.name) return false;
-      if (useTagSearch) return true; // tag search already targeted correct category
+      if (!useBroadFallback) return true;
       return t.name.toLowerCase().includes(ql);
     }).slice(0, loopConfig.maxResults * 2);
 
