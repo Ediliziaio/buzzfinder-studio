@@ -406,19 +406,19 @@ export default function ScraperMapsPage() {
         tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
       }
     }
-    // Always add name search to catch businesses not tagged by category
-    const nameClause = `nwr["name"~"${sq}",i](around:${r},${lat},${lon})`;
+    // Tag-based queries are indexed → fast. Name regex is a full-scan → can be slow.
+    // Use name search ONLY as fallback when no tags match.
     const useBroadFallback = tagClauses.length === 0;
     const allClauses = useBroadFallback
       ? [
           `nwr["shop"](around:${r},${lat},${lon})`,
           `nwr["craft"](around:${r},${lat},${lon})`,
           `nwr["office"](around:${r},${lat},${lon})`,
-          nameClause,
+          `nwr["name"~"${sq}",i](around:${r},${lat},${lon})`,
         ]
-      : [...new Set(tagClauses), nameClause];
+      : [...new Set(tagClauses)];
     // Broad fallback fetches more elements to compensate for client-side filtering
-    const effectiveLim = useBroadFallback ? Math.min(lim * 4, 2000) : Math.min(lim * 2, 2000);
+    const effectiveLim = useBroadFallback ? Math.min(lim * 4, 2000) : lim;
     const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${effectiveLim};`;
 
     // 2. Overpass from browser (not blocked unlike edge functions)
@@ -437,16 +437,13 @@ export default function ScraperMapsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elements: any[] = ovData.elements || [];
 
-    // Tag-matched or name-matched → accept all (Overpass already filtered)
-    // Broad fallback only: also require name contains keyword client-side
+    // Tag-matched → accept all. Broad fallback → also filter by name client-side.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const candidates = elements.filter((el: any) => {
       const t = el.tags || {}; if (!t.name) return false;
       if (!useBroadFallback) return true;
       return t.name.toLowerCase().includes(ql);
-    }).filter((el: any, idx: number, arr: any[]) =>
-      arr.findIndex((e: any) => e.id === el.id) === idx
-    ).slice(0, loopConfig.maxResults * 2);
+    }).slice(0, loopConfig.maxResults * 2);
 
     // Bulk dedup (1 DB query)
     const user_id = await getCurrentUserId();

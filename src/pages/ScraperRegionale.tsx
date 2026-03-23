@@ -508,26 +508,24 @@ export default function ScraperRegionalePage() {
           tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
         }
       }
-      // Always include name-based search to catch businesses not tagged by category
-      // (e.g. "Infissi Rossi" has no craft=window_construction tag but name contains "infissi")
-      const nameClause = `nwr["name"~"${ql.replace(/"/g, '\\"')}",i](around:${r},${lat},${lon})`;
+      // Tag-based queries are indexed → fast. Name regex is a full-scan → slow/timeout.
+      // Use name search ONLY as fallback when no OSM tags match the keyword.
       const useBroadFallback = tagClauses.length === 0;
-      const dedupedTagClauses = [...new Set(tagClauses)];
-      // Combine: tag-based clauses (if any) + name search
       const allClauses = useBroadFallback
         ? [
+            // Broad indexed queries + name regex (smaller radius = manageable)
             `nwr["shop"](around:${r},${lat},${lon})`,
             `nwr["craft"](around:${r},${lat},${lon})`,
             `nwr["office"](around:${r},${lat},${lon})`,
-            nameClause,
+            `nwr["name"~"${ql.replace(/"/g, '\\"')}",i](around:${r},${lat},${lon})`,
           ]
-        : [...dedupedTagClauses, nameClause];
+        : [...new Set(tagClauses)]; // indexed-only → always fast
       const baseLim = Math.min(max === 9999 ? 1000 : max, 1000);
-      const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : Math.min(baseLim * 2, 2000);
+      const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : baseLim;
       const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
-      // Race both Overpass mirrors in parallel, 50s timeout
-      const ovData = await overpassPost(ovQ, 50000);
+      // Race both Overpass mirrors in parallel, 90s timeout (indexed queries finish in <10s)
+      const ovData = await overpassPost(ovQ, 90000);
       if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
