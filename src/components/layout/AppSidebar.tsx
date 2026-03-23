@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Globe,
+  Globe2,
   Users,
   List,
   Send,
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Scraper Maps", path: "/scraper/maps", icon: Search },
       { title: "Scraper Siti", path: "/scraper/websites", icon: Globe },
+      { title: "Regionale", path: "/scraper-regionale", icon: Globe2 },
       { title: "Contatti", path: "/contacts", icon: Users },
       { title: "Liste", path: "/lists", icon: List },
     ],
