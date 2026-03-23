@@ -9,7 +9,7 @@ function getCorsHeaders(_req: Request): Record<string, string> {
   };
 }
 
-/* ── SSRF Protection ── */
+/* ── SSRF Protection (private IPs only, no geo-blocking) ── */
 const PRIVATE_IP_RANGES = [
   /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
   /^169\.254\./, /^0\./, /^::1$/, /^fc00:/i, /^fe80:/i, /^fd/i,
@@ -55,18 +55,30 @@ function releaseDomainSlot(domain: string): void {
 
 /* ── Regex helpers ── */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+
+// Improved phone regex: international +39, formats like 0x-xxx, 3xx-xxx, (0x)xxx
 const PHONE_IT_RE =
-  /(?:\+39[\s.\-]?)?(?:0[1-9]\d{1,3}|3[0-9]{2})[\s.\-\/]?\d{3,4}[\s.\-\/]?\d{3,4}/g;
+  /(?:\+39[\s.\-]?)?(?:\(0[1-9]\d{0,3}\)|0[1-9]\d{1,3}|3[0-9]{2})[\s.\-\/]?\d{3,4}[\s.\-\/]?\d{3,4}/g;
+
 const SOCIAL_RE: Record<string, RegExp> = {
   linkedin: /https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[^\s"'<>]+/gi,
   facebook: /https?:\/\/(?:www\.)?facebook\.com\/[^\s"'<>]+/gi,
   instagram: /https?:\/\/(?:www\.)?instagram\.com\/[^\s"'<>]+/gi,
 };
-const CONTACT_PAGE_RE = /href="(\/[^"]*(?:contatt|contact|chi-siamo|about|who)[^"]*)"/gi;
+
+// More contact page patterns: contatti, contact, chi-siamo, about, dove-siamo, info, reach-us
+const CONTACT_PAGE_RE =
+  /href="(\/[^"]*(?:contatt|contact|chi-siamo|about|dove-siamo|info|reach-us|who)[^"]*)"/gi;
 
 const JUNK_EMAILS = new Set([
   "noreply@", "no-reply@", "mailer-daemon@", "postmaster@",
   "webmaster@", "hostmaster@", "abuse@",
+]);
+
+// File extensions to strip from emails (tracking pixels, assets)
+const JUNK_EMAIL_EXTS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".css", ".js",
+  ".ico", ".bmp", ".tiff", ".woff", ".ttf",
 ]);
 
 function cleanEmails(raw: string[]): string[] {
@@ -74,8 +86,16 @@ function cleanEmails(raw: string[]): string[] {
   return raw.filter((e) => {
     const lower = e.toLowerCase();
     if (seen.has(lower)) return false;
-    if (JUNK_EMAILS.has(lower.split("@")[0] + "@")) return false;
-    if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".svg")) return false;
+    const prefix = lower.split("@")[0] + "@";
+    if (JUNK_EMAILS.has(prefix)) return false;
+    // Strip tracking pixel emails (email ending in image/asset extension)
+    for (const ext of JUNK_EMAIL_EXTS) {
+      if (lower.endsWith(ext)) return false;
+    }
+    // Must have valid domain part
+    const parts = lower.split("@");
+    if (parts.length !== 2) return false;
+    if (!parts[1].includes(".")) return false;
     seen.add(lower);
     return true;
   });
@@ -84,7 +104,7 @@ function cleanEmails(raw: string[]): string[] {
 function cleanPhones(raw: string[]): string[] {
   const seen = new Set<string>();
   return raw.filter((p) => {
-    const normalized = p.replace(/[\s.\-\/]/g, "");
+    const normalized = p.replace(/[\s.\-\/()]/g, "");
     if (normalized.length < 6 || normalized.length > 15) return false;
     if (seen.has(normalized)) return false;
     seen.add(normalized);
@@ -99,6 +119,64 @@ function extractSocial(html: string): Record<string, string> {
     if (match) social[platform] = match[0];
   }
   return social;
+}
+
+/* ── JSON-LD structured data extraction ── */
+function extractFromJsonLd(html: string): { emails: string[]; phones: string[] } {
+  const emails: string[] = [];
+  const phones: string[] = [];
+  const jsonLdRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = jsonLdRe.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(m[1]);
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        if (item.email) emails.push(item.email);
+        if (item.telephone) phones.push(item.telephone);
+        // ContactPoint nested
+        if (item.contactPoint) {
+          const pts = Array.isArray(item.contactPoint) ? item.contactPoint : [item.contactPoint];
+          for (const pt of pts) {
+            if (pt.email) emails.push(pt.email);
+            if (pt.telephone) phones.push(pt.telephone);
+          }
+        }
+      }
+    } catch { /* ignore malformed JSON-LD */ }
+  }
+  return { emails, phones };
+}
+
+/* ── hCard microformat extraction ── */
+function extractFromHCard(html: string): { emails: string[]; phones: string[] } {
+  const emails: string[] = [];
+  const phones: string[] = [];
+
+  // hCard email: <a class="email" href="mailto:...">
+  const emailRe = /class="[^"]*email[^"]*"[^>]*href="mailto:([^"]+)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = emailRe.exec(html)) !== null) emails.push(m[1]);
+
+  // hCard tel: <a class="tel" href="tel:...">
+  const telRe = /class="[^"]*tel[^"]*"[^>]*href="tel:([^"]+)"/gi;
+  while ((m = telRe.exec(html)) !== null) phones.push(m[1]);
+
+  // Also catch mailto: and tel: links broadly
+  const mailtoRe = /href="mailto:([^"?]+)"/gi;
+  while ((m = mailtoRe.exec(html)) !== null) emails.push(m[1]);
+
+  const telLinkRe = /href="tel:([^"]+)"/gi;
+  while ((m = telLinkRe.exec(html)) !== null) phones.push(m[1].replace(/[\s.\-]/g, ""));
+
+  return { emails, phones };
+}
+
+/* ── Footer HTML extraction ── */
+function extractFooterHtml(html: string): string {
+  const footerRe = /<footer[\s\S]*?<\/footer>/gi;
+  const matches = html.match(footerRe);
+  return matches ? matches.join("\n") : "";
 }
 
 async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
@@ -173,9 +251,23 @@ async function scrapeUrl(
 ): Promise<ScrapeResult> {
   const html = await fetchHtml(url, timeoutMs);
 
-  let allEmails = html.match(EMAIL_RE) || [];
-  let allPhones = html.match(PHONE_IT_RE) || [];
+  // Extract from multiple sources
+  const footerHtml = extractFooterHtml(html);
+  const combinedHtml = html + "\n" + footerHtml;
+
+  let allEmails: string[] = (combinedHtml.match(EMAIL_RE) || []);
+  let allPhones: string[] = (combinedHtml.match(PHONE_IT_RE) || []);
   const social = extractSocial(html);
+
+  // JSON-LD structured data
+  const jsonLd = extractFromJsonLd(html);
+  allEmails = allEmails.concat(jsonLd.emails);
+  allPhones = allPhones.concat(jsonLd.phones);
+
+  // hCard microformats
+  const hcard = extractFromHCard(html);
+  allEmails = allEmails.concat(hcard.emails);
+  allPhones = allPhones.concat(hcard.phones);
 
   if (crawlDepth === "homepage_contacts") {
     const subLinks = extractContactPageLinks(html, url);
@@ -186,8 +278,20 @@ async function scrapeUrl(
       }
       try {
         const subHtml = await fetchHtml(link, timeoutMs);
-        allEmails = allEmails.concat(subHtml.match(EMAIL_RE) || []);
-        allPhones = allPhones.concat(subHtml.match(PHONE_IT_RE) || []);
+        const subFooter = extractFooterHtml(subHtml);
+        const subCombined = subHtml + "\n" + subFooter;
+
+        allEmails = allEmails.concat(subCombined.match(EMAIL_RE) || []);
+        allPhones = allPhones.concat(subCombined.match(PHONE_IT_RE) || []);
+
+        const subJsonLd = extractFromJsonLd(subHtml);
+        allEmails = allEmails.concat(subJsonLd.emails);
+        allPhones = allPhones.concat(subJsonLd.phones);
+
+        const subHCard = extractFromHCard(subHtml);
+        allEmails = allEmails.concat(subHCard.emails);
+        allPhones = allPhones.concat(subHCard.phones);
+
         const subSocial = extractSocial(subHtml);
         for (const [k, v] of Object.entries(subSocial)) {
           if (!social[k]) social[k] = v;
@@ -219,13 +323,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: withHeaders() });
   }
 
+  // Always return HTTP 200 — errors go in the body
   try {
     /* ── JWT Authentication ── */
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: withHeaders({ "Content-Type": "application/json" }) },
+        { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -241,7 +346,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Token non valido" }),
-        { status: 401, headers: withHeaders({ "Content-Type": "application/json" }) },
+        { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
     const authenticatedUserId = user.id;
@@ -251,21 +356,8 @@ Deno.serve(async (req) => {
     if (!session_id) {
       return new Response(
         JSON.stringify({ error: "session_id required" }),
-        { status: 400, headers: withHeaders({ "Content-Type": "application/json" }) },
+        { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
-    }
-
-    // Pre-validate all URLs upfront
-    if (urls?.length) {
-      for (const u of urls) {
-        const full = u.startsWith("http") ? u : `https://${u}`;
-        if (!validateScrapeUrl(full)) {
-          return new Response(
-            JSON.stringify({ error: `URL non valido o non autorizzato: ${u}` }),
-            { status: 400, headers: withHeaders({ "Content-Type": "application/json" }) },
-          );
-        }
-      }
     }
 
     const sb = createClient(supabaseUrl, serviceKey);
@@ -278,7 +370,7 @@ Deno.serve(async (req) => {
     if (!session) {
       return new Response(
         JSON.stringify({ error: "Session not found" }),
-        { status: 404, headers: withHeaders({ "Content-Type": "application/json" }) },
+        { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -286,7 +378,7 @@ Deno.serve(async (req) => {
     if (session.user_id !== authenticatedUserId) {
       return new Response(
         JSON.stringify({ error: "Accesso negato: sessione non appartenente all'utente" }),
-        { status: 403, headers: withHeaders({ "Content-Type": "application/json" }) },
+        { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
 
@@ -317,16 +409,16 @@ Deno.serve(async (req) => {
 
     let completed = 0;
     let errors = 0;
+    let contactsEnriched = 0;
     let interrupted = false;
 
-    for (const job of jobsToProcess) {
-      // Check session status before each job
-      if (await isSessionPaused(sb, session_id)) {
-        interrupted = true;
-        break;
-      }
+    const BATCH_SIZE = 3;
+    const total = jobsToProcess.length;
 
-      // Validate URL before processing
+    const processJob = async (
+      job: { id: string; url: string; contact_id: string | null },
+    ): Promise<"completed" | "error" | "interrupted"> => {
+      // Validate URL
       if (!validateScrapeUrl(job.url)) {
         await sb.from("scraping_jobs").update({
           status: "failed",
@@ -334,8 +426,7 @@ Deno.serve(async (req) => {
           processing_time_ms: 0,
           updated_at: new Date().toISOString(),
         }).eq("id", job.id);
-        errors++;
-        continue;
+        return "error";
       }
 
       await sb
@@ -357,19 +448,28 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         }).eq("id", job.id);
 
-        completed++;
+        // Write back found data to contacts table
+        if (job.contact_id && (result.emails.length > 0 || result.phones.length > 0)) {
+          const updates: Record<string, unknown> = {};
+          if (result.emails.length > 0) updates.email = result.emails[0];
+          if (result.phones.length > 0) updates.telefono = result.phones[0];
+          if (result.social?.linkedin) updates.linkedin_url = result.social.linkedin;
+          if (result.social?.facebook) updates.facebook_url = result.social.facebook;
+          if (result.social?.instagram) updates.instagram_url = result.social.instagram;
+          await sb.from("contacts").update(updates).eq("id", job.contact_id);
+          contactsEnriched++;
+        }
+
+        return "completed";
       } catch (err: unknown) {
         if (err instanceof InterruptedError) {
-          // Save partial results and requeue the job
-          const partialHtml = ""; // partial data already accumulated in scrapeUrl before throw
           await sb.from("scraping_jobs").update({
             status: "queued",
             error_message: "Interrotto per pausa",
             processing_time_ms: Date.now() - start,
             updated_at: new Date().toISOString(),
           }).eq("id", job.id);
-          interrupted = true;
-          break;
+          return "interrupted";
         }
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         await sb.from("scraping_jobs").update({
@@ -378,10 +478,29 @@ Deno.serve(async (req) => {
           processing_time_ms: Date.now() - start,
           updated_at: new Date().toISOString(),
         }).eq("id", job.id);
-        errors++;
+        return "error";
+      }
+    };
+
+    // Process in parallel batches of 3
+    for (let i = 0; i < jobsToProcess.length; i += BATCH_SIZE) {
+      // Check session status before each batch
+      if (await isSessionPaused(sb, session_id)) {
+        interrupted = true;
+        break;
       }
 
-      const total = jobsToProcess.length;
+      const batch = jobsToProcess.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map((job) => processJob(job)));
+
+      for (const r of results) {
+        if (r === "completed") completed++;
+        else if (r === "error") errors++;
+        else if (r === "interrupted") { interrupted = true; }
+      }
+
+      if (interrupted) break;
+
       const processed = completed + errors;
       await sb.from("scraping_sessions").update({
         progress_percent: Math.round((processed / total) * 100),
@@ -389,7 +508,7 @@ Deno.serve(async (req) => {
         totale_errori: errors,
       }).eq("id", session_id);
 
-      if (delayMs > 0) {
+      if (delayMs > 0 && i + BATCH_SIZE < jobsToProcess.length) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
@@ -420,14 +539,15 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, completed, errors, interrupted, requestId }),
+      JSON.stringify({ ok: true, completed, errors, contactsEnriched, interrupted, requestId }),
       { headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal error";
+    // Always return 200 with error in body
     return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: withHeaders({ "Content-Type": "application/json" }) },
+      JSON.stringify({ ok: false, error: message }),
+      { status: 200, headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   }
 });

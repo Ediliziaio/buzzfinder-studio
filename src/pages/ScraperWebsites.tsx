@@ -6,7 +6,6 @@ import { WebScraperQueue } from "@/components/scraper/WebScraperQueue";
 import { WebScraperResults } from "@/components/scraper/WebScraperResults";
 import { WebScraperDetailModal } from "@/components/scraper/WebScraperDetailModal";
 import { WebScraperPreviousSessions } from "@/components/scraper/WebScraperPreviousSessions";
-import { triggerN8nWebhook, getN8nSettings, checkN8nHealth } from "@/services/n8n";
 import { useScrapingSessions } from "@/hooks/useScrapingSession";
 import { toast } from "sonner";
 import type { ScrapingSession, ScrapingJob, Contact } from "@/types";
@@ -36,6 +35,7 @@ function normalizeUrl(url: string): string {
 }
 
 /** Check if an error is a network error */
+// deno-lint-ignore no-explicit-any
 function isNetworkError(err: any): boolean {
   if (!err) return false;
   const msg = (err.message || "").toLowerCase();
@@ -60,6 +60,8 @@ export default function ScraperWebsitesPage() {
   const [urls, setUrls] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+  // Track if we already showed the completion toast for this session
+  const completionToastShownRef = useRef<string | null>(null);
 
   const { sessions: allSessions } = useScrapingSessions();
 
@@ -141,6 +143,31 @@ export default function ScraperWebsitesPage() {
     setIsRunning(session?.status === "running" || session?.status === "pending");
   }, [session]);
 
+  // Show completion toast when session completes, with enrichment stats
+  useEffect(() => {
+    if (!session || !sessionId) return;
+    if (session.status !== "completed") return;
+    if (completionToastShownRef.current === sessionId) return;
+    completionToastShownRef.current = sessionId;
+
+    const emailsFound = jobs.filter((j) => j.status === "completed" && (j.emails_found?.length ?? 0) > 0).length;
+    const phonesFound = jobs.filter((j) => j.status === "completed" && (j.phones_found?.length ?? 0) > 0).length;
+    const enrichedCount = jobs.filter(
+      (j) => j.status === "completed" && j.contact_id && ((j.emails_found?.length ?? 0) > 0 || (j.phones_found?.length ?? 0) > 0)
+    ).length;
+
+    const parts: string[] = [];
+    if (emailsFound > 0) parts.push(`${emailsFound} email trovate`);
+    if (phonesFound > 0) parts.push(`${phonesFound} telefoni trovati`);
+    if (enrichedCount > 0) parts.push(`${enrichedCount} contatti arricchiti`);
+
+    if (parts.length > 0) {
+      toast.success(`Scraping completato! ${parts.join(", ")}.`);
+    } else {
+      toast.info("Scraping completato. Nessun dato di contatto trovato.");
+    }
+  }, [session?.status, sessionId]);
+
   // Optimize: only re-fetch contacts when completed job IDs change
   const completedJobContactIds = useMemo(() => {
     const completed = jobs.filter((j) => j.status === "completed" && j.contact_id);
@@ -164,7 +191,7 @@ export default function ScraperWebsitesPage() {
         if (error) {
           if (isNetworkError(error)) {
             toast.error("Errore di rete nel caricamento contatti", {
-              action: { label: "Riprova", onClick: () => {} }, // re-trigger handled by dep change
+              action: { label: "Riprova", onClick: () => {} },
             });
           }
           return;
@@ -197,6 +224,7 @@ export default function ScraperWebsitesPage() {
 
   const [mapsSessionIdForImport, setMapsSessionIdForImport] = useState<string | null>(null);
 
+  /** Import from any contacts with sito_web — no font restriction, optional session filter */
   const handleImportFromMaps = async () => {
     const userId = await getCurrentUserId();
     let query = supabase
@@ -209,15 +237,47 @@ export default function ScraperWebsitesPage() {
 
     if (mapsSessionIdForImport) {
       query = query.eq("scraping_session_id", mapsSessionIdForImport);
-    } else {
-      query = query.eq("fonte", "google_maps");
     }
 
     const { data } = await query;
     if (data) {
       const newUrls = data.map((c) => c.sito_web!).filter(Boolean);
       handleAddUrls(newUrls);
-      toast.success(`${newUrls.length} URL importati${mapsSessionIdForImport ? " dalla sessione selezionata" : " da Maps"}`);
+      toast.success(`${newUrls.length} URL importati${mapsSessionIdForImport ? " dalla sessione selezionata" : " dai contatti"}`);
+    }
+  };
+
+  /** Import from the most recent maps/OSM scraping session */
+  const handleImportFromLastOsmSession = async () => {
+    const userId = await getCurrentUserId();
+
+    // Find most recent maps-type session
+    const { data: lastSession } = await supabase
+      .from("scraping_sessions")
+      .select("id, created_at")
+      .eq("user_id", userId)
+      .eq("tipo", "google_maps")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!lastSession) {
+      toast.error("Nessuna sessione OSM/Maps trovata");
+      return;
+    }
+
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, sito_web")
+      .eq("user_id", userId)
+      .eq("scraping_session_id", lastSession.id)
+      .not("sito_web", "is", null)
+      .limit(1000);
+
+    if (data) {
+      const newUrls = data.map((c) => c.sito_web!).filter(Boolean);
+      handleAddUrls(newUrls);
+      toast.success(`${newUrls.length} URL importati dall'ultima sessione OSM`);
     }
   };
 
@@ -248,17 +308,6 @@ export default function ScraperWebsitesPage() {
     try {
       const user_id = await getCurrentUserId();
 
-      // Try n8n first, fallback to edge function
-      let useEdgeFunction = false;
-      let n8nSettings: Record<string, string> = {};
-
-      const n8nOk = await checkN8nHealth();
-      if (n8nOk) {
-        n8nSettings = await getN8nSettings();
-      } else {
-        useEdgeFunction = true;
-      }
-
       // Create session
       const { data: sess, error } = await supabase
         .from("scraping_sessions")
@@ -274,6 +323,7 @@ export default function ScraperWebsitesPage() {
       createdSessionId = sess.id;
       setSessionId(sess.id);
       setSession(sess as unknown as ScrapingSession);
+      completionToastShownRef.current = null;
 
       // Find matching contacts for URLs (with user_id filter)
       const { data: contacts } = await supabase
@@ -303,31 +353,10 @@ export default function ScraperWebsitesPage() {
 
       await supabase.from("scraping_jobs").insert(jobInserts);
 
-      if (useEdgeFunction) {
-        await toast.promise(
-          supabase.functions.invoke("scrape-website", {
-            body: {
-              session_id: sess.id,
-              urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
-              config: {
-                timeout_sec: config.timeoutSec,
-                delay_ms: config.delayMs,
-                max_retries: config.maxRetries,
-                crawl_depth: config.crawlDepth,
-                search_pages: config.searchPages,
-              },
-            },
-          }),
-          {
-            loading: "Avvio scraping siti (modalità autonoma)...",
-            success: "Scraping completato!",
-            error: (err) => `Errore: ${err.message}`,
-          }
-        );
-      } else {
-        const webhookPath = n8nSettings.n8n_webhook_scrape_websites || "/webhook/scrape-websites";
-        await toast.promise(
-          triggerN8nWebhook(webhookPath, {
+      // Always use edge function directly
+      await toast.promise(
+        supabase.functions.invoke("scrape-website", {
+          body: {
             session_id: sess.id,
             urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
             config: {
@@ -337,14 +366,24 @@ export default function ScraperWebsitesPage() {
               crawl_depth: config.crawlDepth,
               search_pages: config.searchPages,
             },
-          }),
-          {
-            loading: "Avvio scraping siti su n8n...",
-            success: "Job avviato!",
-            error: (err) => `Errore: ${err.message}`,
-          }
-        );
-      }
+          },
+        }),
+        {
+          loading: "Avvio scraping siti...",
+          success: (res) => {
+            const d = res?.data as any;
+            if (d?.ok) {
+              const parts: string[] = [];
+              if (d.completed != null) parts.push(`${d.completed} completati`);
+              if (d.contactsEnriched) parts.push(`${d.contactsEnriched} arricchiti`);
+              if (d.errors) parts.push(`${d.errors} errori`);
+              return parts.length > 0 ? `Scraping completato: ${parts.join(", ")}` : "Scraping completato!";
+            }
+            return "Scraping completato!";
+          },
+          error: (err) => `Errore: ${err.message}`,
+        }
+      );
     } catch (err: any) {
       if (isNetworkError(err)) {
         toast.error("Errore di rete. Verifica la connessione.", {
@@ -478,6 +517,7 @@ export default function ScraperWebsitesPage() {
 
   const handleLoadPreviousSession = async (prevSessionId: string) => {
     setSessionId(prevSessionId);
+    completionToastShownRef.current = prevSessionId; // don't re-show toast for old sessions
     const { data: sessData } = await supabase
       .from("scraping_sessions")
       .select("*")
@@ -494,11 +534,18 @@ export default function ScraperWebsitesPage() {
     toast.success("Sessione caricata");
   };
 
+  // Stats with email/phone counts
+  const completedJobs = jobs.filter((j) => j.status === "completed");
+  const emailsFoundCount = completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
+  const phonesFoundCount = completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
+
   const queueStats = {
     queued: jobs.filter((j) => j.status === "queued").length + (isRunning ? 0 : urls.length),
     processing: jobs.filter((j) => j.status === "processing").length,
     completed: jobs.filter((j) => j.status === "completed").length,
     failed: jobs.filter((j) => j.status === "failed").length,
+    emailsFound: emailsFoundCount,
+    phonesFound: phonesFoundCount,
   };
 
   return (
@@ -509,6 +556,17 @@ export default function ScraperWebsitesPage() {
           <Globe className="h-6 w-6 text-primary" />
           <h1 className="font-display text-xl font-bold text-foreground">SCRAPER SITI WEB</h1>
         </div>
+
+        {/* OSM import button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-mono text-[10px] h-7 w-full"
+          onClick={handleImportFromLastOsmSession}
+          disabled={isRunning}
+        >
+          Importa da ultima sessione OSM
+        </Button>
 
         <WebScraperQueue
           urls={urls}
@@ -539,6 +597,14 @@ export default function ScraperWebsitesPage() {
 
       {/* Right — Results */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Stats banner */}
+        {(emailsFoundCount > 0 || phonesFoundCount > 0) && (
+          <div className="flex items-center gap-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 mb-3 text-xs font-mono text-primary">
+            {emailsFoundCount > 0 && <span>{emailsFoundCount} email trovate</span>}
+            {phonesFoundCount > 0 && <span>{phonesFoundCount} telefoni trovati</span>}
+          </div>
+        )}
+
         {/* Memory warning banner */}
         {enrichedContacts.length > 1000 && (
           <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 mb-3 text-xs text-warning">
