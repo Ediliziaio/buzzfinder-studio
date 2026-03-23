@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Users, Plus, Upload, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { ContactDetailDrawer } from "@/components/contacts/ContactDetailDrawer";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
 import { ContactFiltersBar } from "@/components/contacts/ContactFiltersBar";
@@ -16,6 +17,7 @@ import type { Contact, ContactFilters } from "@/types";
 export default function ContactsPage() {
   const [filters, setFilters] = useState<ContactFilters>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAllFilteredSelected, setIsAllFilteredSelected] = useState(false);
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -24,6 +26,34 @@ export default function ContactsPage() {
   const [page, setPage] = useState(0);
 
   const { contacts, totalCount, isLoading, refetch, totalPages } = useContacts(filters, page);
+
+  // Fetch ALL matching IDs when user clicks "select all filtered"
+  const handleSelectAllFiltered = async () => {
+    try {
+      let query = supabase.from("contacts").select("id");
+      if (filters.search) {
+        query = query.or(`azienda.ilike.%${filters.search}%,nome.ilike.%${filters.search}%,email.ilike.%${filters.search}%,telefono.ilike.%${filters.search}%`);
+      }
+      if (filters.stato?.length) query = query.in("stato", filters.stato);
+      if (filters.fonte?.length) query = query.in("fonte", filters.fonte);
+      if (filters.citta?.length) query = query.in("citta", filters.citta);
+      if (filters.hasEmail) query = query.not("email", "is", null);
+      if (filters.hasTelefono) query = query.not("telefono", "is", null);
+      if (filters.tags?.length) query = query.overlaps("tags", filters.tags);
+      const { data } = await query.limit(10000);
+      if (data) {
+        setSelectedIds(new Set(data.map((r: any) => r.id)));
+        setIsAllFilteredSelected(true);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearAllFiltered = () => {
+    setSelectedIds(new Set());
+    setIsAllFilteredSelected(false);
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -64,7 +94,12 @@ export default function ContactsPage() {
       {/* Stats */}
       <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
         <span>Totale: <span className="text-foreground">{totalCount.toLocaleString()}</span></span>
-        <span>Selezionati: <span className="text-foreground">{selectedIds.size}</span></span>
+        <span>
+          Selezionati:{" "}
+          <span className={selectedIds.size > 0 ? "text-primary font-bold" : "text-foreground"}>
+            {isAllFilteredSelected ? `${selectedIds.size.toLocaleString()} (tutti)` : selectedIds.size}
+          </span>
+        </span>
       </div>
 
       {/* Filters */}
@@ -75,12 +110,15 @@ export default function ContactsPage() {
         contacts={contacts}
         isLoading={isLoading}
         selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
+        onSelectionChange={(ids) => { setSelectedIds(ids); if (ids.size === 0) setIsAllFilteredSelected(false); }}
         onContactClick={setDetailContact}
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
         onPageChange={setPage}
+        isAllFilteredSelected={isAllFilteredSelected}
+        onSelectAllFiltered={handleSelectAllFiltered}
+        onClearAllFiltered={handleClearAllFiltered}
       />
 
       {/* Bulk actions */}
@@ -88,7 +126,7 @@ export default function ContactsPage() {
         <BulkActionBar
           count={selectedIds.size}
           selectedIds={selectedIds}
-          onClear={() => setSelectedIds(new Set())}
+          onClear={handleClearAllFiltered}
           onRefresh={refetch}
         />
       )}

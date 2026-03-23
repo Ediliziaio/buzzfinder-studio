@@ -21,26 +21,35 @@ interface Props {
   totalPages: number;
   totalCount: number;
   onPageChange: (page: number) => void;
+  isAllFilteredSelected?: boolean;
+  onSelectAllFiltered?: () => void;
+  onClearAllFiltered?: () => void;
 }
 
-export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionChange, onContactClick, page, totalPages, totalCount, onPageChange }: Props) {
+export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionChange, onContactClick, page, totalPages, totalCount, onPageChange, isAllFilteredSelected, onSelectAllFiltered, onClearAllFiltered }: Props) {
   const columns = useMemo<ColumnDef<Contact>[]>(() => [
     {
       id: "select",
-      header: () => (
-        <input
-          type="checkbox"
-          checked={contacts.length > 0 && selectedIds.size === contacts.length}
-          onChange={(e) => {
-            if (e.target.checked) {
-              onSelectionChange(new Set(contacts.map((c) => c.id)));
-            } else {
-              onSelectionChange(new Set());
-            }
-          }}
-          className="accent-primary"
-        />
-      ),
+      header: () => {
+        const allPageSelected = contacts.length > 0 && contacts.every((c) => selectedIds.has(c.id));
+        const someSelected = contacts.some((c) => selectedIds.has(c.id));
+        return (
+          <input
+            type="checkbox"
+            checked={allPageSelected || !!isAllFilteredSelected}
+            ref={(el) => { if (el) el.indeterminate = someSelected && !allPageSelected && !isAllFilteredSelected; }}
+            onChange={(e) => {
+              if (e.target.checked) {
+                onSelectionChange(new Set(contacts.map((c) => c.id)));
+              } else {
+                onSelectionChange(new Set());
+                onClearAllFiltered?.();
+              }
+            }}
+            className="accent-primary"
+          />
+        );
+      },
       cell: ({ row }) => (
         <input
           type="checkbox"
@@ -185,6 +194,28 @@ export function ContactsTable({ contacts, isLoading, selectedIds, onSelectionCha
               ))}
             </thead>
             <tbody>
+              {/* Select-all-filtered banner — shown when entire page is selected */}
+              {contacts.length > 0 && contacts.every((c) => selectedIds.has(c.id)) && totalCount > contacts.length && (
+                <tr>
+                  <td colSpan={9} className="bg-primary/10 px-4 py-2 text-center border-t border-primary/20">
+                    {isAllFilteredSelected ? (
+                      <span className="font-mono text-xs text-primary">
+                        Tutti i <strong>{totalCount.toLocaleString()}</strong> contatti filtrati sono selezionati.{" "}
+                        <button className="underline hover:no-underline" onClick={onClearAllFiltered}>
+                          Deseleziona tutto
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        Hai selezionato i {contacts.length} contatti di questa pagina.{" "}
+                        <button className="text-primary underline hover:no-underline font-semibold" onClick={onSelectAllFiltered}>
+                          Seleziona tutti i {totalCount.toLocaleString()} contatti filtrati
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              )}
               {table.getRowModel().rows.map((row, i) => (
                 <tr
                   key={row.id}

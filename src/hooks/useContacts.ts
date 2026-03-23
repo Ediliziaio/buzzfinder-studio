@@ -22,8 +22,10 @@ async function fetchContacts(filters: ContactFilters, page: number, pageSize: nu
   if (filters.stato?.length) query = query.in("stato", filters.stato);
   if (filters.fonte?.length) query = query.in("fonte", filters.fonte);
   if (filters.citta?.length) query = query.in("citta", filters.citta);
-  if (filters.hasEmail) query = query.not("email", "is", null);
-  if (filters.hasTelefono) query = query.not("telefono", "is", null);
+  if (filters.hasEmail === true) query = query.not("email", "is", null);
+  if (filters.hasEmail === false) query = query.is("email", null);
+  if (filters.hasTelefono === true) query = query.not("telefono", "is", null);
+  if (filters.hasTelefono === false) query = query.is("telefono", null);
   if (filters.tags?.length) query = query.overlaps("tags", filters.tags);
 
   const { data, count, error } = await query;
