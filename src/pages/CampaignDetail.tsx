@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
-import { triggerN8nWebhook, getN8nSettings } from "@/services/n8n";
 import { toast } from "sonner";
 import type { Campaign, CampaignRecipient } from "@/types";
 import { AiPersonalizationPanel } from "@/components/campaigns/AiPersonalizationPanel";
@@ -353,14 +352,6 @@ export default function CampaignDetailPage() {
         setCampaign(prev => prev ? { ...prev, stato: "in_pausa" } as Campaign : null);
         toast.info("⏸️ Campagna messa in pausa");
 
-        // Notify n8n
-        try {
-          const settings = await getN8nSettings();
-          const controlWebhook = settings.n8n_webhook_campaign_control;
-          if (controlWebhook) {
-            await triggerN8nWebhook(controlWebhook, { campaign_id: campaign.id, action: "pause" });
-          }
-        } catch { /* ignore */ }
 
       // ─── RIPRENDI ───────────────────────────────────────────────────────
       } else if (newStato === "in_corso" && campaign.stato === "in_pausa") {
@@ -388,14 +379,6 @@ export default function CampaignDetailPage() {
         setCampaign(prev => prev ? { ...prev, stato: "completata" } as Campaign : null);
         toast.success("✅ Campagna completata");
 
-        // Notify n8n
-        try {
-          const settings = await getN8nSettings();
-          const controlWebhook = settings.n8n_webhook_campaign_control;
-          if (controlWebhook) {
-            await triggerN8nWebhook(controlWebhook, { campaign_id: campaign.id, action: "stop" });
-          }
-        } catch { /* ignore */ }
 
       // ─── ALTRI STATI ────────────────────────────────────────────────────
       } else {

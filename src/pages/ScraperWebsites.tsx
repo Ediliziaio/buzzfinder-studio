@@ -251,12 +251,12 @@ export default function ScraperWebsitesPage() {
   const handleImportFromLastOsmSession = async () => {
     const userId = await getCurrentUserId();
 
-    // Find most recent maps-type session
+    // Find most recent maps/OSM session (google_maps or openstreetmap or regional)
     const { data: lastSession } = await supabase
       .from("scraping_sessions")
       .select("id, created_at")
       .eq("user_id", userId)
-      .eq("tipo", "google_maps")
+      .in("tipo", ["google_maps", "openstreetmap", "regional"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

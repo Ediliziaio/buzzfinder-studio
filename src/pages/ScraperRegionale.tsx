@@ -388,7 +388,7 @@ export default function ScraperRegionalePage() {
           tipo: "regional",
           query: keyword,
           citta: selectedRegions.join(", "),
-          raggio: 5,
+          raggio: maxPerCity,
           max_results: maxPerCity,
           status: "running",
           started_at: new Date().toISOString(),

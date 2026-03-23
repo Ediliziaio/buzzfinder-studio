@@ -5,11 +5,12 @@ import { Mail, MessageSquare, Smartphone, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
-import { checkN8nHealth } from "@/services/n8n";
 
 const breadcrumbMap: Record<string, string> = {
   "/scraper/maps": "Scraper Maps",
   "/scraper/websites": "Scraper Siti",
+  "/scraper-regionale": "Scraper Regionale",
+  "/ai-agent": "AI Agent",
   "/contacts": "Contatti",
   "/lists": "Liste",
   "/campaigns": "Campagne",
@@ -20,7 +21,7 @@ const breadcrumbMap: Record<string, string> = {
 export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { credits, n8nStatus, sidebarCollapsed, setCredits, setN8nStatus } = useAppStore();
+  const { credits, sidebarCollapsed, setCredits } = useAppStore();
 
   const fetchCredits = useCallback(async () => {
     try {
@@ -62,18 +63,6 @@ export function AppHeader() {
     }
   }, [setCredits]);
 
-  // Poll n8n health every 30s
-  useEffect(() => {
-    const poll = async () => {
-      setN8nStatus("checking");
-      const ok = await checkN8nHealth();
-      setN8nStatus(ok ? "online" : "offline");
-    };
-    poll();
-    const interval = setInterval(poll, 30000);
-    return () => clearInterval(interval);
-  }, [setN8nStatus]);
-
   useEffect(() => {
     fetchCredits();
     const interval = setInterval(fetchCredits, 60000);
@@ -114,17 +103,6 @@ export function AppHeader() {
           <CreditPill icon={<Mail className="h-3 w-3" />} label="Email" value={credits.email} />
           <CreditPill icon={<MessageSquare className="h-3 w-3" />} label="SMS" value={credits.sms} />
           <CreditPill icon={<Smartphone className="h-3 w-3" />} label="WA" value={credits.whatsapp} />
-        </div>
-
-        {/* n8n status */}
-        <div className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1">
-          <div
-            className={cn(
-              "h-2 w-2 rounded-full",
-              n8nStatus === "online" ? "bg-primary pulse-dot" : n8nStatus === "offline" ? "bg-destructive" : "bg-warning"
-            )}
-          />
-          <span className="font-mono text-[10px] text-muted-foreground">n8n</span>
         </div>
 
         {/* Logout */}
