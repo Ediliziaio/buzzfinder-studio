@@ -363,7 +363,12 @@ export default function ScraperMapsPage() {
             toast.error(`Errore scraping OSM: ${msg}`);
             supabase.from("scraping_sessions").update({ status: "failed", error_message: msg }).eq("id", session.id);
           })
-          .finally(() => { setIsRunningLocal(false); refetchSessions(); });
+          .finally(() => {
+            setIsRunningLocal(false);
+            refetchSessions();
+            // Reload results after scraping completes (contacts are bulk-inserted at the end)
+            loadResultsForSession(session.id);
+          });
       } else {
         runScrapingLoop(session.id, startConfig);
       }
@@ -433,7 +438,7 @@ export default function ScraperMapsPage() {
           onStop={handleStop}
         />
 
-        {activeSession && (activeSession.status === "running" || activeSession.status === "pending" || activeSession.status === "paused") && (
+        {activeSession && (activeSession.status === "running" || activeSession.status === "pending" || activeSession.status === "paused" || activeSession.status === "completed") && (
           <>
             <MapsProgressBox session={activeSession} />
             {lastImported.length > 0 && (
