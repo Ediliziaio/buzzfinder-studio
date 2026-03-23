@@ -26,11 +26,14 @@ export function SettingField({ chiave, label, placeholder, isSecret, type = "tex
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    supabase.from("app_settings").select("valore").eq("chiave", chiave).maybeSingle().then(({ data }) => {
-      if (data?.valore) {
-        setValue(data.valore);
-        setInitialValue(data.valore);
-      }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", chiave).eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.valore) {
+          setValue(data.valore);
+          setInitialValue(data.valore);
+        }
+      });
     });
   }, [chiave]);
 
@@ -62,13 +65,22 @@ export function SettingField({ chiave, label, placeholder, isSecret, type = "tex
       }
     }
 
-    await supabase.from("app_settings").upsert(
+    const { error: upsertError } = await supabase.from("app_settings").upsert(
       { chiave, valore: value, categoria, user_id: user.id, updated_at: new Date().toISOString() } as any,
       { onConflict: "chiave,user_id" }
     );
+
+    if (upsertError) {
+      setStatus("error");
+      setErrorMsg(upsertError.message);
+      toast.error(`Errore salvataggio: ${upsertError.message}`);
+      return;
+    }
+
     setInitialValue(value);
     setDirty(false);
     setStatus("saved");
+    toast.success(`${label} salvato`);
     setTimeout(() => setStatus("idle"), 1500);
   }, [chiave, categoria, value, dirty, validator, label, status]);
 

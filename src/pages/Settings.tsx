@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Settings, Loader2, Download, Wifi, WifiOff } from "lucide-react";
+import { Settings, Loader2, Download, Wifi, WifiOff, Copy, Check, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,6 +117,7 @@ export default function SettingsPage() {
           <TabsTrigger value="ai" className="font-mono text-xs">AI</TabsTrigger>
           <TabsTrigger value="ai_calls" className="font-mono text-xs">📞 AI & Chiamate</TabsTrigger>
           <TabsTrigger value="ricezione" className="font-mono text-xs">Ricezione</TabsTrigger>
+          <TabsTrigger value="inbound" className="font-mono text-xs">Inbound Email</TabsTrigger>
           <TabsTrigger value="agenti" className="font-mono text-xs">🤖 Agenti AI</TabsTrigger>
           <TabsTrigger value="export" className="font-mono text-xs">Import/Export</TabsTrigger>
         </TabsList>
@@ -278,6 +279,11 @@ export default function SettingsPage() {
         {/* Ricezione Risposte */}
         <TabsContent value="ricezione">
           <WebhookGuideTab />
+        </TabsContent>
+
+        {/* Inbound Email */}
+        <TabsContent value="inbound" className="space-y-4">
+          <InboundEmailTab />
         </TabsContent>
 
         {/* Agenti AI */}
@@ -474,5 +480,165 @@ function ElevenLabsTestButton() {
       {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
       {testing ? "Test..." : "Test ElevenLabs"}
     </Button>
+  );
+}
+
+const INBOUND_WEBHOOK_URL = "https://vqfkqsdiytdhfhwoiupf.supabase.co/functions/v1/handle-reply";
+
+function InboundCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success("Copiato negli appunti");
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <Button variant="outline" size="sm" className="font-mono text-xs gap-1.5 shrink-0" onClick={copy}>
+      {copied ? <Check className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Copiato" : "Copia"}
+    </Button>
+  );
+}
+
+function InboundStep({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 items-start">
+      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-mono text-xs font-bold">{n}</span>
+      <div className="font-mono text-xs text-muted-foreground leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
+function InboundEmailTab() {
+  const [inboundDomain, setInboundDomain] = useState("");
+  const [testingReply, setTestingReply] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("app_settings").select("valore").eq("chiave", "resend_inbound_domain").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.valore) setInboundDomain(data.valore);
+      });
+    });
+  }, []);
+
+  const handleTestReply = async () => {
+    setTestingReply(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Non autenticato"); return; }
+      const { error } = await supabase.functions.invoke("handle-reply", {
+        body: {
+          user_id: user.id,
+          canale: "email",
+          da_nome: "Test Cliente",
+          da_email: "test@esempio.it",
+          oggetto: "Re: La vostra offerta",
+          corpo: "Sono interessato, potete mandarmi maggiori informazioni?",
+        },
+      });
+      if (error) throw error;
+      toast.success("Risposta test inviata → controlla l'Unibox");
+    } catch (err: any) {
+      toast.error(err.message || "Errore invio test");
+    } finally {
+      setTestingReply(false);
+    }
+  };
+
+  const isDomainConfigured = inboundDomain.trim().length > 0;
+
+  return (
+    <div className="space-y-4">
+      {/* RESEND INBOUND section */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="terminal-header text-primary">RESEND INBOUND (Risposte email automatiche)</div>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isDomainConfigured ? "bg-primary" : "bg-muted-foreground"}`} />
+            <span className={`font-mono text-[10px] ${isDomainConfigured ? "text-primary" : "text-muted-foreground"}`}>
+              {isDomainConfigured ? "Configurato" : "Non configurato"}
+            </span>
+          </div>
+        </div>
+
+        <p className="font-mono text-xs text-muted-foreground">
+          Configura Resend per ricevere le risposte email dei destinatari direttamente nell'Unibox
+        </p>
+
+        {/* Webhook URL */}
+        <div className="space-y-1">
+          <Label className="font-mono text-xs text-muted-foreground">Webhook URL (inbound)</Label>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-accent border border-border rounded px-3 py-2 font-mono text-xs break-all select-all">
+              {INBOUND_WEBHOOK_URL}
+            </code>
+            <InboundCopyButton text={INBOUND_WEBHOOK_URL} />
+          </div>
+        </div>
+
+        {/* Inbound domain setting */}
+        <SettingField
+          chiave="resend_inbound_domain"
+          label="Dominio inbound"
+          placeholder="reply.tuodominio.it"
+          categoria="inbound"
+          description="Il sottodominio configurato su Resend per ricevere le email in entrata"
+        />
+
+        {/* Step-by-step guide */}
+        <div className="space-y-3 rounded-lg border border-border bg-accent p-3">
+          <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">Guida configurazione</div>
+          <InboundStep n={1}>
+            Vai su <strong>resend.com → Inbound → Add Domain</strong>
+          </InboundStep>
+          <InboundStep n={2}>
+            Inserisci il dominio: <code className="bg-background px-1 rounded">reply.tuodominio.it</code>
+          </InboundStep>
+          <InboundStep n={3}>
+            Aggiungi record MX nel DNS:&nbsp;
+            <code className="bg-background px-1 rounded">MX reply.tuodominio.it inbound.resend.com 10</code>
+          </InboundStep>
+          <InboundStep n={4}>
+            <span>Imposta webhook URL su Resend:</span>
+            <div className="flex items-center gap-2 mt-1">
+              <code className="bg-background border border-border rounded px-2 py-1 text-[10px] break-all">
+                {INBOUND_WEBHOOK_URL}
+              </code>
+              <InboundCopyButton text={INBOUND_WEBHOOK_URL} />
+            </div>
+          </InboundStep>
+          <InboundStep n={5}>
+            Nel <strong>Pool Mittenti</strong>, imposta Reply-To:&nbsp;
+            <code className="bg-background px-1 rounded">
+              reply@{isDomainConfigured ? inboundDomain : "reply.tuodominio.it"}
+            </code>
+          </InboundStep>
+        </div>
+      </div>
+
+      {/* TEST RISPOSTA section */}
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="terminal-header text-primary">TEST RISPOSTA</div>
+        <p className="font-mono text-xs text-muted-foreground">
+          Simula una risposta email per verificare che l'Unibox riceva correttamente i messaggi in entrata.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="font-mono text-xs gap-2"
+          onClick={handleTestReply}
+          disabled={testingReply}
+        >
+          {testingReply ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Mail className="h-3 w-3" />
+          )}
+          {testingReply ? "Invio in corso..." : "Simula risposta test"}
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -27,6 +27,7 @@ import {
   FileText,
   Phone,
   Zap,
+  Bot,
 } from "lucide-react";
 
 interface NavItem {
@@ -70,6 +71,7 @@ const navGroups: NavGroup[] = [
       { title: "Unibox", path: "/unibox", icon: MessageSquare, badgeKey: "unibox" },
       { title: "Chiamate AI", path: "/calls", icon: Phone },
       { title: "Automazioni", path: "/automations", icon: Zap },
+      { title: "AI Agent", path: "/ai-agent", icon: Bot },
     ],
   },
   {

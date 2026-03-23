@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export interface MapsConfig {
+  provider: "google_maps" | "openstreetmap";
   query: string;
   citta: string;
   raggio: number;
@@ -28,8 +29,9 @@ export interface MapsConfig {
 
 export default function ScraperMapsPage() {
   const [config, setConfig] = useState<MapsConfig>({
+    provider: "openstreetmap",
     query: "", citta: "", raggio: 25, maxResults: 500,
-    soloConSito: true, soloConTelefono: false, ratingMin: 0, recensioniMin: 0,
+    soloConSito: false, soloConTelefono: false, ratingMin: 0, recensioniMin: 0,
   });
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [results, setResults] = useState<Contact[]>([]);
@@ -80,6 +82,193 @@ export default function ScraperMapsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [activeSessionId, loadResultsForSession]);
 
+  // ─── OSM: query Nominatim + Overpass directly from the browser (no IP blocking) ───
+
+  // Italian term → OSM Overpass tag clauses (supports common B2B/B2C categories)
+  const OSM_TAG_MAP: Record<string, string[]> = {
+    ristorante: ['["amenity"="restaurant"]', '["amenity"="fast_food"]'],
+    trattoria: ['["amenity"="restaurant"]'],
+    osteria: ['["amenity"="restaurant"]'],
+    pizzeria: ['["amenity"="restaurant"]'],
+    bar: ['["amenity"="bar"]', '["amenity"="cafe"]'],
+    caffè: ['["amenity"="cafe"]'],
+    caffe: ['["amenity"="cafe"]'],
+    hotel: ['["tourism"="hotel"]', '["tourism"="guest_house"]'],
+    albergo: ['["tourism"="hotel"]'],
+    farmacia: ['["amenity"="pharmacy"]'],
+    dentista: ['["amenity"="dentist"]'],
+    medico: ['["amenity"="doctors"]', '["amenity"="clinic"]'],
+    clinica: ['["amenity"="clinic"]'],
+    banca: ['["amenity"="bank"]'],
+    idraulico: ['["craft"="plumber"]'],
+    idraulici: ['["craft"="plumber"]'],
+    elettricista: ['["craft"="electrician"]'],
+    elettricisti: ['["craft"="electrician"]'],
+    parrucchiere: ['["shop"="hairdresser"]'],
+    parrucchieri: ['["shop"="hairdresser"]'],
+    estetista: ['["shop"="beauty"]'],
+    estetiste: ['["shop"="beauty"]'],
+    supermercato: ['["shop"="supermarket"]'],
+    ferramenta: ['["shop"="hardware"]'],
+    falegname: ['["craft"="carpenter"]'],
+    falegnami: ['["craft"="carpenter"]'],
+    falegnamerie: ['["craft"="carpenter"]'],
+    geometra: ['["office"="surveyor"]'],
+    geometri: ['["office"="surveyor"]'],
+    avvocato: ['["office"="lawyer"]'],
+    avvocati: ['["office"="lawyer"]'],
+    commercialista: ['["office"="accountant"]'],
+    commercialisti: ['["office"="accountant"]'],
+    serramentist: ['["craft"="window_construction"]', '["shop"="doors"]'],
+    'imprese edil': ['["craft"="construction"]'],
+    muratore: ['["craft"="mason"]'],
+    muratori: ['["craft"="mason"]'],
+    panificio: ['["shop"="bakery"]'],
+    panetteria: ['["shop"="bakery"]'],
+    forno: ['["shop"="bakery"]'],
+    pasticceria: ['["shop"="pastry"]'],
+    gelateria: ['["shop"="ice_cream"]'],
+    ottico: ['["shop"="optician"]'],
+    ottici: ['["shop"="optician"]'],
+    veterinario: ['["amenity"="veterinary"]'],
+    veterinari: ['["amenity"="veterinary"]'],
+    meccanico: ['["shop"="car_repair"]'],
+    officina: ['["shop"="car_repair"]'],
+    gommista: ['["shop"="tyres"]'],
+    gommisti: ['["shop"="tyres"]'],
+    libreria: ['["shop"="books"]'],
+    abbigliamento: ['["shop"="clothes"]'],
+    scarpe: ['["shop"="shoes"]'],
+    gioielleria: ['["shop"="jewelry"]'],
+    gioiellerie: ['["shop"="jewelry"]'],
+    fiorista: ['["shop"="florist"]'],
+    fioristi: ['["shop"="florist"]'],
+    profumeria: ['["shop"="perfumery"]'],
+    profumerie: ['["shop"="perfumery"]'],
+    fisioterapist: ['["healthcare"="physiotherapist"]'],
+    impresa: ['["craft"="construction"]'],
+    notaio: ['["office"="notary"]'],
+    notai: ['["office"="notary"]'],
+    psicologo: ['["healthcare"="psychotherapist"]'],
+    psicologi: ['["healthcare"="psychotherapist"]'],
+    palestra: ['["leisure"="fitness_centre"]'],
+    palestre: ['["leisure"="fitness_centre"]'],
+    piscina: ['["leisure"="swimming_pool"]'],
+    piscine: ['["leisure"="swimming_pool"]'],
+    autolavaggio: ['["amenity"="car_wash"]'],
+    fotografia: ['["shop"="photo"]'],
+    fotografo: ['["shop"="photo"]'],
+  };
+
+  const runOSMScrapingLocal = useCallback(async (sessionId: string, loopConfig: MapsConfig) => {
+    await supabase.from("scraping_sessions")
+      .update({ status: "running", started_at: new Date().toISOString() }).eq("id", sessionId);
+
+    // 1. Nominatim geocoding
+    const nomResp = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loopConfig.citta + " Italy")}&format=json&limit=1&countrycodes=it`,
+      { headers: { "User-Agent": "BuzzFinderBot/1.0" } }
+    );
+    if (!nomResp.ok) throw new Error(`Nominatim error ${nomResp.status}`);
+    const nomData = await nomResp.json();
+    if (!nomData?.length) throw new Error(`Città "${loopConfig.citta}" non trovata in OpenStreetMap`);
+
+    const lat = parseFloat(nomData[0].lat);
+    const lon = parseFloat(nomData[0].lon);
+    const r = loopConfig.raggio * 1000;
+    const sq = loopConfig.query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const lim = Math.min(loopConfig.maxResults, 1000);
+    const ql = loopConfig.query.toLowerCase();
+
+    // Build Overpass clauses: prefer indexed tag clauses; fall back to regex name search
+    const tagClauses: string[] = [];
+    for (const [key, clauses] of Object.entries(OSM_TAG_MAP)) {
+      if (ql.includes(key) || key.includes(ql.replace(/i$/, "")) || key.startsWith(ql.slice(0, 6))) {
+        tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
+      }
+    }
+    // Use tag clauses only when available (indexed, fast). Name regex is a full-scan and can timeout.
+    const allClauses = tagClauses.length > 0
+      ? [...new Set(tagClauses)]
+      : [`nwr["name"~"${sq}",i](around:${r},${lat},${lon})`];
+    const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
+
+    // 2. Overpass from browser (not blocked unlike edge functions)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function tryOv(url: string): Promise<any> {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `data=${encodeURIComponent(ovQ)}` });
+      if (!res.ok) throw new Error(`${url} ${res.status}`);
+      return res.json();
+    }
+    const ovData = await Promise.any([
+      tryOv("https://overpass-api.de/api/interpreter"),
+      tryOv("https://overpass.kumi.systems/api/interpreter"),
+    ]);
+    if (ovData?.remark?.includes("timed out")) throw new Error(`Overpass timeout — riprova con un raggio più piccolo`);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elements: any[] = ovData.elements || [];
+    const useTagSearch = tagClauses.length > 0;
+
+    // In-memory filter: if tag-based search, accept all (Overpass already filtered);
+    // if name-only, require name match
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const candidates = elements.filter((el: any) => {
+      const t = el.tags || {}; if (!t.name) return false;
+      if (useTagSearch) return true; // tag search already targeted correct category
+      return t.name.toLowerCase().includes(ql);
+    }).slice(0, loopConfig.maxResults * 2);
+
+    // Bulk dedup (1 DB query)
+    const user_id = await getCurrentUserId();
+    // deno-lint-ignore no-explicit-any
+    const cNames = [...new Set(candidates.map((el: any) => el.tags?.name).filter(Boolean))] as string[];
+    const { data: exRows } = await supabase.from("contacts").select("azienda")
+      .eq("citta", loopConfig.citta).eq("user_id", user_id)
+      .in("azienda", cNames.length ? cNames : ["__none__"]);
+    // deno-lint-ignore no-explicit-any
+    const exSet = new Set((exRows || []).map((r: any) => r.azienda));
+
+    // Build insert rows
+    // deno-lint-ignore no-explicit-any
+    const rows: any[] = [];
+    for (const el of candidates) {
+      if (rows.length >= loopConfig.maxResults || isStopped.current) break;
+      const t = el.tags || {}; const name: string = t.name;
+      if (exSet.has(name)) continue;
+      const website = t.website || t["contact:website"] || t["contact:url"] || null;
+      const phone = t.phone || t["contact:phone"] || t["contact:mobile"] || null;
+      if (loopConfig.soloConSito && !website) continue;
+      if (loopConfig.soloConTelefono && !phone) continue;
+      rows.push({
+        azienda: name, citta: loopConfig.citta,
+        indirizzo: [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ") || null,
+        cap: t["addr:postcode"] || null,
+        telefono: phone || null, sito_web: website, email: t.email || t["contact:email"] || null,
+        lat: el.lat ?? el.center?.lat ?? null, lng: el.lon ?? el.center?.lon ?? null,
+        google_categories: [t.amenity, t.shop, t.craft, t.office, t.tourism].filter(Boolean),
+        fonte: "openstreetmap", stato: "nuovo",
+        user_id, scraping_session_id: sessionId,
+      });
+      exSet.add(name);
+    }
+
+    // Bulk insert in chunks of 100
+    let imported = 0;
+    for (let i = 0; i < rows.length; i += 100) {
+      if (isStopped.current) break;
+      const { error: ie } = await supabase.from("contacts").insert(rows.slice(i, i + 100));
+      if (!ie) imported += rows.slice(i, i + 100).length;
+    }
+
+    await supabase.from("scraping_sessions").update({
+      status: "completed", completed_at: new Date().toISOString(),
+      totale_trovati: elements.length, totale_importati: imported, progress_percent: 100,
+    }).eq("id", sessionId);
+
+    toast.success(`Scraping completato: ${imported} contatti importati da OpenStreetMap`);
+  }, [refetchSessions]);
+
   const runScrapingLoop = useCallback(async (sessionId: string, loopConfig: MapsConfig) => {
     let nextPageToken: string | undefined = undefined;
     isPaused.current = false;
@@ -95,6 +284,7 @@ export default function ScraperMapsPage() {
 
         const { data, error } = await supabase.functions.invoke("scrape-maps-page", {
           body: {
+            provider: loopConfig.provider,
             session_id: sessionId,
             query: loopConfig.query,
             citta: loopConfig.citta,
@@ -154,7 +344,7 @@ export default function ScraperMapsPage() {
       const { data: session, error } = await supabase
         .from("scraping_sessions")
         .insert({
-          user_id, tipo: "google_maps", query: startConfig.query, citta: startConfig.citta,
+          user_id, tipo: startConfig.provider, query: startConfig.query, citta: startConfig.citta,
           raggio: startConfig.raggio, max_results: startConfig.maxResults, status: "pending",
           filtri,
         })
@@ -164,7 +354,19 @@ export default function ScraperMapsPage() {
       setResults([]);
       setLastImported([]);
       toast.info("Scraping avviato...");
-      runScrapingLoop(session.id, startConfig);
+      if (startConfig.provider === "openstreetmap") {
+        // OSM: run entirely client-side to avoid Overpass IP blocking on edge functions
+        setIsRunningLocal(true);
+        runOSMScrapingLocal(session.id, startConfig)
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : "Errore sconosciuto";
+            toast.error(`Errore scraping OSM: ${msg}`);
+            supabase.from("scraping_sessions").update({ status: "failed", error_message: msg }).eq("id", session.id);
+          })
+          .finally(() => { setIsRunningLocal(false); refetchSessions(); });
+      } else {
+        runScrapingLoop(session.id, startConfig);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Errore");
     }
@@ -216,7 +418,7 @@ export default function ScraperMapsPage() {
       <div className="w-[380px] shrink-0 flex flex-col gap-4 overflow-y-auto pr-2">
         <div className="flex items-center gap-3">
           <Search className="h-6 w-6 text-primary" />
-          <h1 className="font-display text-xl font-bold text-foreground">SCRAPER GOOGLE MAPS</h1>
+          <h1 className="font-display text-xl font-bold text-foreground">SCRAPER MAPPE</h1>
         </div>
 
         <MapsConfigPanel

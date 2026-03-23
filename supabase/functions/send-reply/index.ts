@@ -160,11 +160,50 @@ serve(async (req) => {
       }
     }
 
-    // === SMS (placeholder — not implemented yet) ===
+    // === SMS via n8n ===
     else if (canale === "sms") {
-      return new Response(JSON.stringify({ error: "Invio SMS non ancora supportato dalla risposta inline" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (!destinatarioTelefono) {
+        return new Response(JSON.stringify({ error: "Nessun numero di telefono destinatario" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const getSetting = async (chiave: string): Promise<string | null> => {
+        const { data } = await adminClient
+          .from("app_settings")
+          .select("valore")
+          .eq("chiave", chiave)
+          .eq("user_id", userId)
+          .maybeSingle();
+        return data?.valore || null;
+      };
+
+      const n8nUrl = await getSetting("n8n_instance_url");
+      const webhookPath = await getSetting("n8n_webhook_send_sms");
+
+      if (!n8nUrl || !webhookPath) {
+        return new Response(JSON.stringify({ error: "Configurazione n8n per SMS non presente. Imposta n8n_instance_url e n8n_webhook_send_sms nelle impostazioni." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const n8nApiKey = await getSetting("n8n_api_key");
+      const url = `${n8nUrl.replace(/\/$/, "")}${webhookPath}`;
+      const smsHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (n8nApiKey) smsHeaders["Authorization"] = `Bearer ${n8nApiKey}`;
+
+      const smsResp = await fetch(url, {
+        method: "POST",
+        headers: smsHeaders,
+        body: JSON.stringify({ to: destinatarioTelefono, body: corpo }),
       });
+
+      if (smsResp.ok) {
+        sendResult = { success: true };
+      } else {
+        const errText = await smsResp.text();
+        sendResult = { success: false, error: `n8n SMS error [${smsResp.status}]: ${errText}` };
+      }
     }
 
     if (!sendResult.success) {

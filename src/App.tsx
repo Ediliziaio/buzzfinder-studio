@@ -27,6 +27,7 @@ import DeliverabilityPage from "@/pages/Deliverability";
 import TemplatesPage from "@/pages/Templates";
 import CallsPage from "@/pages/Calls";
 import AutomationsPage from "@/pages/Automations";
+import AIAgentPage from "@/pages/AIAgent";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ function AppRoutes() {
         <Route path="/deliverability" element={<DeliverabilityPage />} />
         <Route path="/calls" element={<CallsPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
+        <Route path="/ai-agent" element={<AIAgentPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />

@@ -317,45 +317,22 @@ export default function CampaignDetailPage() {
           console.error("campagna_avviata trigger error:", triggerErr);
         }
 
-        // If steps exist → process-sequence handles everything, no n8n needed
+        // If steps exist → process-sequence handles everything
         if (hasSteps) {
           toast.success("🚀 Campagna avviata — il motore sequenze gestisce gli invii");
         } else {
-          // No steps → fallback to n8n direct
+          // No steps → send directly via edge function
           try {
-            const settings = await getN8nSettings();
-            const webhookMap: Record<string, string> = {
-              email: settings.n8n_webhook_send_emails || "",
-              sms: settings.n8n_webhook_send_sms || "",
-              whatsapp: settings.n8n_webhook_send_whatsapp || "",
-            };
-            const webhookPath = webhookMap[campaign.tipo];
-            if (webhookPath) {
-              const webhookResponse = await triggerN8nWebhook(webhookPath, {
-                campaign_id: campaign.id,
-                tipo: campaign.tipo,
-                subject: campaign.subject,
-                body_html: campaign.body_html,
-                body_text: campaign.body_text,
-                sender_email: campaign.sender_email,
-                sender_name: campaign.sender_name,
-                reply_to: campaign.reply_to,
-                template_whatsapp_id: campaign.template_whatsapp_id,
-                rate_per_hour: campaign.sending_rate_per_hour,
-                use_personalized_messages: !!(campaign as any).ai_personalization_enabled && (campaign as any).ai_personalization_status === "completed",
-              });
-              const executionId = webhookResponse?.executionId || webhookResponse?.id || null;
-              if (executionId) {
-                await supabase.from("campaigns")
-                  .update({ n8n_webhook_id: String(executionId) } as any)
-                  .eq("id", campaign.id);
-              }
-              toast.success("Job di invio avviato su n8n");
+            const { data: sendData } = await supabase.functions.invoke("send-campaign-emails", {
+              body: { campaign_id: campaign.id, batch_size: 100 },
+            });
+            if (sendData?.sent !== undefined) {
+              toast.success(`Campagna avviata — ${sendData.sent} email inviate`);
             } else {
-              toast.warning("⚠️ Configura Step sequenza o Webhook n8n nelle Impostazioni");
+              toast.success("Campagna avviata — invio in corso...");
             }
-          } catch (n8nErr: any) {
-            toast.warning(`Webhook n8n non raggiungibile: ${n8nErr.message}`);
+          } catch (sendErr: any) {
+            toast.warning(`Errore invio email: ${sendErr.message}`);
           }
         }
 

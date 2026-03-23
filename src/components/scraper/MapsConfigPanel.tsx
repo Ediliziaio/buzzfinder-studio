@@ -35,14 +35,50 @@ const categorySuggestions = [
 
 const citySuggestions = ["Milano", "Roma", "Torino", "Bologna", "Firenze", "Napoli"];
 
-const maxResultsOptions = [100, 500, 1000, 2500, 5000];
+const maxResultsOptions = [100, 500, 1000, 2500, 5000, 10000];
 
 export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, isPaused, onStart, onPause, onResume, onStop }: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const disabled = isRunning || !!isPaused;
+  const isOSM = config.provider === "openstreetmap";
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+      {/* Provider selector */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Sorgente dati</Label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onChange({ ...config, provider: "openstreetmap" })}
+            disabled={disabled}
+            className={`flex-1 rounded-md border px-3 py-2 font-mono text-xs transition-colors ${
+              isOSM
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-accent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            OpenStreetMap 🆓
+          </button>
+          <button
+            onClick={() => onChange({ ...config, provider: "google_maps" })}
+            disabled={disabled}
+            className={`flex-1 rounded-md border px-3 py-2 font-mono text-xs transition-colors ${
+              !isOSM
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-accent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Google Maps 🗺
+          </button>
+        </div>
+        {isOSM && (
+          <p className="font-mono text-[10px] text-primary">Gratuito — nessuna API key richiesta</p>
+        )}
+        {!isOSM && (
+          <p className="font-mono text-[10px] text-warning">Richiede Google Maps API Key in Impostazioni</p>
+        )}
+      </div>
+
       {/* Query */}
       <div className="space-y-1.5">
         <Label className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Categoria business *</Label>
@@ -184,19 +220,21 @@ export function MapsConfigPanel({ config, onChange, costEstimate, isRunning, isP
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Cost estimate */}
-      <div className="rounded-md border border-border bg-accent p-3 space-y-1">
-        <div className="terminal-header">STIMA COSTI API</div>
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-xs text-muted-foreground">
-            Google Places: ~€2.50 / 1.000
-          </span>
+      {/* Cost estimate — only for Google Maps */}
+      {!isOSM && (
+        <div className="rounded-md border border-border bg-accent p-3 space-y-1">
+          <div className="terminal-header">STIMA COSTI API</div>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-xs text-muted-foreground">
+              Google Places: ~€2.50 / 1.000
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">⚡</span>
+            <span className="font-mono text-sm text-warning font-medium">Stimato: €{costEstimate}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">⚡</span>
-          <span className="font-mono text-sm text-warning font-medium">Stimato: €{costEstimate}</span>
-        </div>
-      </div>
+      )}
 
       {/* Actions */}
       <div className="space-y-2">

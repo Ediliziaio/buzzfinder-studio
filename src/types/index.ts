@@ -312,6 +312,7 @@ export interface SenderPool {
   totale_inviati: number;
   totale_bounce: number;
   totale_spam: number;
+  smtp_config?: { host: string; port: number; user: string; password: string; secure: boolean } | null;
   created_at: string;
   updated_at: string;
 }

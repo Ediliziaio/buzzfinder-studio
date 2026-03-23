@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { toast } from "sonner";
@@ -20,13 +20,21 @@ interface Props {
 
 type SenderTipo = "email" | "whatsapp" | "sms";
 
+type EmailProvider = "resend" | "smtp";
+
 const defaultForm = {
   nome: "",
   tipo: "email" as SenderTipo,
   email_from: "",
   email_nome: "",
   reply_to: "",
+  email_provider: "resend" as EmailProvider,
   resend_api_key: "",
+  smtp_host: "",
+  smtp_port: "587",
+  smtp_user: "",
+  smtp_password: "",
+  smtp_secure: true,
   spf_ok: false,
   dkim_ok: false,
   dmarc_ok: false,
@@ -50,13 +58,32 @@ export function SenderDialog({ open, onOpenChange, sender, onSaved }: Props) {
 
   useEffect(() => {
     if (sender) {
+      // Parse smtp_config if present
+      let smtpFields = { smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "", smtp_secure: true };
+      if ((sender as any).smtp_config) {
+        try {
+          const parsed = typeof (sender as any).smtp_config === "string"
+            ? JSON.parse((sender as any).smtp_config)
+            : (sender as any).smtp_config;
+          smtpFields = {
+            smtp_host: parsed.host || "",
+            smtp_port: String(parsed.port || "587"),
+            smtp_user: parsed.user || "",
+            smtp_password: parsed.password || "",
+            smtp_secure: parsed.secure !== false,
+          };
+        } catch { /* ignore parse error */ }
+      }
+      const hasSmtp = smtpFields.smtp_host.length > 0;
       setForm({
         nome: sender.nome,
         tipo: sender.tipo as SenderTipo,
         email_from: sender.email_from || "",
         email_nome: sender.email_nome || "",
         reply_to: sender.reply_to || "",
+        email_provider: hasSmtp ? "smtp" : "resend",
         resend_api_key: sender.resend_api_key || "",
+        ...smtpFields,
         spf_ok: sender.spf_ok,
         dkim_ok: sender.dkim_ok,
         dmarc_ok: sender.dmarc_ok,
@@ -94,16 +121,29 @@ export function SenderDialog({ open, onOpenChange, sender, onSaved }: Props) {
       };
 
       if (form.tipo === "email") {
-        Object.assign(payload, {
+        const emailPayload: Record<string, unknown> = {
           email_from: form.email_from,
           email_nome: form.email_nome,
           reply_to: form.reply_to,
-          resend_api_key: form.resend_api_key,
           dominio: form.email_from?.split("@")[1] || "",
           spf_ok: form.spf_ok,
           dkim_ok: form.dkim_ok,
           dmarc_ok: form.dmarc_ok,
-        });
+        };
+        if (form.email_provider === "resend") {
+          emailPayload.resend_api_key = form.resend_api_key;
+          emailPayload.smtp_config = null;
+        } else {
+          emailPayload.resend_api_key = null;
+          emailPayload.smtp_config = JSON.stringify({
+            host: form.smtp_host,
+            port: Number(form.smtp_port) || 587,
+            user: form.smtp_user,
+            password: form.smtp_password,
+            secure: form.smtp_secure,
+          });
+        }
+        Object.assign(payload, emailPayload);
       } else if (form.tipo === "whatsapp") {
         Object.assign(payload, {
           wa_numero: form.wa_numero,
@@ -212,7 +252,72 @@ export function SenderDialog({ open, onOpenChange, sender, onSaved }: Props) {
                 <Label className="font-mono text-xs text-muted-foreground">Reply-To</Label>
                 <Input value={form.reply_to} onChange={(e) => update("reply_to", e.target.value)} placeholder="support@tuodominio.com" className="font-mono text-xs bg-accent border-border" />
               </div>
-              {secretInput("Resend API Key", "resend_api_key", "re_xxxxxxxxxxxx")}
+
+              {/* Provider selection */}
+              <div className="space-y-1">
+                <Label className="font-mono text-xs text-muted-foreground">Provider email</Label>
+                <Select value={form.email_provider} onValueChange={(v) => update("email_provider", v as EmailProvider)}>
+                  <SelectTrigger className="font-mono text-xs bg-accent border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resend">Resend (default)</SelectItem>
+                    <SelectItem value="smtp">SMTP (Gmail, Google WS, Outlook, custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Resend fields */}
+              {form.email_provider === "resend" && (
+                secretInput("Resend API Key", "resend_api_key", "re_xxxxxxxxxxxx")
+              )}
+
+              {/* SMTP fields */}
+              {form.email_provider === "smtp" && (
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">Configurazione SMTP</span>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2 space-y-1">
+                      <Label className="font-mono text-xs text-muted-foreground">Host SMTP</Label>
+                      <Input value={form.smtp_host} onChange={(e) => update("smtp_host", e.target.value)} placeholder="smtp.gmail.com" className="font-mono text-xs bg-accent border-border" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-xs text-muted-foreground">Porta</Label>
+                      <Input type="number" value={form.smtp_port} onChange={(e) => update("smtp_port", e.target.value)} placeholder="587" className="font-mono text-xs bg-accent border-border" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="font-mono text-xs text-muted-foreground">Utente (email)</Label>
+                    <Input value={form.smtp_user} onChange={(e) => update("smtp_user", e.target.value)} placeholder="tu@gmail.com" className="font-mono text-xs bg-accent border-border" />
+                  </div>
+
+                  {secretInput("Password / App Password", "smtp_password", "Inserisci password o App Password")}
+
+                  <div className="flex items-center justify-between">
+                    <Label className="font-mono text-xs">TLS / STARTTLS (raccomandato)</Label>
+                    <Switch checked={form.smtp_secure} onCheckedChange={(v) => update("smtp_secure", v)} />
+                  </div>
+
+                  {/* Gmail notice */}
+                  <div className="rounded border border-border bg-accent p-2 space-y-1">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                      <p className="font-mono text-[10px] text-muted-foreground">
+                        <strong>Per Gmail:</strong> usa un App Password, non la password principale. Abilita 2FA → Sicurezza → App password
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Info className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                      <p className="font-mono text-[10px] text-muted-foreground">
+                        <strong>Per Google Workspace:</strong> autorizzato dallo admin → Sicurezza → Accesso app meno sicure (oppure OAuth2)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2 rounded-lg border border-border p-3">
                 <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">DNS Records</span>
                 <div className="flex items-center justify-between">

@@ -1,24 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ── Dynamic CORS ── */
-function getAllowedOrigins(): string[] {
-  const env = Deno.env.get("ALLOWED_ORIGINS") || "";
-  const origins = env.split(",").map((o) => o.trim()).filter(Boolean);
-  const projectUrl = Deno.env.get("SUPABASE_URL") || "";
-  if (projectUrl) origins.push(projectUrl);
-  origins.push("https://buzzfinder-studio.lovable.app");
-  return origins;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") || "";
-  const allowed = getAllowedOrigins();
-  const matchedOrigin = allowed.find((o) => origin === o || origin.endsWith(".lovable.app"));
+function getCorsHeaders(_req: Request): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": matchedOrigin || allowed[0] || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
   };
 }
 
@@ -250,15 +237,14 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Token non valido" }),
         { status: 401, headers: withHeaders({ "Content-Type": "application/json" }) },
       );
     }
-    const authenticatedUserId = claimsData.claims.sub as string;
+    const authenticatedUserId = user.id;
 
     const { session_id, urls, config, retry_job_id } = await req.json();
 

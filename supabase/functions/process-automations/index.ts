@@ -254,14 +254,170 @@ Deno.serve(async (req: Request) => {
           }
 
           case "invia_email": {
-            // TODO: implementare invio email tramite edge function send-reply o Resend
-            risultato = { skipped: true, motivo: "Azione invia_email non ancora implementata" };
+            const params = rule.azione_params as {
+              oggetto?: string;
+              corpo?: string;
+              sender_id?: string;
+            };
+
+            if (!params.oggetto || !params.corpo) {
+              risultato = { skipped: true, motivo: "Parametri invia_email incompleti (mancano oggetto o corpo)" };
+              break;
+            }
+
+            const { data: contact } = await supabase
+              .from("contacts")
+              .select("nome, cognome, azienda, email")
+              .eq("id", exec.contact_id)
+              .single();
+
+            if (!contact?.email) {
+              risultato = { skipped: true, motivo: "Contatto senza email" };
+              break;
+            }
+
+            let emailSender: { resend_api_key: string; email_from: string; email_nome?: string; reply_to?: string } | null = null;
+
+            if (params.sender_id) {
+              const { data: s } = await supabase
+                .from("sender_pool")
+                .select("resend_api_key, email_from, email_nome, reply_to")
+                .eq("id", params.sender_id)
+                .eq("user_id", userId)
+                .maybeSingle();
+              emailSender = s;
+            } else {
+              const { data: s } = await supabase
+                .from("sender_pool")
+                .select("resend_api_key, email_from, email_nome, reply_to")
+                .eq("user_id", userId)
+                .eq("tipo", "email")
+                .eq("attivo", true)
+                .neq("stato", "banned")
+                .order("health_score", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              emailSender = s;
+            }
+
+            if (!emailSender?.resend_api_key || !emailSender?.email_from) {
+              risultato = { skipped: true, motivo: "Nessun mittente email attivo configurato" };
+              break;
+            }
+
+            const substituteVars = (text: string) =>
+              text.replace(/\{\{(\w+)\}\}/g, (_, key) => ({
+                nome: contact.nome || "",
+                cognome: contact.cognome || "",
+                azienda: contact.azienda || "",
+                email: contact.email || "",
+              })[key] || "");
+
+            const oggettoEmail = substituteVars(params.oggetto);
+            const corpoEmail = substituteVars(params.corpo);
+
+            const resendResp = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${emailSender.resend_api_key}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: emailSender.email_nome
+                  ? `${emailSender.email_nome} <${emailSender.email_from}>`
+                  : emailSender.email_from,
+                to: [contact.email],
+                subject: oggettoEmail,
+                html: `<div style="font-family:sans-serif;font-size:14px">${corpoEmail.replace(/\n/g, "<br>")}</div>`,
+                ...(emailSender.reply_to ? { reply_to: emailSender.reply_to } : {}),
+              }),
+            });
+
+            if (resendResp.ok) {
+              risultato = { email_inviata: true, destinatario: contact.email };
+            } else {
+              const errBody = await resendResp.text();
+              throw new Error(`Resend error [${resendResp.status}]: ${errBody}`);
+            }
             break;
           }
 
           case "aggiungi_a_sequenza": {
-            // TODO: implementare aggiunta a sequenza campaign
-            risultato = { skipped: true, motivo: "Azione aggiungi_a_sequenza non ancora implementata" };
+            const params = rule.azione_params as {
+              campaign_id: string;
+              delay_ore?: number;
+            };
+
+            if (!params.campaign_id) {
+              risultato = { skipped: true, motivo: "Parametro campaign_id mancante" };
+              break;
+            }
+
+            const { data: campaign } = await supabase
+              .from("campaigns")
+              .select("id, tipo, stato")
+              .eq("id", params.campaign_id)
+              .eq("user_id", userId)
+              .maybeSingle();
+
+            if (!campaign) {
+              risultato = { skipped: true, motivo: "Campagna non trovata o non autorizzata" };
+              break;
+            }
+
+            const { data: existingRecipient } = await supabase
+              .from("campaign_recipients")
+              .select("id")
+              .eq("campaign_id", params.campaign_id)
+              .eq("contact_id", exec.contact_id)
+              .maybeSingle();
+
+            if (existingRecipient) {
+              risultato = { skipped: true, motivo: "Contatto già presente nella sequenza" };
+              break;
+            }
+
+            const { data: firstStep } = await supabase
+              .from("campaign_steps")
+              .select("id, delay_giorni, delay_ore")
+              .eq("campaign_id", params.campaign_id)
+              .eq("step_number", 1)
+              .is("ab_padre_id", null)
+              .maybeSingle();
+
+            if (!firstStep) {
+              risultato = { skipped: true, motivo: "Nessuno step trovato nella sequenza" };
+              break;
+            }
+
+            const { data: newRecipient, error: recipientErr } = await supabase
+              .from("campaign_recipients")
+              .insert({
+                user_id: userId,
+                campaign_id: params.campaign_id,
+                contact_id: exec.contact_id,
+                stato: "pending",
+              })
+              .select("id")
+              .single();
+
+            if (recipientErr || !newRecipient) {
+              throw new Error(`Errore aggiunta recipient: ${recipientErr?.message}`);
+            }
+
+            const scheduledAt = new Date();
+            scheduledAt.setHours(scheduledAt.getHours() + (params.delay_ore || firstStep.delay_ore || 0));
+            scheduledAt.setDate(scheduledAt.getDate() + (firstStep.delay_giorni || 0));
+
+            await supabase.from("campaign_step_executions").insert({
+              campaign_id: params.campaign_id,
+              step_id: firstStep.id,
+              recipient_id: newRecipient.id,
+              stato: "scheduled",
+              scheduled_at: scheduledAt.toISOString(),
+            });
+
+            risultato = { aggiunto: true, campaign_id: params.campaign_id, recipient_id: newRecipient.id };
             break;
           }
 
