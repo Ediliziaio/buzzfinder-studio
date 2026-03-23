@@ -11,7 +11,6 @@ import { Download, ListPlus, Globe, Star, ExternalLink, Mail, Search } from "luc
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { exportContactsCsv } from "@/lib/csvExporter";
 import { useLists } from "@/hooks/useLists";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -42,8 +41,36 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
     if (results.length === 0) { toast.error("Nessun risultato da esportare"); return; }
     setExporting(true);
     try {
-      await exportContactsCsv(sessionId ? { scraping_session_id: sessionId } : {});
-      toast.success(`Contatti esportati`);
+      // Export the contacts already in memory (fast, no extra DB round-trip)
+      const toExport = selectedIds.size > 0 ? results.filter((r) => selectedIds.has(r.id)) : results;
+      const headers = [
+        "azienda", "email", "telefono", "sito_web", "indirizzo", "citta",
+        "cap", "stato", "fonte", "google_rating", "google_reviews_count",
+        "google_categories", "note",
+      ];
+      const csvRows = [headers.join(",")];
+      for (const row of toExport) {
+        const values = headers.map((h) => {
+          const val = (row as any)[h];
+          if (val === null || val === undefined) return "";
+          if (Array.isArray(val)) return `"${val.join("; ")}"`;
+          const str = String(val);
+          return str.includes(",") || str.includes('"') || str.includes("\n")
+            ? `"${str.replace(/"/g, '""')}"`
+            : str;
+        });
+        csvRows.push(values.join(","));
+      }
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `contatti_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${toExport.length} contatti esportati`);
     } catch (err: any) {
       toast.error(err.message || "Errore esportazione");
     } finally {
@@ -52,10 +79,12 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
   };
 
   const handleAddToList = async (listId: string, listName: string) => {
+    if (results.length === 0) { toast.error("Nessun contatto da aggiungere — avvia prima uno scraping"); return; }
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : results.map((r) => r.id);
+    if (ids.length === 0) { toast.error("Nessun contatto selezionato"); return; }
     const inserts = ids.map((contact_id) => ({ list_id: listId, contact_id }));
     const { error } = await supabase.from("list_contacts").upsert(inserts, { onConflict: "list_id,contact_id" });
-    if (error) { toast.error("Errore aggiunta a lista"); return; }
+    if (error) { toast.error("Errore aggiunta a lista: " + error.message); return; }
     const { count } = await supabase.from("list_contacts").select("*", { count: "exact", head: true }).eq("list_id", listId);
     await supabase.from("lists").update({ totale_contatti: count || 0 }).eq("id", listId);
     toast.success(`${ids.length} contatti aggiunti a "${listName}"`);
