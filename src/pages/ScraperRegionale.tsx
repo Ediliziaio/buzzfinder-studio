@@ -102,6 +102,18 @@ interface Settlement {
   lat: number;
   lon: number;
   region: string;
+  placeType: string; // city | town | village | hamlet
+}
+
+/** Adaptive radius (metres) by settlement size */
+function radiusForPlace(placeType: string): number {
+  switch (placeType) {
+    case "city":   return 15000;
+    case "town":   return 8000;
+    case "village": return 4000;
+    case "hamlet": return 2000;
+    default:       return 5000;
+  }
 }
 
 // ─── Overpass helpers ─────────────────────────────────────────────────────────
@@ -116,24 +128,42 @@ async function fetchSettlements(
     const placeTypes = minTypes
       .map((t) => `node["place"="${t}"](area.r);`)
       .join("\n");
-    const q = `[out:json][timeout:120];area["name"="${osmName}"]["admin_level"="4"]->.r;(${placeTypes});out center 5000;`;
+    const q = `[out:json][timeout:180];area["name"="${osmName}"]["admin_level"="4"]->.r;(${placeTypes});out center 10000;`;
 
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `data=${encodeURIComponent(q)}`,
-    });
-    if (!res.ok) throw new Error(`Overpass error ${res.status} per ${region}`);
-    const data = await res.json();
-    for (const el of data.elements || []) {
-      if (el.tags?.name) {
-        results.push({
-          name: el.tags.name,
-          lat: el.lat ?? el.center?.lat,
-          lon: el.lon ?? el.center?.lon,
-          region,
+    let data: any = { elements: [] };
+    try {
+      const res = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(q)}`,
+      });
+      if (res.ok) data = await res.json();
+    } catch {
+      // Fallback mirror
+      try {
+        const res2 = await fetch("https://overpass.kumi.systems/api/interpreter", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `data=${encodeURIComponent(q)}`,
         });
-      }
+        if (res2.ok) data = await res2.json();
+      } catch { /* skip region */ }
+    }
+
+    // Dedup by name within region
+    const seen = new Set<string>();
+    for (const el of data.elements || []) {
+      if (!el.tags?.name) continue;
+      const key = el.tags.name.toLowerCase().trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({
+        name: el.tags.name,
+        lat: el.lat ?? el.center?.lat,
+        lon: el.lon ?? el.center?.lon,
+        region,
+        placeType: el.tags.place || "village",
+      });
     }
   }
   return results;
@@ -145,9 +175,9 @@ export default function ScraperRegionalePage() {
   // Config state
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
-  const [maxPerCity, setMaxPerCity] = useState(50);
-  const [delayBetweenCities, setDelayBetweenCities] = useState(2000);
-  const [minPlaceType, setMinPlaceType] = useState<string[]>(["city", "town", "village"]);
+  const [maxPerCity, setMaxPerCity] = useState(500);
+  const [delayBetweenCities, setDelayBetweenCities] = useState(1500);
+  const [minPlaceType, setMinPlaceType] = useState<string[]>(["city", "town", "village", "hamlet"]);
 
   // Runtime state
   const [isRunning, setIsRunning] = useState(false);
@@ -185,8 +215,8 @@ export default function ScraperRegionalePage() {
       parentSessionId: string,
       user_id: string
     ): Promise<{ imported: number; withEmail: number }> => {
-      const { lat, lon, name } = settlement;
-      const r = 5000; // 5 km radius
+      const { lat, lon, name, placeType } = settlement;
+      const r = radiusForPlace(placeType); // adaptive radius
       const ql = kw.toLowerCase();
 
       // Build Overpass tag clauses
@@ -208,7 +238,7 @@ export default function ScraperRegionalePage() {
           ? [...new Set(tagClauses)]
           : [`nwr["name"~"${sq}",i](around:${r},${lat},${lon})`];
       const lim = Math.min(max, 1000);
-      const ovQ = `[out:json][timeout:30];(${allClauses.join(";")};);out body center ${lim};`;
+      const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async function tryOv(url: string): Promise<any> {
@@ -550,20 +580,20 @@ export default function ScraperRegionalePage() {
         {/* Region selector */}
         <div className="rounded-lg border border-border bg-card p-4 space-y-3">
           <div className="terminal-header text-xs">REGIONI ITALIANE</div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setSelectedRegions([...ITALIAN_REGIONS])}
-              className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+              className="text-xs px-2 py-1 rounded border border-primary bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-mono font-medium"
               disabled={isRunning}
             >
-              Seleziona tutto
+              🇮🇹 Tutto Italia
             </button>
             <button
               onClick={() => setSelectedRegions([])}
               className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
               disabled={isRunning}
             >
-              Deseleziona tutto
+              Nessuna
             </button>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -610,7 +640,7 @@ export default function ScraperRegionalePage() {
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground">Max contatti per città</label>
             <div className="flex gap-2">
-              {[50, 100, 200, 500].map((v) => (
+              {[100, 200, 500, 9999].map((v) => (
                 <button
                   key={v}
                   onClick={() => setMaxPerCity(v)}
@@ -621,7 +651,7 @@ export default function ScraperRegionalePage() {
                       : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
                   } disabled:opacity-50`}
                 >
-                  {v}
+                  {v === 9999 ? "∞ Tutti" : v}
                 </button>
               ))}
             </div>
@@ -633,9 +663,9 @@ export default function ScraperRegionalePage() {
             <div className="flex gap-2">
               {[
                 { label: "1s", value: 1000 },
+                { label: "1.5s", value: 1500 },
                 { label: "2s", value: 2000 },
                 { label: "3s", value: 3000 },
-                { label: "5s", value: 5000 },
               ].map(({ label, value }) => (
                 <button
                   key={value}
@@ -658,9 +688,10 @@ export default function ScraperRegionalePage() {
             <label className="text-xs text-muted-foreground">Tipi di insediamento</label>
             <div className="flex flex-col gap-1">
               {[
-                { key: "city", label: "Città" },
+                { key: "city", label: "Città (capoluogi)" },
                 { key: "town", label: "Comune / Town" },
                 { key: "village", label: "Paese / Village" },
+                { key: "hamlet", label: "Frazione / Hamlet" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer">
                   <input
