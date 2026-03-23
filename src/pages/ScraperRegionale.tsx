@@ -368,27 +368,29 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
-async function overpassPost(query: string, timeoutMs = 30000): Promise<any> {
+async function overpassPost(query: string, timeoutMs = 50000): Promise<any> {
   const body = `data=${encodeURIComponent(query)}`;
   const init: RequestInit = {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   };
-  // Try main server first, then fallback
-  for (const url of [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-  ]) {
-    try {
-      const res = await fetchWithTimeout(url, init, timeoutMs);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data?.remark?.includes("timed out")) continue; // Overpass server-side timeout
-      return data;
-    } catch { /* try next mirror */ }
+  // Race both servers in parallel — whichever responds first wins (same as ScraperMaps)
+  const tryServer = async (url: string) => {
+    const res = await fetchWithTimeout(url, init, timeoutMs);
+    if (!res.ok) throw new Error(`${url} ${res.status}`);
+    const data = await res.json();
+    if (data?.remark?.includes("timed out")) throw new Error("server timeout");
+    return data;
+  };
+  try {
+    return await Promise.any([
+      tryServer("https://overpass-api.de/api/interpreter"),
+      tryServer("https://overpass.kumi.systems/api/interpreter"),
+    ]);
+  } catch {
+    return { elements: [] };
   }
-  return { elements: [] };
 }
 
 async function fetchSettlements(
@@ -506,23 +508,26 @@ export default function ScraperRegionalePage() {
           tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
         }
       }
-      // If no tag clauses found: broad indexed query on all shop/craft/office,
-      // then filter client-side by name (faster than regex full-scan which times out)
+      // Always include name-based search to catch businesses not tagged by category
+      // (e.g. "Infissi Rossi" has no craft=window_construction tag but name contains "infissi")
+      const nameClause = `nwr["name"~"${ql.replace(/"/g, '\\"')}",i](around:${r},${lat},${lon})`;
       const useBroadFallback = tagClauses.length === 0;
-      const allClauses = tagClauses.length > 0
-        ? [...new Set(tagClauses)]
-        : [
+      const dedupedTagClauses = [...new Set(tagClauses)];
+      // Combine: tag-based clauses (if any) + name search
+      const allClauses = useBroadFallback
+        ? [
             `nwr["shop"](around:${r},${lat},${lon})`,
             `nwr["craft"](around:${r},${lat},${lon})`,
             `nwr["office"](around:${r},${lat},${lon})`,
-          ];
+            nameClause,
+          ]
+        : [...dedupedTagClauses, nameClause];
       const baseLim = Math.min(max === 9999 ? 1000 : max, 1000);
-      // Broad fallback fetches more to compensate for client-side filtering
-      const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : baseLim;
+      const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : Math.min(baseLim * 2, 2000);
       const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
-      // Use shared overpassPost with 25s browser timeout
-      const ovData = await overpassPost(ovQ, 25000);
+      // Race both Overpass mirrors in parallel, 50s timeout
+      const ovData = await overpassPost(ovQ, 50000);
       if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -533,10 +538,14 @@ export default function ScraperRegionalePage() {
         .filter((el: any) => {
           const t = el.tags || {};
           if (!t.name) return false;
-          // Tag-matched: Overpass already filtered by category → accept all
+          // Overpass already filtered by tag category OR by name match → accept all
+          // For broad fallback (no tags): also accept if name contains keyword
           if (!useBroadFallback) return true;
-          // Broad fallback: filter client-side by name containing keyword
           return t.name.toLowerCase().includes(ql);
+        })
+        .filter((el: any, idx: number, arr: any[]) => {
+          // Deduplicate by OSM id
+          return arr.findIndex((e: any) => e.id === el.id) === idx;
         })
         .slice(0, max * 2);
 
