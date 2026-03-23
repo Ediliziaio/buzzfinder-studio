@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Download, ListPlus, Globe, Star, ExternalLink, Mail, Search } from "lucide-react";
+import { Download, ListPlus, Globe, Star, ExternalLink, Mail, Search, MapPin } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -166,47 +166,64 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
     {
       accessorKey: "sito_web",
       header: "Sito Web",
-      cell: ({ getValue }) => {
-        const url = getValue() as string;
-        if (!url) return <span className="text-muted-foreground text-xs">—</span>;
-        const display = url.replace(/^https?:\/\/(www\.)?/, "").substring(0, 30);
+      cell: ({ row }) => {
+        const url = row.original.sito_web as string | null;
+        if (url) {
+          const display = url.replace(/^https?:\/\/(www\.)?/, "").substring(0, 28);
+          return (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-info hover:underline font-mono"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Globe className="h-2.5 w-2.5 shrink-0" />
+              {display}
+            </a>
+          );
+        }
+        // No website in OSM — offer a Google search shortcut
+        const q = encodeURIComponent(`${row.original.azienda} ${row.original.citta ?? ""} sito ufficiale`);
         return (
           <a
-            href={url.startsWith("http") ? url : `https://${url}`}
+            href={`https://www.google.com/search?q=${q}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-info hover:underline font-mono"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={(e) => e.stopPropagation()}
+            title="Cerca sito su Google"
           >
-            {display}
-            <ExternalLink className="h-2.5 w-2.5" />
+            <Search className="h-2.5 w-2.5 shrink-0" />
+            cerca
           </a>
         );
       },
       size: 180,
     },
     {
-      accessorKey: "google_rating",
-      header: "⭐ Rating",
+      id: "gmb",
+      header: "Google Maps",
       cell: ({ row }) => {
-        const rating = row.original.google_rating;
-        if (!rating) return <span className="text-muted-foreground text-xs">—</span>;
+        // GMB link stored in note field, or generate from name+city
+        const gmb = (row.original as any).note?.startsWith("https://www.google.com/maps")
+          ? (row.original as any).note as string
+          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${row.original.azienda} ${row.original.citta ?? ""}`)}`;
         return (
-          <div className="flex items-center gap-1">
-            <Star className="h-3 w-3 text-warning fill-warning" />
-            <span className="font-mono text-xs text-foreground">{rating}</span>
-          </div>
+          <a
+            href={gmb}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline font-mono"
+            onClick={(e) => e.stopPropagation()}
+            title="Apri scheda Google Maps / Business"
+          >
+            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            scheda
+          </a>
         );
       },
-      size: 80,
-    },
-    {
-      accessorKey: "google_reviews_count",
-      header: "💬 Rec.",
-      cell: ({ getValue }) => (
-        <span className="font-mono text-xs">{(getValue() as number) || 0}</span>
-      ),
-      size: 60,
+      size: 100,
     },
     {
       accessorKey: "google_categories",

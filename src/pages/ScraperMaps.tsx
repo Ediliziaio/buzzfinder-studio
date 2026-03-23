@@ -236,17 +236,33 @@ export default function ScraperMapsPage() {
       if (rows.length >= loopConfig.maxResults || isStopped.current) break;
       const t = el.tags || {}; const name: string = t.name;
       if (exSet.has(name)) continue;
-      const website = t.website || t["contact:website"] || t["contact:url"] || null;
-      const phone = t.phone || t["contact:phone"] || t["contact:mobile"] || null;
+      // Collect website from all possible OSM tags
+      const rawWebsite =
+        t.website || t["website:official"] || t["contact:website"] ||
+        t["contact:url"] || t["url"] || t["brand:website"] ||
+        t["operator:website"] || null;
+      // Normalize: ensure https:// prefix, strip trailing slashes
+      const website = rawWebsite
+        ? (rawWebsite.startsWith("http") ? rawWebsite : `https://${rawWebsite}`).replace(/\/$/, "")
+        : null;
+      const phone =
+        t.phone || t["contact:phone"] || t["contact:mobile"] ||
+        t["phone:mobile"] || t["contact:whatsapp"] || null;
+      const email = t.email || t["contact:email"] || t["email:business"] || null;
       if (loopConfig.soloConSito && !website) continue;
       if (loopConfig.soloConTelefono && !phone) continue;
+      const citta = loopConfig.citta;
+      const indirizzo = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ") || null;
+      // Google Maps search URL (lets user find the GMB page and reviews)
+      const gmb_url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${citta}${indirizzo ? " " + indirizzo : ""}`)}`;
       rows.push({
-        azienda: name, citta: loopConfig.citta,
-        indirizzo: [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ") || null,
+        azienda: name, citta,
+        indirizzo,
         cap: t["addr:postcode"] || null,
-        telefono: phone || null, sito_web: website, email: t.email || t["contact:email"] || null,
+        telefono: phone || null, sito_web: website, email,
         lat: el.lat ?? el.center?.lat ?? null, lng: el.lon ?? el.center?.lon ?? null,
-        google_categories: [t.amenity, t.shop, t.craft, t.office, t.tourism].filter(Boolean),
+        google_categories: [t.amenity, t.shop, t.craft, t.office, t.tourism, t.healthcare, t.leisure].filter(Boolean),
+        note: gmb_url,   // store GMB link in note field for table display
         fonte: "openstreetmap", stato: "nuovo",
         user_id, scraping_session_id: sessionId,
       });
