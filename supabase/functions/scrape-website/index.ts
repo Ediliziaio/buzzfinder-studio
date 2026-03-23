@@ -56,9 +56,12 @@ function releaseDomainSlot(domain: string): void {
 /* ── Regex helpers ── */
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
 
-// Improved phone regex: international +39, formats like 0x-xxx, 3xx-xxx, (0x)xxx
+// Italian phone: landlines (0x...), mobiles (3xx...), +39 prefix, WhatsApp wa.me
 const PHONE_IT_RE =
   /(?:\+39[\s.\-]?)?(?:\(0[1-9]\d{0,3}\)|0[1-9]\d{1,3}|3[0-9]{2})[\s.\-\/]?\d{3,4}[\s.\-\/]?\d{3,4}/g;
+
+// WhatsApp: wa.me/39XXXXXXXXXX or wa.me/XXXXXXXXXX
+const WHATSAPP_RE = /wa\.me\/(?:39)?(\d{8,12})/g;
 
 const SOCIAL_RE: Record<string, RegExp> = {
   linkedin: /https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[^\s"'<>]+/gi,
@@ -66,50 +69,128 @@ const SOCIAL_RE: Record<string, RegExp> = {
   instagram: /https?:\/\/(?:www\.)?instagram\.com\/[^\s"'<>]+/gi,
 };
 
-// More contact page patterns: contatti, contact, chi-siamo, about, dove-siamo, info, reach-us
-const CONTACT_PAGE_RE =
-  /href="(\/[^"]*(?:contatt|contact|chi-siamo|about|dove-siamo|info|reach-us|who)[^"]*)"/gi;
+// Contact-like URL paths (used for both link extraction and direct probing)
+const CONTACT_PATHS = [
+  "/contatti", "/contatti/", "/contatti.html", "/contatti.php",
+  "/contact", "/contact-us", "/contact/",
+  "/chi-siamo", "/chi-siamo/", "/about", "/about-us", "/about/",
+  "/dove-siamo", "/dove-siamo/",
+  "/info", "/informazioni",
+  "/raggiungici", "/scriveteci", "/reach-us",
+];
 
-const JUNK_EMAILS = new Set([
-  "noreply@", "no-reply@", "mailer-daemon@", "postmaster@",
-  "webmaster@", "hostmaster@", "abuse@",
+const CONTACT_PAGE_RE =
+  /href="((?:https?:\/\/[^"]*)?\/[^"]*(?:contatt|contact|chi-siamo|about|dove-siamo|info|reach-us|who|scriveteci|raggiungici)[^"]*)"/gi;
+
+// PEC domains — certified Italian email, NOT useful for outreach
+const PEC_DOMAINS = new Set([
+  "pec.it", "legalmail.it", "cert.it", "pec.aruba.it", "pecmail.it",
+  "registerpec.it", "pec.libero.it", "pec.cgn.it", "pec.actalis.it",
+  "pecimprese.it", "pecpostale.it", "pec.poste.it", "messaggicertificati.com",
+  "pec.buffetti.it", "pecservices.com", "pec.gov.it", "actaliscertymail.it",
+  "arubapec.it", "namirial.it", "notariato.it", "postecert.it",
+  "pecimpresaitalia.it", "peclegale.it", "lawyermail.it", "ingpec.eu",
+  "epap.sinanet.aci.it", "odcec.pecimprese.it",
 ]);
 
-// File extensions to strip from emails (tracking pixels, assets)
+function isPec(email: string): boolean {
+  const domain = email.toLowerCase().split("@")[1] || "";
+  // Exact match or subdomain of a PEC domain
+  for (const pec of PEC_DOMAINS) {
+    if (domain === pec || domain.endsWith("." + pec)) return true;
+  }
+  // Heuristic: domain contains "pec." prefix or ".pec." infix
+  if (domain.startsWith("pec.") || domain.includes(".pec.")) return true;
+  return false;
+}
+
+const JUNK_EMAIL_PREFIXES = new Set([
+  "noreply", "no-reply", "mailer-daemon", "postmaster",
+  "webmaster", "hostmaster", "abuse", "bounce", "unsubscribe",
+  "newsletter", "donotreply", "do-not-reply", "notifications",
+  "notification", "system", "support", "hello", "team",
+]);
+
 const JUNK_EMAIL_EXTS = new Set([
   ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".css", ".js",
-  ".ico", ".bmp", ".tiff", ".woff", ".ttf",
+  ".ico", ".bmp", ".tiff", ".woff", ".woff2", ".ttf", ".otf", ".eot",
+  ".mp4", ".mp3", ".pdf", ".zip", ".xml", ".json",
 ]);
+
+/**
+ * Score an email for quality (higher = better).
+ * Used to pick the best email to save to the contact.
+ */
+function emailQualityScore(email: string): number {
+  const lower = email.toLowerCase();
+  const [local, domain] = lower.split("@");
+  if (!domain) return -1;
+  // PEC → discard
+  if (isPec(lower)) return -1;
+  // Free webmail (less likely to be the business contact)
+  const freeMail = ["gmail.com", "yahoo.it", "yahoo.com", "hotmail.it", "hotmail.com",
+    "libero.it", "virgilio.it", "tiscali.it", "tin.it", "alice.it", "outlook.it",
+    "outlook.com", "icloud.com", "live.it", "live.com"];
+  if (freeMail.includes(domain)) return 2;
+  // Generic roles on company domain
+  const generic = ["info", "segreteria", "amministrazione", "commerciale", "vendite",
+    "contatti", "contact", "office", "hello", "team", "support", "ufficio"];
+  if (generic.some((g) => local === g || local.startsWith(g + "."))) return 5;
+  // Personal email on company domain (most valuable)
+  if (/^[a-z]+\.[a-z]+/.test(local)) return 10;
+  // Other company domain email
+  return 6;
+}
 
 function cleanEmails(raw: string[]): string[] {
   const seen = new Set<string>();
   return raw.filter((e) => {
     const lower = e.toLowerCase();
     if (seen.has(lower)) return false;
-    const prefix = lower.split("@")[0] + "@";
-    if (JUNK_EMAILS.has(prefix)) return false;
-    // Strip tracking pixel emails (email ending in image/asset extension)
+    // Strip asset-like emails
     for (const ext of JUNK_EMAIL_EXTS) {
       if (lower.endsWith(ext)) return false;
     }
-    // Must have valid domain part
     const parts = lower.split("@");
-    if (parts.length !== 2) return false;
-    if (!parts[1].includes(".")) return false;
+    if (parts.length !== 2 || !parts[1].includes(".")) return false;
+    const prefix = parts[0];
+    if (JUNK_EMAIL_PREFIXES.has(prefix)) return false;
+    // Discard PEC
+    if (isPec(lower)) return false;
     seen.add(lower);
     return true;
   });
 }
 
+/** Sort emails best-first by quality score */
+function rankEmails(emails: string[]): string[] {
+  return [...emails].sort((a, b) => emailQualityScore(b) - emailQualityScore(a));
+}
+
 function cleanPhones(raw: string[]): string[] {
   const seen = new Set<string>();
   return raw.filter((p) => {
-    const normalized = p.replace(/[\s.\-\/()]/g, "");
-    if (normalized.length < 6 || normalized.length > 15) return false;
+    const normalized = p.replace(/[\s.\-\/()]/g, "").replace(/^\+39/, "");
+    // Italian mobile: 10 digits starting with 3
+    // Italian landline: 6-10 digits starting with 0
+    if (normalized.length < 6 || normalized.length > 13) return false;
     if (seen.has(normalized)) return false;
+    // Skip pure numbers that look like years or IDs
+    if (/^(19|20)\d{2}$/.test(normalized)) return false;
     seen.add(normalized);
     return true;
   });
+}
+
+/** Extract WhatsApp numbers from wa.me links */
+function extractWhatsApp(html: string): string[] {
+  const phones: string[] = [];
+  let m: RegExpExecArray | null;
+  const re = new RegExp(WHATSAPP_RE.source, WHATSAPP_RE.flags);
+  while ((m = re.exec(html)) !== null) {
+    phones.push(m[1]);
+  }
+  return phones;
 }
 
 function extractSocial(html: string): Record<string, string> {
@@ -206,15 +287,33 @@ async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
 
 function extractContactPageLinks(html: string, baseUrl: string): string[] {
   const links: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. Extract from HTML links
   let m: RegExpExecArray | null;
   const re = new RegExp(CONTACT_PAGE_RE.source, CONTACT_PAGE_RE.flags);
   while ((m = re.exec(html)) !== null) {
     try {
       const full = new URL(m[1], baseUrl).href;
-      if (validateScrapeUrl(full)) links.push(full);
+      if (validateScrapeUrl(full) && !seen.has(full)) {
+        seen.add(full);
+        links.push(full);
+      }
     } catch { /* ignore */ }
   }
-  return [...new Set(links)].slice(0, 5);
+
+  // 2. Add common contact paths to probe directly (even if not in HTML)
+  for (const path of CONTACT_PATHS) {
+    try {
+      const full = new URL(path, baseUrl).href;
+      if (!seen.has(full)) {
+        seen.add(full);
+        links.push(full);
+      }
+    } catch { /* ignore */ }
+  }
+
+  return links.slice(0, 15); // probe up to 15 pages per site
 }
 
 /* ── InterruptedError for pause detection ── */
@@ -241,6 +340,29 @@ async function isSessionPaused(sb: any, session_id: string): Promise<boolean> {
   return data?.status === "paused" || data?.status === "completed";
 }
 
+function extractAllFromHtml(html: string): { emails: string[]; phones: string[] } {
+  const footerHtml = extractFooterHtml(html);
+  const combined = html + "\n" + footerHtml;
+
+  let emails: string[] = combined.match(EMAIL_RE) || [];
+  let phones: string[] = combined.match(PHONE_IT_RE) || [];
+
+  // WhatsApp numbers
+  phones = phones.concat(extractWhatsApp(combined));
+
+  // JSON-LD
+  const jl = extractFromJsonLd(html);
+  emails = emails.concat(jl.emails);
+  phones = phones.concat(jl.phones);
+
+  // hCard + mailto/tel links
+  const hc = extractFromHCard(html);
+  emails = emails.concat(hc.emails);
+  phones = phones.concat(hc.phones);
+
+  return { emails, phones };
+}
+
 async function scrapeUrl(
   url: string,
   timeoutMs: number,
@@ -250,61 +372,39 @@ async function scrapeUrl(
   session_id: string,
 ): Promise<ScrapeResult> {
   const html = await fetchHtml(url, timeoutMs);
-
-  // Extract from multiple sources
-  const footerHtml = extractFooterHtml(html);
-  const combinedHtml = html + "\n" + footerHtml;
-
-  let allEmails: string[] = (combinedHtml.match(EMAIL_RE) || []);
-  let allPhones: string[] = (combinedHtml.match(PHONE_IT_RE) || []);
   const social = extractSocial(html);
 
-  // JSON-LD structured data
-  const jsonLd = extractFromJsonLd(html);
-  allEmails = allEmails.concat(jsonLd.emails);
-  allPhones = allPhones.concat(jsonLd.phones);
-
-  // hCard microformats
-  const hcard = extractFromHCard(html);
-  allEmails = allEmails.concat(hcard.emails);
-  allPhones = allPhones.concat(hcard.phones);
+  const { emails: homeEmails, phones: homePhones } = extractAllFromHtml(html);
+  let allEmails = homeEmails;
+  let allPhones = homePhones;
 
   if (crawlDepth === "homepage_contacts") {
     const subLinks = extractContactPageLinks(html, url);
     for (const link of subLinks) {
-      // Check pause status before each sub-page fetch
       if (await isSessionPaused(sb, session_id)) {
         throw new InterruptedError("Session paused by user");
       }
       try {
         const subHtml = await fetchHtml(link, timeoutMs);
-        const subFooter = extractFooterHtml(subHtml);
-        const subCombined = subHtml + "\n" + subFooter;
-
-        allEmails = allEmails.concat(subCombined.match(EMAIL_RE) || []);
-        allPhones = allPhones.concat(subCombined.match(PHONE_IT_RE) || []);
-
-        const subJsonLd = extractFromJsonLd(subHtml);
-        allEmails = allEmails.concat(subJsonLd.emails);
-        allPhones = allPhones.concat(subJsonLd.phones);
-
-        const subHCard = extractFromHCard(subHtml);
-        allEmails = allEmails.concat(subHCard.emails);
-        allPhones = allPhones.concat(subHCard.phones);
-
+        const { emails: se, phones: sp } = extractAllFromHtml(subHtml);
+        allEmails = allEmails.concat(se);
+        allPhones = allPhones.concat(sp);
         const subSocial = extractSocial(subHtml);
         for (const [k, v] of Object.entries(subSocial)) {
           if (!social[k]) social[k] = v;
         }
       } catch (err) {
         if (err instanceof InterruptedError) throw err;
-        /* skip sub-page errors */
+        // 404 or timeout on sub-page: skip silently
       }
     }
   }
 
+  const cleanedEmails = cleanEmails(allEmails);
+  const rankedEmails = rankEmails(cleanedEmails);
+
   return {
-    emails: cleanEmails(allEmails),
+    emails: rankedEmails,       // best quality first, PEC already removed
     phones: cleanPhones(allPhones),
     social,
   };
@@ -451,11 +551,27 @@ Deno.serve(async (req) => {
         // Write back found data to contacts table
         if (job.contact_id && (result.emails.length > 0 || result.phones.length > 0)) {
           const updates: Record<string, unknown> = {};
+          // Best email is first (already ranked: personal company > generic company > free webmail)
           if (result.emails.length > 0) updates.email = result.emails[0];
-          if (result.phones.length > 0) updates.telefono = result.phones[0];
+          // Best phone first, prefer mobile (starts with 3) over landline
+          if (result.phones.length > 0) {
+            const sorted = [...result.phones].sort((a, b) => {
+              const aIsMobile = /^(\+39)?3\d/.test(a.replace(/[\s.\-]/g, ""));
+              const bIsMobile = /^(\+39)?3\d/.test(b.replace(/[\s.\-]/g, ""));
+              return (bIsMobile ? 1 : 0) - (aIsMobile ? 1 : 0);
+            });
+            updates.telefono = sorted[0];
+          }
           if (result.social?.linkedin) updates.linkedin_url = result.social.linkedin;
           if (result.social?.facebook) updates.facebook_url = result.social.facebook;
           if (result.social?.instagram) updates.instagram_url = result.social.instagram;
+          // Store all extra emails/phones in tags for reference
+          if (result.emails.length > 1 || result.phones.length > 1) {
+            const extras: string[] = [];
+            result.emails.slice(1, 4).forEach((e) => extras.push(e));
+            result.phones.slice(1, 4).forEach((p) => extras.push(p));
+            if (extras.length > 0) updates.tags = extras;
+          }
           await sb.from("contacts").update(updates).eq("id", job.contact_id);
           contactsEnriched++;
         }
