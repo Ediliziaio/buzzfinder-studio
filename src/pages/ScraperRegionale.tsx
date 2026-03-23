@@ -399,8 +399,10 @@ async function overpassPost(query: string, timeoutMs = 50000): Promise<any> {
       tryServer("https://overpass-api.de/api/interpreter"),
       tryServer("https://overpass.kumi.systems/api/interpreter"),
     ]);
-  } catch {
-    return { elements: [] };
+  } catch (e) {
+    // Both servers failed (timeout or network error) — caller gets empty result and logs it
+    console.warn("overpassPost: both servers failed", e);
+    return { elements: [], _failed: true };
   }
 }
 
@@ -541,6 +543,8 @@ export default function ScraperRegionalePage() {
         ovData = await overpassPost(ovQ, 35000); // 35s browser > 30s server timeout
       }
 
+      // If both Overpass servers failed, re-throw so the caller can log it clearly
+      if (ovData?._failed) throw new Error("Overpass non raggiungibile (timeout/network)");
       if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -573,14 +577,18 @@ export default function ScraperRegionalePage() {
       // Bulk dedup
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cNames = [...new Set(candidates.map((el: any) => el.tags?.name).filter(Boolean))] as string[];
-      const { data: exRows } = await supabase
-        .from("contacts")
-        .select("azienda")
-        .eq("citta", name)
-        .eq("user_id", user_id)
-        .in("azienda", cNames.length ? cNames : ["__none__"]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const exSet = new Set((exRows || []).map((r: any) => r.azienda));
+      // Skip dedup query if no candidates (avoids useless DB round-trip)
+      let exSet = new Set<string>();
+      if (cNames.length > 0) {
+        const { data: exRows } = await supabase
+          .from("contacts")
+          .select("azienda")
+          .eq("citta", name)
+          .eq("user_id", user_id)
+          .in("azienda", cNames);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        exSet = new Set((exRows || []).map((r: any) => r.azienda));
+      }
 
       // Build rows
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

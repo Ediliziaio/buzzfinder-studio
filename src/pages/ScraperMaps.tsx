@@ -424,10 +424,16 @@ export default function ScraperMapsPage() {
       if (!res.ok) throw new Error(`${url} ${res.status}`);
       return res.json();
     }
-    const ovData = await Promise.any([
-      tryOv("https://overpass-api.de/api/interpreter"),
-      tryOv("https://overpass.kumi.systems/api/interpreter"),
-    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ovData: any;
+    try {
+      ovData = await Promise.any([
+        tryOv("https://overpass-api.de/api/interpreter"),
+        tryOv("https://overpass.kumi.systems/api/interpreter"),
+      ]);
+    } catch {
+      throw new Error("Overpass non raggiungibile — riprova tra qualche minuto");
+    }
     if (ovData?.remark?.includes("timed out")) throw new Error(`Overpass timeout — riprova con un raggio più piccolo`);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -453,11 +459,15 @@ export default function ScraperMapsPage() {
     const user_id = await getCurrentUserId();
     // deno-lint-ignore no-explicit-any
     const cNames = [...new Set(candidates.map((el: any) => el.tags?.name).filter(Boolean))] as string[];
-    const { data: exRows } = await supabase.from("contacts").select("azienda")
-      .eq("citta", loopConfig.citta).eq("user_id", user_id)
-      .in("azienda", cNames.length ? cNames : ["__none__"]);
-    // deno-lint-ignore no-explicit-any
-    const exSet = new Set((exRows || []).map((r: any) => r.azienda));
+    // Skip dedup query if no candidates
+    let exSet = new Set<string>();
+    if (cNames.length > 0) {
+      const { data: exRows } = await supabase.from("contacts").select("azienda")
+        .eq("citta", loopConfig.citta).eq("user_id", user_id)
+        .in("azienda", cNames);
+      // deno-lint-ignore no-explicit-any
+      exSet = new Set((exRows || []).map((r: any) => r.azienda));
+    }
 
     // Build insert rows
     // deno-lint-ignore no-explicit-any
@@ -609,7 +619,7 @@ export default function ScraperMapsPage() {
           .catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : "Errore sconosciuto";
             toast.error(`Errore scraping OSM: ${msg}`);
-            supabase.from("scraping_sessions").update({ status: "failed", error_message: msg }).eq("id", session.id);
+            void supabase.from("scraping_sessions").update({ status: "failed", error_message: msg }).eq("id", session.id);
           })
           .finally(() => {
             setIsRunningLocal(false);
