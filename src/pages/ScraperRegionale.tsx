@@ -118,49 +118,84 @@ function radiusForPlace(placeType: string): number {
 
 // ─── Overpass helpers ─────────────────────────────────────────────────────────
 
+/** Fetch with timeout using AbortController */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function overpassPost(query: string, timeoutMs = 30000): Promise<any> {
+  const body = `data=${encodeURIComponent(query)}`;
+  const init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  };
+  // Try main server first, then fallback
+  for (const url of [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ]) {
+    try {
+      const res = await fetchWithTimeout(url, init, timeoutMs);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data?.remark?.includes("timed out")) continue; // Overpass server-side timeout
+      return data;
+    } catch { /* try next mirror */ }
+  }
+  return { elements: [] };
+}
+
 async function fetchSettlements(
   regions: string[],
-  minTypes: string[]
+  minTypes: string[],
+  onProgress?: (msg: string) => void,
 ): Promise<Settlement[]> {
   const results: Settlement[] = [];
+
+  // Only query city/town/village for the settlement list.
+  // Hamlets are too numerous (10k+ per region) and cause timeouts.
+  // They are covered naturally by the larger radius of nearby towns.
+  const safeTypes = minTypes.filter((t) => t !== "hamlet");
+  if (safeTypes.length === 0) safeTypes.push("village");
+
   for (const region of regions) {
     const osmName = OSM_REGION_NAMES[region] || region;
-    const placeTypes = minTypes
-      .map((t) => `node["place"="${t}"](area.r);`)
-      .join("\n");
-    const q = `[out:json][timeout:180];area["name"="${osmName}"]["admin_level"="4"]->.r;(${placeTypes});out center 10000;`;
+    onProgress?.(`Cerco insediamenti in ${region}...`);
 
-    let data: any = { elements: [] };
-    try {
-      const res = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `data=${encodeURIComponent(q)}`,
-      });
-      if (res.ok) data = await res.json();
-    } catch {
-      // Fallback mirror
-      try {
-        const res2 = await fetch("https://overpass.kumi.systems/api/interpreter", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `data=${encodeURIComponent(q)}`,
-        });
-        if (res2.ok) data = await res2.json();
-      } catch { /* skip region */ }
-    }
+    // Step 1: get province IDs within this region (faster than direct place query)
+    // Use admin_level=6 for Italian provinces inside the region area
+    const placeFilter = safeTypes.map((t) => `node["place"="${t}"](area.region);`).join("");
+    const q = [
+      `[out:json][timeout:60];`,
+      `area["name"="${osmName}"]["admin_level"="4"]["boundary"="administrative"]->.region;`,
+      `(${placeFilter});`,
+      `out center 5000;`,
+    ].join("");
 
-    // Dedup by name within region
+    const data = await overpassPost(q, 35000); // 35s browser timeout < 60s server timeout
+
+    onProgress?.(`${region}: ${data.elements?.length ?? 0} insediamenti trovati`);
+
     const seen = new Set<string>();
     for (const el of data.elements || []) {
       if (!el.tags?.name) continue;
       const key = el.tags.name.toLowerCase().trim();
       if (seen.has(key)) continue;
       seen.add(key);
+      const lat = el.lat ?? el.center?.lat;
+      const lon = el.lon ?? el.center?.lon;
+      if (!lat || !lon) continue;
       results.push({
         name: el.tags.name,
-        lat: el.lat ?? el.center?.lat,
-        lon: el.lon ?? el.center?.lon,
+        lat,
+        lon,
         region,
         placeType: el.tags.place || "village",
       });
@@ -237,30 +272,12 @@ export default function ScraperRegionalePage() {
         tagClauses.length > 0
           ? [...new Set(tagClauses)]
           : [`nwr["name"~"${sq}",i](around:${r},${lat},${lon})`];
-      const lim = Math.min(max, 1000);
+      const lim = Math.min(max === 9999 ? 1000 : max, 1000);
       const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async function tryOv(url: string): Promise<any> {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `data=${encodeURIComponent(ovQ)}`,
-        });
-        if (!res.ok) throw new Error(`${url} ${res.status}`);
-        return res.json();
-      }
-
-      let ovData;
-      try {
-        ovData = await Promise.any([
-          tryOv("https://overpass-api.de/api/interpreter"),
-          tryOv("https://overpass.kumi.systems/api/interpreter"),
-        ]);
-      } catch {
-        // If both fail, skip this city
-        return { imported: 0, withEmail: 0 };
-      }
+      // Use shared overpassPost with 25s browser timeout
+      const ovData = await overpassPost(ovQ, 25000);
+      if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const elements: any[] = ovData?.elements || [];
@@ -404,7 +421,7 @@ export default function ScraperRegionalePage() {
       addLog(`Avvio fase 1: ricerca insediamenti in ${selectedRegions.join(", ")}...`);
       let fetchedSettlements: Settlement[] = [];
       try {
-        fetchedSettlements = await fetchSettlements(selectedRegions, minPlaceType);
+        fetchedSettlements = await fetchSettlements(selectedRegions, minPlaceType, addLog);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Errore Overpass";
         addLog(`ERRORE fetch insediamenti: ${msg}`);
