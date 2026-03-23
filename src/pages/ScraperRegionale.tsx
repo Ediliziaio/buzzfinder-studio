@@ -336,34 +336,21 @@ const OSM_TAG_MAP: Record<string, string[]> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** A search area: province (admin_level=6) or region (admin_level=4) */
+interface SearchArea {
+  name: string;       // display name
+  osmName: string;    // as it appears in OSM
+  adminLevel: "4" | "6";
+  region: string;
+}
+
+// Keep Settlement for legacy fetchSettlements (used for progress display)
 interface Settlement {
   name: string;
   lat: number;
   lon: number;
   region: string;
-  placeType: string; // city | town | village | hamlet
-}
-
-/** Adaptive radius (metres) for indexed tag queries */
-function radiusForPlace(placeType: string): number {
-  switch (placeType) {
-    case "city":    return 15000;
-    case "town":    return 8000;
-    case "village": return 4000;
-    case "hamlet":  return 2000;
-    default:        return 5000;
-  }
-}
-
-/** Smaller radius for name-regex queries (avoids Overpass timeout) */
-function nameRadiusForPlace(placeType: string): number {
-  switch (placeType) {
-    case "city":    return 8000;
-    case "town":    return 4000;
-    case "village": return 2000;
-    case "hamlet":  return 1000;
-    default:        return 3000;
-  }
+  placeType: string;
 }
 
 // ─── Overpass helpers ─────────────────────────────────────────────────────────
@@ -404,6 +391,50 @@ async function overpassPost(query: string, timeoutMs = 50000): Promise<any> {
     console.warn("overpassPost: both servers failed", e);
     return { elements: [], _failed: true };
   }
+}
+
+/**
+ * Fetch search areas: provinces (admin_level=6) for each region.
+ * For regions without separate provinces (Valle d'Aosta, Molise, Basilicata),
+ * falls back to the region itself (admin_level=4).
+ * Using province-level areas means ONE Overpass query per province covers
+ * the entire territory — no gaps from city-radius circles.
+ */
+async function fetchSearchAreas(
+  regions: string[],
+  onProgress?: (msg: string) => void,
+): Promise<SearchArea[]> {
+  const areas: SearchArea[] = [];
+
+  for (const region of regions) {
+    const osmName = OSM_REGION_NAMES[region] || region;
+    onProgress?.(`Cerco province di ${region}...`);
+
+    // Query admin_level=6 relations inside the region
+    const q = [
+      `[out:json][timeout:60];`,
+      `area["name"="${osmName}"]["admin_level"="4"]["boundary"="administrative"]->.r;`,
+      `relation["admin_level"="6"]["boundary"="administrative"](area.r);`,
+      `out tags;`,
+    ].join("");
+
+    const data = await overpassPost(q, 35000);
+    const provinceElements = (data.elements || []).filter((el: any) => el.tags?.name);
+
+    if (provinceElements.length > 0) {
+      // Region has provinces → add each one
+      for (const el of provinceElements) {
+        areas.push({ name: el.tags.name, osmName: el.tags.name, adminLevel: "6", region });
+      }
+      onProgress?.(`${region}: ${provinceElements.length} province trovate`);
+    } else {
+      // No provinces (e.g. Valle d'Aosta) → use the region itself as one area
+      areas.push({ name: region, osmName, adminLevel: "4", region });
+      onProgress?.(`${region}: nessuna provincia, usata come area unica`);
+    }
+  }
+
+  return areas;
 }
 
 async function fetchSettlements(
@@ -472,6 +503,7 @@ export default function ScraperRegionalePage() {
   const [isRunning, setIsRunning] = useState(false);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [currentCityIndex, setCurrentCityIndex] = useState(0);
+  const [totalAreas, setTotalAreas] = useState(0);
   const [totalFound, setTotalFound] = useState(0);
   const [totalWithEmail, setTotalWithEmail] = useState(0);
   const [log, setLog] = useState<string[]>([]);
@@ -687,6 +719,7 @@ export default function ScraperRegionalePage() {
     setLog([]);
     setSettlements([]);
     setCurrentCityIndex(0);
+    setTotalAreas(0);
     setTotalFound(0);
     setTotalWithEmail(0);
     setCitiesOk(0);
@@ -716,101 +749,180 @@ export default function ScraperRegionalePage() {
       const sid = session.id;
       setSessionId(sid);
 
-      // Phase 1: fetch settlements
-      addLog(`Avvio fase 1: ricerca insediamenti in ${selectedRegions.join(", ")}...`);
-      let fetchedSettlements: Settlement[] = [];
+      // Phase 1: fetch search areas (provinces or regions)
+      addLog(`Fase 1: ricerca province in ${selectedRegions.join(", ")}...`);
+      let searchAreas: SearchArea[] = [];
       try {
-        fetchedSettlements = await fetchSettlements(selectedRegions, minPlaceType, addLog);
+        searchAreas = await fetchSearchAreas(selectedRegions, addLog);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Errore Overpass";
-        addLog(`ERRORE fetch insediamenti: ${msg}`);
+        addLog(`ERRORE fase 1: ${msg}`);
         toast.error(msg);
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: msg }).eq("id", sid);
-        setIsRunning(false);
-        setSessionStatus("idle");
+        setIsRunning(false); setSessionStatus("idle");
         return;
       }
 
-      setSettlements(fetchedSettlements);
-      const regionCounts = selectedRegions
-        .map((r) => `${r}: ${fetchedSettlements.filter((s) => s.region === r).length}`)
-        .join(", ");
-      addLog(`Trovati ${fetchedSettlements.length} comuni — ${regionCounts}`);
-      toast.info(`Trovati ${fetchedSettlements.length} comuni. Avvio scraping...`);
-
-      if (fetchedSettlements.length === 0) {
+      if (searchAreas.length === 0) {
+        addLog("Nessuna area trovata.");
         await supabase.from("scraping_sessions").update({ status: "completed", completed_at: new Date().toISOString(), totale_importati: 0 }).eq("id", sid);
-        setIsRunning(false);
-        setSessionStatus("completed");
+        setIsRunning(false); setSessionStatus("completed");
         return;
       }
 
-      // Phase 2: scrape each city
+      setTotalAreas(searchAreas.length);
+      addLog(`Trovate ${searchAreas.length} aree di ricerca — avvio scraping per area...`);
+      toast.info(`${searchAreas.length} aree trovate. Avvio...`);
+
+      // Build keyword tag clauses once
+      const ql = keyword.toLowerCase();
+      const sq = keyword.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const rawTagClauses: string[] = [];
+      for (const [key, clauses] of Object.entries(OSM_TAG_MAP)) {
+        const match = ql === key || ql.includes(key) || key.includes(ql) ||
+          (ql.length >= 5 && key.startsWith(ql.slice(0, 5))) ||
+          (key.length >= 5 && ql.startsWith(key.slice(0, 5)));
+        if (match) rawTagClauses.push(...clauses);
+      }
+      const hasSpecificTags = rawTagClauses.length > 0;
+
+      // Phase 2: one Overpass AREA query per province — covers full territory, no gaps
       setSessionStatus("running");
       let cumulativeFound = 0;
       let cumulativeEmail = 0;
 
-      for (let i = 0; i < fetchedSettlements.length; i++) {
-        if (isStopped.current) {
-          addLog("Scraping interrotto dall'utente.");
-          break;
-        }
+      for (let i = 0; i < searchAreas.length; i++) {
+        if (isStopped.current) { addLog("Scraping interrotto."); break; }
+        while (isPaused.current && !isStopped.current) await new Promise((r) => setTimeout(r, 500));
+        if (isStopped.current) { addLog("Scraping interrotto."); break; }
 
-        // Pause loop
-        while (isPaused.current && !isStopped.current) {
-          await new Promise((r) => setTimeout(r, 500));
-        }
-        if (isStopped.current) {
-          addLog("Scraping interrotto dall'utente.");
-          break;
-        }
-
-        const settlement = fetchedSettlements[i];
+        const area = searchAreas[i];
         setCurrentCityIndex(i + 1);
+        addLog(`▶ ${area.name} [${area.region}]...`);
 
-        // Pass logFn for first 5 cities so we can see debug details
-        const verboseLog = i < 5 ? addLog : undefined;
         try {
-          const { imported, withEmail } = await scrapeCity(
-            settlement,
-            keyword,
-            maxPerCity,
-            sid,
-            user_id,
-            verboseLog
-          );
-          cumulativeFound += imported;
-          cumulativeEmail += withEmail;
-          setTotalFound(cumulativeFound);
-          setTotalWithEmail(cumulativeEmail);
+          // Build area-based Overpass query
+          // Using area["name"=...] covers the ENTIRE province territory — no radius gaps
+          const areaFilter = `area["name"="${area.osmName}"]["admin_level"="${area.adminLevel}"]["boundary"="administrative"]->.searcharea`;
+          let ovQ: string;
+          const lim = Math.min(maxPerCity === 9999 ? 2000 : maxPerCity * 2, 2000);
 
-          const emailNote = withEmail > 0 ? ` (${withEmail} email)` : "";
-          if (imported > 0) {
-            addLog(`✓ ${settlement.name}: +${imported}${emailNote}`);
-            setCitiesOk((n) => n + 1);
-          }
-          // Only log zeros for verbose cities (first 5); skip to keep log clean
-          else if (i < 5) {
-            addLog(`○ ${settlement.name}: 0 risultati`);
+          if (hasSpecificTags) {
+            const tagClauses = [...new Set(rawTagClauses)].map(c => `nwr${c}(area.searcharea)`);
+            ovQ = `[out:json][timeout:120];${areaFilter};(${tagClauses.join(";")};);out body center ${lim};`;
+          } else {
+            // Name regex across entire area — MUCH more thorough than per-city radius
+            ovQ = `[out:json][timeout:120];${areaFilter};nwr["name"~"${sq}",i](area.searcharea);out body center ${lim};`;
           }
 
-          // Update session progress every 10 cities
-          if (i % 10 === 0) {
-            const progressPercent = Math.round(((i + 1) / fetchedSettlements.length) * 100);
+          // Use longer timeout: 125s browser > 120s server
+          const ovData = await overpassPost(ovQ, 125000);
+
+          if (ovData?._failed) {
+            addLog(`  ✗ ${area.name}: Overpass non raggiungibile`);
+            setCitiesErr((n) => n + 1);
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const elements: any[] = ovData?.elements || [];
+            addLog(`  → ${elements.length} elementi trovati`);
+
+            // Build tag pairs for filtering
+            const expectedTagPairs = new Set(
+              rawTagClauses.map((c) => { const m = c.match(/\["(\w+)"="([^"]+)"\]/); return m ? `${m[1]}=${m[2]}` : ""; }).filter(Boolean)
+            );
+
+            // Filter: name contains keyword OR has specific tag
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const candidates = elements.filter((el: any) => {
+              const t = el.tags || {};
+              if (!t.name) return false;
+              if (!hasSpecificTags) return true; // name regex already filtered
+              if (t.name.toLowerCase().includes(ql)) return true;
+              for (const [k, v] of Object.entries(t)) {
+                if (expectedTagPairs.has(`${k}=${v}`)) return true;
+              }
+              return false;
+            }).filter((el: any, idx: number, arr: any[]) => arr.findIndex((e: any) => e.id === el.id) === idx);
+
+            // Dedup against DB
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const cNames = [...new Set(candidates.map((el: any) => el.tags?.name).filter(Boolean))] as string[];
+            let exSet = new Set<string>();
+            if (cNames.length > 0) {
+              const { data: exRows } = await supabase.from("contacts").select("azienda, citta")
+                .eq("scraping_session_id", sid).in("azienda", cNames);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              exSet = new Set((exRows || []).map((r: any) => `${r.azienda}||${r.citta}`));
+            }
+
+            // Build insert rows
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rows: any[] = [];
+            let emailCount = 0;
+            for (const el of candidates) {
+              if (rows.length >= (maxPerCity === 9999 ? 9999 : maxPerCity) || isStopped.current) break;
+              const t = el.tags || {};
+              const elName: string = t.name;
+              // Extract city from OSM address tags, fall back to province name
+              const citta = t["addr:city"] || t["addr:town"] || t["addr:village"] ||
+                t["addr:municipality"] || t["addr:suburb"] || area.name;
+              if (exSet.has(`${elName}||${citta}`)) continue;
+
+              const rawWebsite = t.website || t["website:official"] || t["contact:website"] ||
+                t["contact:url"] || t["url"] || t["brand:website"] || t["operator:website"] || null;
+              const website = rawWebsite
+                ? (rawWebsite.startsWith("http") ? rawWebsite : `https://${rawWebsite}`).replace(/\/$/, "") : null;
+              const phone = t.phone || t["contact:phone"] || t["contact:mobile"] ||
+                t["phone:mobile"] || t["contact:whatsapp"] || null;
+              const email = t.email || t["contact:email"] || t["email:business"] || null;
+              const indirizzo = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ") || null;
+              const gmb_url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${elName} ${citta}${indirizzo ? " " + indirizzo : ""}`)}`;
+              if (email) emailCount++;
+
+              rows.push({
+                azienda: elName, citta, indirizzo, cap: t["addr:postcode"] || null,
+                telefono: phone || null, sito_web: website, email,
+                lat: el.lat ?? el.center?.lat ?? null, lng: el.lon ?? el.center?.lon ?? null,
+                google_categories: [t.amenity, t.shop, t.craft, t.office, t.tourism, t.healthcare, t.leisure].filter(Boolean),
+                note: gmb_url, fonte: "openstreetmap", stato: "nuovo",
+                user_id, scraping_session_id: sid,
+              });
+              exSet.add(`${elName}||${citta}`);
+            }
+
+            // Bulk insert
+            let imported = 0;
+            for (let j = 0; j < rows.length; j += 100) {
+              if (isStopped.current) break;
+              const chunk = rows.slice(j, j + 100);
+              const { error: ie } = await supabase.from("contacts").insert(chunk);
+              if (!ie) imported += chunk.length;
+              else addLog(`  ✗ insert error: ${ie.message}`);
+            }
+
+            cumulativeFound += imported;
+            cumulativeEmail += emailCount;
+            setTotalFound(cumulativeFound);
+            setTotalWithEmail(cumulativeEmail);
+
+            const emailNote = emailCount > 0 ? ` (${emailCount} email)` : "";
+            addLog(`  ✓ ${area.name}: +${imported} importati${emailNote}`);
+            if (imported > 0) setCitiesOk((n) => n + 1);
+
             void supabase.from("scraping_sessions").update({
               totale_importati: cumulativeFound,
-              progress_percent: progressPercent,
+              progress_percent: Math.round(((i + 1) / searchAreas.length) * 100),
             }).eq("id", sid);
           }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Errore";
+          addLog(`  ✗ ${area.name}: ${msg}`);
           setCitiesErr((n) => n + 1);
-          if (i < 5 || msg.includes("insert")) addLog(`✗ ${settlement.name}: ${msg}`);
         }
 
-        // Delay between cities
-        if (i < fetchedSettlements.length - 1 && !isStopped.current) {
-          await new Promise((r) => setTimeout(r, delayBetweenCities));
+        // Small delay between areas
+        if (i < searchAreas.length - 1 && !isStopped.current) {
+          await new Promise((r) => setTimeout(r, 1500));
         }
       }
 
@@ -819,12 +931,12 @@ export default function ScraperRegionalePage() {
       await supabase.from("scraping_sessions").update({
         status: finalStatus,
         completed_at: new Date().toISOString(),
-        totale_trovati: fetchedSettlements.length,
+        totale_trovati: searchAreas.length,
         totale_importati: cumulativeFound,
         progress_percent: 100,
       }).eq("id", sid);
 
-      addLog(`--- Completato: ${cumulativeFound} contatti da ${fetchedSettlements.length} comuni ---`);
+      addLog(`--- Completato: ${cumulativeFound} contatti da ${searchAreas.length} aree ---`);
       toast.success(`Scraping completato: ${cumulativeFound} contatti importati`);
       setSessionStatus("completed");
     } catch (err: unknown) {
@@ -878,8 +990,8 @@ export default function ScraperRegionalePage() {
   };
 
   const progressPercent =
-    settlements.length > 0
-      ? Math.round((currentCityIndex / settlements.length) * 100)
+    totalAreas > 0
+      ? Math.round((currentCityIndex / totalAreas) * 100)
       : 0;
 
   const statusBadge = () => {
@@ -1094,11 +1206,11 @@ export default function ScraperRegionalePage() {
         <div className="rounded-lg border border-border bg-card p-3 space-y-1">
           <div className="terminal-header text-xs mb-2">STATISTICHE</div>
           <div className="flex justify-between text-xs font-mono">
-            <span className="text-muted-foreground">Comuni da processare</span>
-            <span className="text-foreground">{settlements.length || "—"}</span>
+            <span className="text-muted-foreground">Aree da processare</span>
+            <span className="text-foreground">{totalAreas || "—"}</span>
           </div>
           <div className="flex justify-between text-xs font-mono">
-            <span className="text-muted-foreground">Comuni processati</span>
+            <span className="text-muted-foreground">Aree processate</span>
             <span className="text-foreground">{currentCityIndex}</span>
           </div>
           <div className="flex justify-between text-xs font-mono">
@@ -1126,9 +1238,9 @@ export default function ScraperRegionalePage() {
             <div className="flex justify-between text-xs font-mono text-muted-foreground">
               <span>
                 {currentCityIndex > 0
-                  ? `Comune ${currentCityIndex} di ${settlements.length}`
-                  : settlements.length > 0
-                  ? `${settlements.length} comuni trovati`
+                  ? `Area ${currentCityIndex} di ${totalAreas}`
+                  : totalAreas > 0
+                  ? `${totalAreas} aree trovate`
                   : "In attesa..."}
               </span>
               <span>{progressPercent}%</span>
@@ -1148,8 +1260,8 @@ export default function ScraperRegionalePage() {
               <div className="text-lg font-bold font-mono text-foreground">{selectedRegions.length}</div>
             </div>
             <div className="rounded border border-border bg-background/50 p-2 text-center">
-              <div className="text-xs text-muted-foreground font-mono mb-0.5">Comuni</div>
-              <div className="text-lg font-bold font-mono text-foreground">{currentCityIndex}</div>
+              <div className="text-xs text-muted-foreground font-mono mb-0.5">Aree</div>
+              <div className="text-lg font-bold font-mono text-foreground">{currentCityIndex}/{totalAreas || "?"}</div>
             </div>
             <div className="rounded border border-border bg-background/50 p-2 text-center">
               <div className="text-xs text-muted-foreground font-mono mb-0.5">Trovati</div>
