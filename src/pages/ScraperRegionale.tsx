@@ -432,7 +432,7 @@ async function fetchSettlements(
       seen.add(key);
       const lat = el.lat ?? el.center?.lat;
       const lon = el.lon ?? el.center?.lon;
-      if (!lat || !lon) continue;
+      if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       results.push({
         name: el.tags.name,
         lat,
@@ -635,8 +635,10 @@ export default function ScraperRegionalePage() {
       let imported = 0;
       for (let i = 0; i < rows.length; i += 100) {
         if (isStopped.current) break;
-        const { error: ie } = await supabase.from("contacts").insert(rows.slice(i, i + 100));
-        if (!ie) imported += rows.slice(i, i + 100).length;
+        const chunk = rows.slice(i, i + 100);
+        const { error: ie } = await supabase.from("contacts").insert(chunk);
+        if (!ie) imported += chunk.length;
+        else console.error(`Insert error in ${name}:`, ie.message, ie.details);
       }
 
       return { imported, withEmail: emailCount };
@@ -779,7 +781,7 @@ export default function ScraperRegionalePage() {
       }
 
       // Finalize session
-      const finalStatus = isStopped.current ? "completed" : "completed";
+      const finalStatus = isStopped.current ? "stopped" : "completed";
       await supabase.from("scraping_sessions").update({
         status: finalStatus,
         completed_at: new Date().toISOString(),
@@ -981,7 +983,7 @@ export default function ScraperRegionalePage() {
             <label className="text-xs text-muted-foreground">Tipi di insediamento</label>
             <div className="flex flex-col gap-1">
               {[
-                { key: "city", label: "Città (capoluogi)" },
+                { key: "city", label: "Città (capoluoghi)" },
                 { key: "town", label: "Comune / Town" },
                 { key: "village", label: "Paese / Village" },
                 { key: "hamlet", label: "Frazione / Hamlet" },

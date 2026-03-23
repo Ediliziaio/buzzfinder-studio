@@ -388,6 +388,7 @@ export default function ScraperMapsPage() {
 
     const lat = parseFloat(nomData[0].lat);
     const lon = parseFloat(nomData[0].lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error(`Coordinate non valide per "${loopConfig.citta}"`);
     const r = loopConfig.raggio * 1000;
     const sq = loopConfig.query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     const lim = Math.min(loopConfig.maxResults, 1000);
@@ -499,8 +500,10 @@ export default function ScraperMapsPage() {
     let imported = 0;
     for (let i = 0; i < rows.length; i += 100) {
       if (isStopped.current) break;
-      const { error: ie } = await supabase.from("contacts").insert(rows.slice(i, i + 100));
-      if (!ie) imported += rows.slice(i, i + 100).length;
+      const chunk = rows.slice(i, i + 100);
+      const { error: ie } = await supabase.from("contacts").insert(chunk);
+      if (!ie) imported += chunk.length;
+      else console.error("Insert error:", ie.message, ie.details);
     }
 
     await supabase.from("scraping_sessions").update({
