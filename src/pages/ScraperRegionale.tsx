@@ -495,7 +495,13 @@ export default function ScraperRegionalePage() {
       const r = radiusForPlace(placeType); // adaptive radius
       const ql = kw.toLowerCase();
 
-      // Build Overpass tag clauses — flexible stem matching
+      // Strategy: always query ALL shops/crafts/offices/amenities (all indexed, fast),
+      // then filter client-side by name containing the keyword.
+      // This mirrors exactly how Scraper Maps works for Italian B2B categories:
+      // most Italian OSM businesses don't have specific craft/shop tags, they just
+      // have the keyword in their business name (e.g. "Infissi Rossi").
+      // Additionally, if OSM_TAG_MAP has specific tags for this keyword, include them
+      // so category-tagged businesses (e.g. amenity=restaurant) are also captured.
       const tagClauses: string[] = [];
       for (const [key, clauses] of Object.entries(OSM_TAG_MAP)) {
         const match =
@@ -508,20 +514,15 @@ export default function ScraperRegionalePage() {
           tagClauses.push(...clauses.map((c) => `nwr${c}(around:${r},${lat},${lon})`));
         }
       }
-      // Tag-based queries are indexed → fast. Name regex is a full-scan → slow/timeout.
-      // Use name search ONLY as fallback when no OSM tags match the keyword.
-      const useBroadFallback = tagClauses.length === 0;
-      const allClauses = useBroadFallback
-        ? [
-            // Broad indexed queries + name regex (smaller radius = manageable)
-            `nwr["shop"](around:${r},${lat},${lon})`,
-            `nwr["craft"](around:${r},${lat},${lon})`,
-            `nwr["office"](around:${r},${lat},${lon})`,
-            `nwr["name"~"${ql.replace(/"/g, '\\"')}",i](around:${r},${lat},${lon})`,
-          ]
-        : [...new Set(tagClauses)]; // indexed-only → always fast
-      const baseLim = Math.min(max === 9999 ? 1000 : max, 1000);
-      const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : baseLim;
+      // Always include broad indexed queries (never use slow name-regex in Overpass)
+      const broadClauses = [
+        `nwr["shop"](around:${r},${lat},${lon})`,
+        `nwr["craft"](around:${r},${lat},${lon})`,
+        `nwr["office"](around:${r},${lat},${lon})`,
+        `nwr["amenity"](around:${r},${lat},${lon})`,
+      ];
+      const allClauses = [...new Set([...broadClauses, ...tagClauses])];
+      const lim = 2000; // fetch many, filter client-side
       const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
       // Same fetch pattern as ScraperMaps (no AbortController — server enforces 60s timeout)
@@ -553,15 +554,29 @@ export default function ScraperRegionalePage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const elements: any[] = ovData?.elements || [];
 
+      // Build a set of expected tag key=value pairs from tagClauses for fast lookup
+      // e.g. ["amenity"="restaurant"] → "amenity=restaurant"
+      const expectedTagPairs = new Set(
+        tagClauses.map((c) => {
+          const m = c.match(/\["(\w+)"="([^"]+)"\]/);
+          return m ? `${m[1]}=${m[2]}` : "";
+        }).filter(Boolean)
+      );
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const candidates = elements
         .filter((el: any) => {
           const t = el.tags || {};
           if (!t.name) return false;
-          // Overpass already filtered by tag category OR by name match → accept all
-          // For broad fallback (no tags): also accept if name contains keyword
-          if (!useBroadFallback) return true;
-          return t.name.toLowerCase().includes(ql);
+          // Accept if name contains keyword (primary strategy for Italian OSM data)
+          if (t.name.toLowerCase().includes(ql)) return true;
+          // Accept if element has a specific OSM tag matching the keyword category
+          if (expectedTagPairs.size > 0) {
+            for (const [k, v] of Object.entries(t)) {
+              if (expectedTagPairs.has(`${k}=${v}`)) return true;
+            }
+          }
+          return false;
         })
         .filter((el: any, idx: number, arr: any[]) => {
           // Deduplicate by OSM id
