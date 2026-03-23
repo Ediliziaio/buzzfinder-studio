@@ -524,8 +524,30 @@ export default function ScraperRegionalePage() {
       const lim = useBroadFallback ? Math.min(baseLim * 4, 2000) : baseLim;
       const ovQ = `[out:json][timeout:60];(${allClauses.join(";")};);out body center ${lim};`;
 
-      // Race both Overpass mirrors in parallel, 90s timeout (indexed queries finish in <10s)
-      const ovData = await overpassPost(ovQ, 90000);
+      // Same fetch pattern as ScraperMaps (no AbortController — server enforces 60s timeout)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tryOvCity = async (url: string): Promise<any> => {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `data=${encodeURIComponent(ovQ)}`,
+        });
+        if (!res.ok) throw new Error(`Overpass ${res.status}`);
+        return res.json();
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let ovData: any;
+      try {
+        ovData = await Promise.any([
+          tryOvCity("https://overpass-api.de/api/interpreter"),
+          tryOvCity("https://overpass.kumi.systems/api/interpreter"),
+        ]);
+      } catch {
+        throw new Error(`Overpass non raggiungibile per ${name}`);
+      }
+      if (ovData?.remark?.includes("timed out")) {
+        throw new Error(`Overpass timeout per ${name}`);
+      }
       if (!ovData?.elements?.length) return { imported: 0, withEmail: 0 };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
