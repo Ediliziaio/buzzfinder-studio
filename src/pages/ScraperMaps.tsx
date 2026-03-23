@@ -377,17 +377,28 @@ export default function ScraperMapsPage() {
     await supabase.from("scraping_sessions")
       .update({ status: "running", started_at: new Date().toISOString() }).eq("id", sessionId);
 
-    // 1. Nominatim geocoding
+    // 1. Nominatim geocoding — fetch multiple candidates and pick the best one.
+    // Using limit=1 was causing wrong matches: e.g. "Valle d'Aosta" matched a street
+    // near Turin instead of the region/city. We now prefer populated places over
+    // administrative boundaries.
     const nomResp = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loopConfig.citta + " Italy")}&format=json&limit=1&countrycodes=it`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loopConfig.citta + ", Italia")}&format=json&limit=8&countrycodes=it&addressdetails=1`,
       { headers: { "User-Agent": "BuzzFinderBot/1.0" } }
     );
     if (!nomResp.ok) throw new Error(`Nominatim error ${nomResp.status}`);
     const nomData = await nomResp.json();
     if (!nomData?.length) throw new Error(`Città "${loopConfig.citta}" non trovata in OpenStreetMap`);
 
-    const lat = parseFloat(nomData[0].lat);
-    const lon = parseFloat(nomData[0].lon);
+    // Priority: city/town/village/municipality > administrative boundary > anything else
+    const PLACE_PRIORITY = ['city', 'town', 'village', 'municipality', 'hamlet', 'suburb', 'quarter'];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const best: any =
+      nomData.find((r: any) => r.class === 'place' && PLACE_PRIORITY.includes(r.type)) ||
+      nomData.find((r: any) => r.class === 'boundary' && r.type === 'administrative' && (r.address?.state || r.address?.region || r.address?.county)) ||
+      nomData[0];
+
+    const lat = parseFloat(best.lat);
+    const lon = parseFloat(best.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error(`Coordinate non valide per "${loopConfig.citta}"`);
     const r = loopConfig.raggio * 1000;
     const sq = loopConfig.query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
