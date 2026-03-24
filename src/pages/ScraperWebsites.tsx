@@ -567,8 +567,8 @@ export default function ScraperWebsitesPage() {
   return (
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
       {/* Left — Queue */}
-      <div className="w-[400px] shrink-0 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center gap-3">
+      <div className="w-[400px] shrink-0 flex flex-col gap-2 overflow-hidden">
+        <div className="flex items-center gap-3 shrink-0">
           <Globe className="h-6 w-6 text-primary" />
           <h1 className="font-display text-xl font-bold text-foreground">SCRAPER SITI WEB</h1>
         </div>
@@ -577,33 +577,36 @@ export default function ScraperWebsitesPage() {
         <Button
           variant="outline"
           size="sm"
-          className="font-mono text-[10px] h-7 w-full"
+          className="font-mono text-[10px] h-7 w-full shrink-0"
           onClick={handleImportFromLastOsmSession}
           disabled={isRunning}
         >
           Importa da ultima sessione OSM
         </Button>
 
-        <WebScraperQueue
-          urls={urls}
-          jobs={jobs}
-          config={config}
-          onConfigChange={setConfig}
-          onAddUrls={handleAddUrls}
-          onImportFromMaps={handleImportFromMaps}
-          onImportFromContacts={handleImportFromContacts}
-          onStart={handleStart}
-          onPause={handlePause}
-          onStop={handleStop}
-          onClearQueue={handleClearQueue}
-          onJobClick={handleShowDetail}
-          onRetryJob={handleRetryJob}
-          isRunning={isRunning}
-          isPausing={isPausing}
-          isPaused={isPaused}
-          onResume={handleResume}
-          stats={queueStats}
-        />
+        {/* Queue takes all remaining space — controls always visible at bottom */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <WebScraperQueue
+            urls={urls}
+            jobs={jobs}
+            config={config}
+            onConfigChange={setConfig}
+            onAddUrls={handleAddUrls}
+            onImportFromMaps={handleImportFromMaps}
+            onImportFromContacts={handleImportFromContacts}
+            onStart={handleStart}
+            onPause={handlePause}
+            onStop={handleStop}
+            onClearQueue={handleClearQueue}
+            onJobClick={handleShowDetail}
+            onRetryJob={handleRetryJob}
+            isRunning={isRunning}
+            isPausing={isPausing}
+            isPaused={isPaused}
+            onResume={handleResume}
+            stats={queueStats}
+          />
+        </div>
 
         <WebScraperPreviousSessions
           sessions={allSessions}

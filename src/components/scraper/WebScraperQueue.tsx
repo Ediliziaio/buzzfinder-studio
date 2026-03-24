@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import type { WebScraperConfig } from "@/pages/ScraperWebsites";
 import type { ScrapingJob } from "@/types";
 
-const MAX_QUEUE_SIZE = 500;
+const MAX_QUEUE_SIZE = 10000;
 const URL_RE = /^(https?:\/\/)?([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
 
 function isValidUrl(url: string): boolean {
@@ -155,7 +155,7 @@ export function WebScraperQueue({
         </div>
       </div>
 
-      {/* Job list */}
+      {/* Job list — cap visible items to avoid freezing with large queues */}
       <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
         {displayItems.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-6 text-center">
@@ -165,14 +165,21 @@ export function WebScraperQueue({
             </p>
           </div>
         ) : (
-          displayItems.map((item, i) => (
-            <JobItem
-              key={item.job?.id || `url-${i}`}
-              item={item}
-              onClick={() => item.job && onJobClick(item.job)}
-              onRetry={item.job && onRetryJob ? () => onRetryJob(item.job!) : undefined}
-            />
-          ))
+          <>
+            {displayItems.slice(0, 200).map((item, i) => (
+              <JobItem
+                key={item.job?.id || `url-${i}`}
+                item={item}
+                onClick={() => item.job && onJobClick(item.job)}
+                onRetry={item.job && onRetryJob ? () => onRetryJob(item.job!) : undefined}
+              />
+            ))}
+            {displayItems.length > 200 && (
+              <div className="rounded-md border border-border bg-card px-3 py-2 text-center font-mono text-[10px] text-muted-foreground">
+                … e altri {(displayItems.length - 200).toLocaleString()} URL in coda
+              </div>
+            )}
+          </>
         )}
       </div>
 
