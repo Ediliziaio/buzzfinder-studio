@@ -58,7 +58,10 @@ export default function ScraperWebsitesPage() {
   const [detailJob, setDetailJob] = useState<ScrapingJob | null>(null);
   const [detailContact, setDetailContact] = useState<Contact | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
+  // isHandleStartActive: true while handleStart's while-loop is executing in browser.
+  // We combine with session.status so that after page refresh we still detect running state.
+  const [isHandleStartActive, setIsHandleStartActive] = useState(false);
+  const isRunning = isHandleStartActive || session?.status === "running" || session?.status === "pending";
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   // Track if we already showed the completion toast for this session
   const completionToastShownRef = useRef<string | null>(null);
@@ -138,10 +141,7 @@ export default function ScraperWebsitesPage() {
     };
   }, [sessionId]);
 
-  // Derive running state
-  useEffect(() => {
-    setIsRunning(session?.status === "running" || session?.status === "pending");
-  }, [session]);
+  // isRunning is now computed (isHandleStartActive || session.status) — no useEffect needed
 
   // Show completion toast when session completes, with enrichment stats
   useEffect(() => {
@@ -360,10 +360,8 @@ export default function ScraperWebsitesPage() {
       }
 
       toast.info(`${urls.length} siti in coda. Avvio scraping…`);
+      setIsHandleStartActive(true);
 
-      // Edge function reads jobs from DB — no need to pass URLs.
-      // It processes in batches and returns needsRestart=true when time budget
-      // is exhausted. We auto-resume until all jobs are done.
       const edgeConfig = {
         timeout_sec: config.timeoutSec,
         delay_ms: config.delayMs,
@@ -431,6 +429,8 @@ export default function ScraperWebsitesPage() {
       if (createdSessionId) {
         await supabase.from("scraping_sessions").update({ status: "failed", error_message: err.message }).eq("id", createdSessionId);
       }
+    } finally {
+      setIsHandleStartActive(false);
     }
   };
 
@@ -574,6 +574,10 @@ export default function ScraperWebsitesPage() {
   const completedJobs = jobs.filter((j) => j.status === "completed");
   const emailsFoundCount = completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
   const phonesFoundCount = completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mobileFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_mobile as string[] | undefined)?.length ?? 0), 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const landlineFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_landline as string[] | undefined)?.length ?? 0), 0);
 
   const queueStats = {
     queued: jobs.filter((j) => j.status === "queued").length + (isRunning ? 0 : urls.length),
@@ -582,6 +586,8 @@ export default function ScraperWebsitesPage() {
     failed: jobs.filter((j) => j.status === "failed").length,
     emailsFound: emailsFoundCount,
     phonesFound: phonesFoundCount,
+    mobileFound: mobileFoundCount,
+    landlineFound: landlineFoundCount,
   };
 
   return (

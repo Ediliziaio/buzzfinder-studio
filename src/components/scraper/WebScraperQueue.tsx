@@ -40,7 +40,7 @@ interface Props {
   isPausing?: boolean;
   isPaused?: boolean;
   onResume?: () => void;
-  stats: { queued: number; processing: number; completed: number; failed: number };
+  stats: { queued: number; processing: number; completed: number; failed: number; emailsFound?: number; mobileFound?: number; landlineFound?: number };
 }
 
 export function WebScraperQueue({
@@ -190,6 +190,9 @@ export function WebScraperQueue({
           <span>In corso: <span className="text-info">{stats.processing}</span></span>
           <span>Completati: <span className="text-primary">{stats.completed}</span></span>
           <span>Errori: <span className="text-destructive">{stats.failed}</span></span>
+          {(stats.emailsFound ?? 0) > 0 && <span>📧 <span className="text-primary">{stats.emailsFound}</span></span>}
+          {(stats.mobileFound ?? 0) > 0 && <span>📱 <span className="text-green-400">{stats.mobileFound}</span></span>}
+          {(stats.landlineFound ?? 0) > 0 && <span>☎️ <span className="text-info">{stats.landlineFound}</span></span>}
         </div>
         {avgTime > 0 && (
           <div className="text-[10px] font-mono text-muted-foreground">
@@ -373,15 +376,28 @@ function JobItem({ item, onClick, onRetry }: { item: { type: "url" | "job"; url:
       )}
 
       {job?.status === "completed" && (
-        <div className="mt-1 flex gap-2 text-[10px] font-mono text-muted-foreground">
+        <div className="mt-1 flex gap-2 text-[10px] font-mono text-muted-foreground flex-wrap">
           {(job.emails_found?.length || 0) > 0 && (
-            <span className="text-primary">📧 {job.emails_found!.length} email</span>
+            <span className="text-primary">📧 {job.emails_found!.length}</span>
           )}
-          {(job.phones_found?.length || 0) > 0 && (
-            <span className="text-info">📞 {job.phones_found!.length} tel</span>
-          )}
-          {job.emails_found?.length === 0 && job.phones_found?.length === 0 && (
-            <span className="text-muted-foreground">Nessun dato trovato</span>
+          {(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const s = (job.social_found as any) ?? {};
+            const mob: string[] = s.phones_mobile ?? [];
+            const fix: string[] = s.phones_landline ?? [];
+            const score: number | null = s.site_score ?? null;
+            return (<>
+              {mob.length > 0 && <span className="text-green-400">📱 {mob.length}</span>}
+              {fix.length > 0 && <span className="text-info">☎️ {fix.length}</span>}
+              {score !== null && (
+                <span className={score >= 7 ? "text-primary" : score >= 4 ? "text-yellow-400" : "text-destructive"}>
+                  ⭐{score}/10
+                </span>
+              )}
+            </>);
+          })()}
+          {job.emails_found?.length === 0 && (job.phones_found?.length ?? 0) === 0 && (
+            <span className="text-muted-foreground">Nessun dato</span>
           )}
         </div>
       )}
