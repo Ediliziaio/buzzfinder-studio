@@ -503,7 +503,8 @@ Deno.serve(async (req) => {
         .from("scraping_jobs")
         .select("id, url, contact_id")
         .eq("session_id", session_id)
-        .eq("status", "queued");
+        .eq("status", "queued")
+        .limit(2000);
       jobsToProcess = data || [];
     }
 
@@ -511,8 +512,13 @@ Deno.serve(async (req) => {
     let errors = 0;
     let contactsEnriched = 0;
     let interrupted = false;
+    let needsRestart = false; // true when time budget exhausted but jobs remain
 
     const BATCH_SIZE = 3;
+    // Time budget: stop processing at 110s to leave margin before the 150s edge fn timeout.
+    // The client will automatically re-invoke to continue where we left off.
+    const TIME_BUDGET_MS = 110_000;
+    const fnStartTime = Date.now();
     const total = jobsToProcess.length;
 
     const processJob = async (
@@ -598,8 +604,15 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Process in parallel batches of 3
+    // Process in parallel batches of 3, respecting a time budget so the
+    // edge function doesn't hit the 150s hard timeout.
     for (let i = 0; i < jobsToProcess.length; i += BATCH_SIZE) {
+      // Check time budget BEFORE starting a new batch
+      if (!retry_job_id && (Date.now() - fnStartTime) > TIME_BUDGET_MS) {
+        needsRestart = true;
+        break;
+      }
+
       // Check session status before each batch
       if (await isSessionPaused(sb, session_id)) {
         interrupted = true;
@@ -618,8 +631,10 @@ Deno.serve(async (req) => {
       if (interrupted) break;
 
       const processed = completed + errors;
+      // Count remaining queued jobs for accurate total
+      const totalProcessed = processed;
       await sb.from("scraping_sessions").update({
-        progress_percent: Math.round((processed / total) * 100),
+        progress_percent: total > 0 ? Math.round((totalProcessed / total) * 100) : 0,
         totale_importati: completed,
         totale_errori: errors,
       }).eq("id", session_id);
@@ -629,13 +644,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Only set completed if not interrupted by pause
-    if (!interrupted) {
+    // Only set completed if not interrupted (pause or time budget)
+    if (!interrupted && !needsRestart) {
       await sb.from("scraping_sessions").update({
         status: "completed",
         completed_at: new Date().toISOString(),
         progress_percent: 100,
         totale_trovati: completed + errors,
+        totale_importati: completed,
+        totale_errori: errors,
+      }).eq("id", session_id);
+    } else if (needsRestart) {
+      // Time budget exhausted — keep session running, client will re-invoke
+      await sb.from("scraping_sessions").update({
         totale_importati: completed,
         totale_errori: errors,
       }).eq("id", session_id);
@@ -655,7 +676,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, completed, errors, contactsEnriched, interrupted, requestId }),
+      JSON.stringify({ ok: true, completed, errors, contactsEnriched, interrupted, needsRestart, requestId }),
       { headers: withHeaders({ "Content-Type": "application/json" }) },
     );
   } catch (err: unknown) {

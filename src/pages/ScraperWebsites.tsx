@@ -325,65 +325,81 @@ export default function ScraperWebsitesPage() {
       setSession(sess as unknown as ScrapingSession);
       completionToastShownRef.current = null;
 
-      // Find matching contacts for URLs (with user_id filter)
-      const { data: contacts } = await supabase
-        .from("contacts")
-        .select("id, sito_web")
-        .eq("user_id", user_id)
-        .not("sito_web", "is", null)
-        .limit(1000);
-
+      // Find matching contacts for URLs — fetch in pages to handle large contact lists
       const contactMap = new Map<string, string>();
-      contacts?.forEach((c) => {
-        if (c.sito_web) {
-          contactMap.set(normalizeUrl(c.sito_web), c.id);
-        }
-      });
+      let contactPage = 0;
+      const PAGE_SIZE = 1000;
+      while (true) {
+        const { data: contacts } = await supabase
+          .from("contacts")
+          .select("id, sito_web")
+          .eq("user_id", user_id)
+          .not("sito_web", "is", null)
+          .range(contactPage * PAGE_SIZE, (contactPage + 1) * PAGE_SIZE - 1);
+        if (!contacts || contacts.length === 0) break;
+        contacts.forEach((c) => {
+          if (c.sito_web) contactMap.set(normalizeUrl(c.sito_web), c.id);
+        });
+        if (contacts.length < PAGE_SIZE) break;
+        contactPage++;
+      }
 
-      // Create jobs
-      const jobInserts = urls.map((url) => {
-        const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-        return {
-          session_id: sess.id,
-          url: fullUrl,
-          contact_id: contactMap.get(normalizeUrl(url)) || null,
-          status: "queued" as const,
-        };
-      });
-
-      await supabase.from("scraping_jobs").insert(jobInserts);
-
-      // Always use edge function directly
-      await toast.promise(
-        supabase.functions.invoke("scrape-website", {
-          body: {
+      // Insert jobs in batches of 200 to avoid request size limits
+      const JOB_BATCH = 200;
+      for (let i = 0; i < urls.length; i += JOB_BATCH) {
+        const batch = urls.slice(i, i + JOB_BATCH).map((url) => {
+          const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+          return {
             session_id: sess.id,
-            urls: urls.map((u) => (u.startsWith("http") ? u : `https://${u}`)),
-            config: {
-              timeout_sec: config.timeoutSec,
-              delay_ms: config.delayMs,
-              max_retries: config.maxRetries,
-              crawl_depth: config.crawlDepth,
-              search_pages: config.searchPages,
-            },
-          },
-        }),
-        {
-          loading: "Avvio scraping siti...",
-          success: (res) => {
-            const d = res?.data as any;
-            if (d?.ok) {
-              const parts: string[] = [];
-              if (d.completed != null) parts.push(`${d.completed} completati`);
-              if (d.contactsEnriched) parts.push(`${d.contactsEnriched} arricchiti`);
-              if (d.errors) parts.push(`${d.errors} errori`);
-              return parts.length > 0 ? `Scraping completato: ${parts.join(", ")}` : "Scraping completato!";
-            }
-            return "Scraping completato!";
-          },
-          error: (err) => `Errore: ${err.message}`,
+            url: fullUrl,
+            contact_id: contactMap.get(normalizeUrl(url)) || null,
+            status: "queued" as const,
+          };
+        });
+        await supabase.from("scraping_jobs").insert(batch);
+      }
+
+      toast.info(`${urls.length} siti in coda. Avvio scraping…`);
+
+      // Edge function reads jobs from DB — no need to pass URLs.
+      // It processes in batches and returns needsRestart=true when time budget
+      // is exhausted. We auto-resume until all jobs are done.
+      const edgeConfig = {
+        timeout_sec: config.timeoutSec,
+        delay_ms: config.delayMs,
+        max_retries: config.maxRetries,
+        crawl_depth: config.crawlDepth,
+        search_pages: config.searchPages,
+      };
+
+      let totalCompleted = 0;
+      let totalErrors = 0;
+      let totalEnriched = 0;
+      let round = 0;
+
+      while (true) {
+        round++;
+        const res = await supabase.functions.invoke("scrape-website", {
+          body: { session_id: sess.id, config: edgeConfig },
+        });
+        const d = res?.data as any;
+        if (d?.completed) totalCompleted += d.completed;
+        if (d?.errors) totalErrors += d.errors;
+        if (d?.contactsEnriched) totalEnriched += d.contactsEnriched;
+
+        // If edge fn hit time budget, there are still queued jobs → re-invoke
+        if (d?.needsRestart && !d?.interrupted) {
+          await new Promise((r) => setTimeout(r, 2000)); // 2s pause between rounds
+          continue;
         }
-      );
+        break;
+      }
+
+      const parts: string[] = [];
+      if (totalCompleted > 0) parts.push(`${totalCompleted} completati`);
+      if (totalEnriched > 0) parts.push(`${totalEnriched} arricchiti`);
+      if (totalErrors > 0) parts.push(`${totalErrors} errori`);
+      toast.success(parts.length > 0 ? `Scraping completato: ${parts.join(", ")}` : "Scraping completato!");
     } catch (err: any) {
       if (isNetworkError(err)) {
         toast.error("Errore di rete. Verifica la connessione.", {
