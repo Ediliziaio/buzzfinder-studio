@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Vite Dev Server",
+      "runtimeExecutable": "/Users/florinandriciuc/.bun/bin/bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8080,
+      "autoPort": true
+    },
+    {
+      "name": "Vite Preview",
+      "runtimeExecutable": "/Users/florinandriciuc/.bun/bin/bun",
+      "runtimeArgs": ["run", "preview"],
+      "port": 4173
+    },
+    {
+      "name": "Vitest Watch",
+      "runtimeExecutable": "/Users/florinandriciuc/.bun/bin/bun",
+      "runtimeArgs": ["run", "test:watch"],
+      "port": 51204
+    }
+  ]
+}

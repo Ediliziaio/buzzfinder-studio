@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
-import { Star, ExternalLink, Linkedin, Facebook, Instagram, Download } from "lucide-react";
+import { Star, ExternalLink, Linkedin, Facebook, Instagram, Download, Smartphone, Phone } from "lucide-react";
 import type { Contact, ScrapingJob } from "@/types";
 
 interface Props {
@@ -16,14 +16,24 @@ interface Props {
   onDetailClick: (job: ScrapingJob) => void;
 }
 
+function scoreLabel(score: number | null): { label: string; color: string } {
+  if (!score) return { label: "?", color: "text-muted-foreground" };
+  if (score >= 4) return { label: "★".repeat(score), color: "text-primary" };
+  if (score >= 3) return { label: "★".repeat(score), color: "text-warning" };
+  return { label: "★".repeat(score), color: "text-destructive" };
+}
+
 function exportResultsCsv(completedJobs: ScrapingJob[]) {
-  const headers = ["URL", "Email", "Telefoni", "LinkedIn", "Facebook", "Instagram", "Tempo (s)"];
+  const headers = ["URL", "Email", "Cellulari", "Fissi", "Score Sito", "Descrizione", "LinkedIn", "Facebook", "Instagram", "Tempo (s)"];
   const rows = completedJobs.map((j) => {
     const social = (j.social_found || {}) as Record<string, string>;
     return [
       j.url,
       (j.emails_found || []).join("; "),
-      (j.phones_found || []).join("; "),
+      (j.phones_mobile || []).join("; "),
+      (j.phones_landline || []).join("; "),
+      j.site_score ?? "",
+      j.site_description ?? "",
       social.linkedin || "",
       social.facebook || "",
       social.instagram || "",
@@ -109,19 +119,47 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
     },
     {
       id: "phones",
-      header: "Telefoni trovati",
+      header: "Telefoni",
       cell: ({ row }) => {
-        const phones = row.original.phones_found || [];
-        if (phones.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+        const mobile   = row.original.phones_mobile   || [];
+        const landline = row.original.phones_landline || [];
+        const all      = row.original.phones_found    || [];
+        if (all.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
         return (
-          <div className="flex flex-wrap gap-1">
-            {phones.map((p) => (
-              <span key={p} className="font-mono text-xs text-foreground">{p}</span>
+          <div className="flex flex-col gap-0.5">
+            {mobile.slice(0, 2).map((p) => (
+              <span key={p} className="flex items-center gap-1 font-mono text-xs text-primary">
+                <Smartphone className="h-2.5 w-2.5 shrink-0" />{p}
+              </span>
+            ))}
+            {landline.slice(0, 1).map((p) => (
+              <span key={p} className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                <Phone className="h-2.5 w-2.5 shrink-0" />{p}
+              </span>
             ))}
           </div>
         );
       },
-      size: 150,
+      size: 160,
+    },
+    {
+      id: "site_score",
+      header: "Sito",
+      cell: ({ row }) => {
+        const { label, color } = scoreLabel(row.original.site_score);
+        const desc = row.original.site_description;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[10px] font-mono ${color}`}>{label}</span>
+            {desc && (
+              <span className="text-[9px] text-muted-foreground line-clamp-2 max-w-[160px]" title={desc}>
+                {desc}
+              </span>
+            )}
+          </div>
+        );
+      },
+      size: 180,
     },
     {
       id: "socials",
@@ -179,8 +217,9 @@ export function WebScraperResults({ enrichedContacts, jobs, onDetailClick }: Pro
           <h2 className="font-display text-sm font-bold text-foreground">RISULTATI ARRICCHITI</h2>
           <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground mt-1">
             <span>Completati: <span className="text-primary">{completedJobs.length}</span></span>
-            <span>Con email: <span className="text-foreground">{completedJobs.filter((j) => (j.emails_found?.length || 0) > 0).length}</span></span>
-            <span>Con telefono: <span className="text-foreground">{completedJobs.filter((j) => (j.phones_found?.length || 0) > 0).length}</span></span>
+            <span>Email: <span className="text-foreground">{completedJobs.filter((j) => (j.emails_found?.length || 0) > 0).length}</span></span>
+            <span>Cellulari: <span className="text-primary">{completedJobs.filter((j) => (j.phones_mobile?.length || 0) > 0).length}</span></span>
+            <span>Fissi: <span className="text-foreground">{completedJobs.filter((j) => (j.phones_landline?.length || 0) > 0).length}</span></span>
           </div>
         </div>
         {completedJobs.length > 0 && (

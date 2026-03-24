@@ -379,27 +379,36 @@ export default function ScraperWebsitesPage() {
 
       while (true) {
         round++;
+
+        // Before each invocation check if user paused/stopped via DB
+        const { data: sessionCheck } = await supabase
+          .from("scraping_sessions")
+          .select("status")
+          .eq("id", sess.id)
+          .single();
+        if (sessionCheck?.status === "paused" || sessionCheck?.status === "completed") break;
+
         const res = await supabase.functions.invoke("scrape-website", {
           body: { session_id: sess.id, config: edgeConfig },
         });
 
-        // If edge function returned an HTTP error, throw so the catch block cleans up
         if (res?.error && !res?.data) {
           throw new Error(`Edge function error: ${res.error.message || JSON.stringify(res.error)}`);
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const d = res?.data as any;
-        // If the response has an error field even with 200 status, treat as error
-        if (d?.error && !d?.ok) {
-          throw new Error(d.error);
-        }
+        if (d?.error && !d?.ok) throw new Error(d.error);
 
         if (d?.completed) totalCompleted += d.completed;
         if (d?.errors) totalErrors += d.errors;
-        if (d?.contactsEnriched) totalEnriched += d.contactsEnriched;
+        if (d?.enriched) totalEnriched += d.enriched;
 
-        // If edge fn hit time budget, there are still queued jobs → re-invoke
-        if (d?.needsRestart && !d?.interrupted) {
+        // Paused/stopped by user inside edge function — don't restart
+        if (d?.interrupted) break;
+
+        // Time budget exceeded — re-invoke to continue remaining jobs
+        if (d?.needsRestart) {
           await new Promise((r) => setTimeout(r, 1000));
           continue;
         }

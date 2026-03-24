@@ -93,6 +93,10 @@ export interface ScrapingJob {
   status: ScrapingJobStatus;
   emails_found: string[];
   phones_found: string[];
+  phones_mobile: string[];
+  phones_landline: string[];
+  site_score: number | null;      // 1-5 (1=vecchio, 5=moderno)
+  site_description: string | null;
   social_found: Record<string, string>;
   tentativo: number;
   error_message: string | null;
