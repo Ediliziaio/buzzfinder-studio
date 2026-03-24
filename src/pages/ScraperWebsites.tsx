@@ -44,8 +44,8 @@ function isNetworkError(err: any): boolean {
 
 export default function ScraperWebsitesPage() {
   const [config, setConfig] = useState<WebScraperConfig>({
-    timeoutSec: 15,
-    delayMs: 1500,
+    timeoutSec: 12,
+    delayMs: 500,
     maxRetries: 2,
     crawlDepth: "homepage_contacts",
     searchPages: { contatti: true, chiSiamo: true, tutte: false },
@@ -382,14 +382,25 @@ export default function ScraperWebsitesPage() {
         const res = await supabase.functions.invoke("scrape-website", {
           body: { session_id: sess.id, config: edgeConfig },
         });
+
+        // If edge function returned an HTTP error, throw so the catch block cleans up
+        if (res?.error && !res?.data) {
+          throw new Error(`Edge function error: ${res.error.message || JSON.stringify(res.error)}`);
+        }
+
         const d = res?.data as any;
+        // If the response has an error field even with 200 status, treat as error
+        if (d?.error && !d?.ok) {
+          throw new Error(d.error);
+        }
+
         if (d?.completed) totalCompleted += d.completed;
         if (d?.errors) totalErrors += d.errors;
         if (d?.contactsEnriched) totalEnriched += d.contactsEnriched;
 
         // If edge fn hit time budget, there are still queued jobs → re-invoke
         if (d?.needsRestart && !d?.interrupted) {
-          await new Promise((r) => setTimeout(r, 2000)); // 2s pause between rounds
+          await new Promise((r) => setTimeout(r, 1000));
           continue;
         }
         break;

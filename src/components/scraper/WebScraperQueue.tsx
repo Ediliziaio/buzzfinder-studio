@@ -183,10 +183,76 @@ export function WebScraperQueue({
         )}
       </div>
 
-      {/* Config */}
-      <Collapsible open={configOpen} onOpenChange={setConfigOpen}>
+      {/* Stats + Controls — always visible ABOVE config */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-2 shrink-0">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-muted-foreground">
+          <span>In coda: <span className="text-foreground">{stats.queued}</span></span>
+          <span>In corso: <span className="text-info">{stats.processing}</span></span>
+          <span>Completati: <span className="text-primary">{stats.completed}</span></span>
+          <span>Errori: <span className="text-destructive">{stats.failed}</span></span>
+        </div>
+        {avgTime > 0 && (
+          <div className="text-[10px] font-mono text-muted-foreground">
+            Velocità: ~{avgTime}s/sito | Stimato fine: {Math.round((stats.queued * avgTime) / 60)}min
+          </div>
+        )}
+
+        {/* Pausing indicator */}
+        {isPausing && (
+          <div className="flex items-center gap-2 text-xs font-mono text-warning">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>In pausa... (job in corso in completamento)</span>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          {isPaused && onResume ? (
+            <>
+              <Button onClick={onResume} className="flex-1 font-mono text-xs" size="sm">
+                <Play className="h-3 w-3 mr-1" /> RIPRENDI
+              </Button>
+              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+                <Square className="h-3 w-3 mr-1" /> STOP
+              </Button>
+            </>
+          ) : isPausing ? (
+            <>
+              <Button disabled variant="outline" className="flex-1 font-mono text-xs" size="sm">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" /> IN PAUSA...
+              </Button>
+              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+                <Square className="h-3 w-3 mr-1" /> STOP
+              </Button>
+            </>
+          ) : !isRunning ? (
+            <Button
+              onClick={onStart}
+              className="flex-1 font-mono text-xs"
+              size="sm"
+              disabled={urls.length === 0 && jobs.length === 0}
+            >
+              <Play className="h-3 w-3 mr-1" /> AVVIA SCRAPING
+            </Button>
+          ) : (
+            <>
+              <Button onClick={onPause} variant="outline" className="flex-1 font-mono text-xs" size="sm">
+                <Pause className="h-3 w-3 mr-1" /> PAUSA
+              </Button>
+              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+                <Square className="h-3 w-3 mr-1" /> STOP
+              </Button>
+            </>
+          )}
+          <Button onClick={onClearQueue} variant="ghost" size="sm" className="font-mono text-xs">
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Config — below controls so it never hides the AVVIA button */}
+      <Collapsible open={configOpen} onOpenChange={setConfigOpen} className="shrink-0">
         <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
-          <span>Configurazione</span>
+          <span>Configurazione avanzata</span>
           <ChevronDown className={`h-3 w-3 transition-transform ${configOpen ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2 space-y-3 rounded-md border border-border bg-card p-3">
@@ -206,7 +272,7 @@ export function WebScraperQueue({
               <Input
                 type="number"
                 value={config.delayMs}
-                onChange={(e) => onConfigChange({ ...config, delayMs: parseInt(e.target.value) || 1500 })}
+                onChange={(e) => onConfigChange({ ...config, delayMs: parseInt(e.target.value) || 500 })}
                 className="h-7 font-mono text-xs bg-accent border-border"
                 disabled={isRunning}
               />
@@ -265,67 +331,6 @@ export function WebScraperQueue({
           </div>
         </CollapsibleContent>
       </Collapsible>
-
-      {/* Stats + Controls */}
-      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-muted-foreground">
-          <span>In coda: <span className="text-foreground">{stats.queued}</span></span>
-          <span>In corso: <span className="text-info">{stats.processing}</span></span>
-          <span>Completati: <span className="text-primary">{stats.completed}</span></span>
-          <span>Errori: <span className="text-destructive">{stats.failed}</span></span>
-        </div>
-        {avgTime > 0 && (
-          <div className="text-[10px] font-mono text-muted-foreground">
-            Velocità: ~{avgTime}s/sito | Stimato fine: {Math.round((stats.queued * avgTime) / 60)}min
-          </div>
-        )}
-
-        {/* Pausing indicator */}
-        {isPausing && (
-          <div className="flex items-center gap-2 text-xs font-mono text-warning">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>In pausa... (job in corso in completamento)</span>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          {isPaused && onResume ? (
-            <>
-              <Button onClick={onResume} className="flex-1 font-mono text-xs" size="sm">
-                <Play className="h-3 w-3 mr-1" /> RIPRENDI
-              </Button>
-              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
-                <Square className="h-3 w-3 mr-1" /> STOP
-              </Button>
-            </>
-          ) : isPausing ? (
-            <>
-              <Button disabled variant="outline" className="flex-1 font-mono text-xs" size="sm">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" /> IN PAUSA...
-              </Button>
-              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
-                <Square className="h-3 w-3 mr-1" /> STOP
-              </Button>
-            </>
-          ) : !isRunning ? (
-            <Button onClick={onStart} className="flex-1 font-mono text-xs" size="sm" disabled={urls.length === 0 && jobs.length === 0}>
-              <Play className="h-3 w-3 mr-1" /> AVVIA
-            </Button>
-          ) : (
-            <>
-              <Button onClick={onPause} variant="outline" className="flex-1 font-mono text-xs" size="sm">
-                <Pause className="h-3 w-3 mr-1" /> PAUSA
-              </Button>
-              <Button onClick={onStop} variant="destructive" className="flex-1 font-mono text-xs" size="sm">
-                <Square className="h-3 w-3 mr-1" /> STOP
-              </Button>
-            </>
-          )}
-          <Button onClick={onClearQueue} variant="ghost" size="sm" className="font-mono text-xs">
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
