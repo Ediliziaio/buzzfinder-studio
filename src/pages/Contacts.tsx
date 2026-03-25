@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, Upload, Download, ShieldCheck } from "lucide-react";
+import { Users, Plus, Upload, Download, ShieldCheck, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactDetailDrawer } from "@/components/contacts/ContactDetailDrawer";
@@ -9,6 +9,7 @@ import { CsvImportDialog } from "@/components/contacts/CsvImportDialog";
 import { CreateContactDialog } from "@/components/contacts/CreateContactDialog";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
 import { EmailValidationPanel } from "@/components/contacts/EmailValidationPanel";
+import { DeduplicationPanel } from "@/components/contacts/DeduplicationPanel";
 import { useContacts } from "@/hooks/useContacts";
 import { exportContactsCsv } from "@/lib/csvExporter";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ export default function ContactsPage() {
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [showDedup, setShowDedup] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -87,6 +89,9 @@ export default function ContactsPage() {
           <h1 className="font-display text-xl font-bold text-foreground">CONTATTI</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowDedup(true)}>
+            <Copy className="h-4 w-4 mr-1" /> DEDUPLICAZIONE
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowValidation(true)}>
             <ShieldCheck className="h-4 w-4 mr-1" /> VERIFICA EMAIL
           </Button>
@@ -164,6 +169,13 @@ export default function ContactsPage() {
         onClose={() => setShowValidation(false)}
         onComplete={refetch}
         totalContacts={totalCount}
+      />
+
+      {/* Deduplication */}
+      <DeduplicationPanel
+        open={showDedup}
+        onClose={() => setShowDedup(false)}
+        onComplete={refetch}
       />
 
       {/* Create Contact */}
