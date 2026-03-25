@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import {
   Plus, Play, Pause, Square, Trash2, Download, ChevronDown,
   CheckCircle, XCircle, Loader2, Clock, RotateCcw, Globe, FileUp,
@@ -41,7 +42,7 @@ interface Props {
   isPaused?: boolean;
   isStopping?: boolean;
   onResume?: () => void;
-  stats: { queued: number; processing: number; completed: number; failed: number; emailsFound?: number; mobileFound?: number; landlineFound?: number };
+  stats: { queued: number; processing: number; completed: number; failed: number; total?: number; progressPct?: number; emailsFound?: number; mobileFound?: number; landlineFound?: number };
 }
 
 export function WebScraperQueue({
@@ -195,7 +196,21 @@ export function WebScraperQueue({
           {(stats.mobileFound ?? 0) > 0 && <span>📱 <span className="text-green-400">{stats.mobileFound}</span></span>}
           {(stats.landlineFound ?? 0) > 0 && <span>☎️ <span className="text-info">{stats.landlineFound}</span></span>}
         </div>
-        {avgTime > 0 && (
+
+        {/* Live progress bar — shown during active run */}
+        {isRunning && (stats.total ?? 0) > 0 && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+              <span>
+                Elaborati <span className="text-primary">{stats.completed}</span> / <span className="text-foreground">{stats.total}</span> siti
+              </span>
+              <span className="text-primary">{stats.progressPct ?? 0}%</span>
+            </div>
+            <Progress value={stats.progressPct ?? 0} className="h-1.5" />
+          </div>
+        )}
+
+        {avgTime > 0 && !isRunning && (
           <div className="text-[10px] font-mono text-muted-foreground">
             Velocità: ~{avgTime}s/sito | Stimato fine: {Math.round((stats.queued * avgTime) / 60)}min
           </div>

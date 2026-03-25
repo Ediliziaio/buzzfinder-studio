@@ -591,19 +591,24 @@ export default function ScraperWebsitesPage() {
     return { completedJobs, emailsFoundCount, phonesFoundCount, mobileFoundCount, landlineFoundCount };
   }, [jobs]);
 
+  // During run: read live stats from session row (updated by edge fn via Realtime).
+  // After completion: read from loaded jobs array.
+  const liveCompleted = isRunning ? ((session as any)?.totale_importati ?? 0) : jobs.filter((j) => j.status === "completed").length;
+  const liveFailed    = isRunning ? ((session as any)?.totale_errori ?? 0)    : jobs.filter((j) => j.status === "failed").length;
+  const liveTotal     = (session as any)?.max_results ?? urls.length;
+  const liveQueued    = isRunning
+    ? Math.max(0, liveTotal - liveCompleted - liveFailed)
+    : jobs.filter((j) => j.status === "queued").length + urls.length;
+  const liveProcessing = isRunning && (liveCompleted + liveFailed < liveTotal) ? 3 : 0; // edge fn always batches 3
+  const progressPct   = isRunning ? ((session as any)?.progress_percent ?? 0) : 0;
+
   const queueStats = {
-    queued: isRunning
-      ? ((session as any)?.queued_count ?? (jobs.filter((j) => j.status === "queued").length + urls.length))
-      : jobs.filter((j) => j.status === "queued").length + urls.length,
-    processing: isRunning
-      ? ((session as any)?.processing_count ?? jobs.filter((j) => j.status === "processing").length)
-      : jobs.filter((j) => j.status === "processing").length,
-    completed: isRunning
-      ? ((session as any)?.completed_count ?? jobs.filter((j) => j.status === "completed").length)
-      : jobs.filter((j) => j.status === "completed").length,
-    failed: isRunning
-      ? ((session as any)?.failed_count ?? jobs.filter((j) => j.status === "failed").length)
-      : jobs.filter((j) => j.status === "failed").length,
+    queued:     liveQueued,
+    processing: liveProcessing,
+    completed:  liveCompleted,
+    failed:     liveFailed,
+    total:      liveTotal,
+    progressPct,
     emailsFound: emailsFoundCount,
     phonesFound: phonesFoundCount,
     mobileFound: mobileFoundCount,
