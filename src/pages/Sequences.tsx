@@ -305,7 +305,7 @@ export default function SequencesPage() {
 
     const userId = await getCurrentUserId();
     const [{ data: cts }, { data: snds }] = await Promise.all([
-      supabase.from("contacts").select("id, nome, azienda, email").eq("user_id", userId).not("email", "is", null).order("azienda").limit(500),
+      supabase.from("contacts").select("id, nome, azienda, email, email_quality").eq("user_id", userId).not("email", "is", null).order("azienda").limit(500),
       supabase.from("sender_pool").select("id, nome, email_from, email_nome").eq("user_id", userId).eq("attivo", true).not("email_from", "is", null),
     ]);
 
@@ -459,23 +459,51 @@ export default function SequencesPage() {
                   {contacts.length === 0 ? "Nessun contatto con email disponibile" : "Nessun risultato"}
                 </div>
               ) : (
-                filteredContacts.map(c => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-pointer hover:bg-primary/5 last:border-b-0"
-                    onClick={() => toggleContact(c.id)}
-                  >
-                    {selectedContacts.has(c.id)
-                      ? <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
-                      : <Square className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{c.azienda ?? c.nome ?? "—"}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground truncate">{c.email}</p>
+                filteredContacts.map(c => {
+                  const q = (c as any).email_quality as string | null;
+                  const qColor = q === "valid" ? "text-primary" : q === "risky" ? "text-yellow-500" : q === "invalid" ? "text-destructive" : "text-muted-foreground";
+                  const qLabel = q === "valid" ? "✓" : q === "risky" ? "⚠" : q === "invalid" ? "✗" : "?";
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-pointer hover:bg-primary/5 last:border-b-0"
+                      onClick={() => toggleContact(c.id)}
+                    >
+                      {selectedContacts.has(c.id)
+                        ? <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+                        : <Square className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{c.azienda ?? c.nome ?? "—"}</p>
+                        <p className="text-[10px] font-mono text-muted-foreground truncate">{c.email}</p>
+                      </div>
+                      <span className={`font-mono text-[10px] shrink-0 ${qColor}`} title={q ?? "Non verificata"}>{qLabel}</span>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
+
+            {/* Warning for risky/invalid selected contacts */}
+            {(() => {
+              const selectedList = filteredContacts.filter(c => selectedContacts.has(c.id));
+              const riskyCount = selectedList.filter(c => (c as any).email_quality === "risky").length;
+              const invalidCount = selectedList.filter(c => (c as any).email_quality === "invalid").length;
+              const unverifiedCount = selectedList.filter(c => !(c as any).email_quality).length;
+              if (invalidCount > 0 || riskyCount > 0 || unverifiedCount > 0) {
+                return (
+                  <div className="flex items-start gap-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-mono">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      {invalidCount > 0 && `${invalidCount} email invalide (✗), `}
+                      {riskyCount > 0 && `${riskyCount} rischiose (⚠), `}
+                      {unverifiedCount > 0 && `${unverifiedCount} non verificate (?). `}
+                      Vai su Contatti → Verifica Email prima di inviare.
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <DialogFooter className="mt-2">

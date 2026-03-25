@@ -137,6 +137,32 @@ export function ContactFiltersBar({ filters, onChange }: Props) {
           </SelectContent>
         </Select>
 
+        {/* Email quality */}
+        <Select
+          value={
+            !filters.emailQuality?.length ? "all"
+            : filters.emailQuality.length === 1 ? filters.emailQuality[0]
+            : "mixed"
+          }
+          onValueChange={(v) =>
+            onChange({
+              ...filters,
+              emailQuality: v === "all" ? undefined : [v],
+            })
+          }
+        >
+          <SelectTrigger className="w-[140px] h-8 text-xs font-mono bg-accent border-border">
+            <SelectValue placeholder="Qualità email" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Email: qualità</SelectItem>
+            <SelectItem value="valid" className="font-mono text-xs text-primary">✓ Valide</SelectItem>
+            <SelectItem value="risky" className="font-mono text-xs text-yellow-500">⚠ Rischiose</SelectItem>
+            <SelectItem value="invalid" className="font-mono text-xs text-destructive">✗ Invalide</SelectItem>
+            <SelectItem value="unverified" className="font-mono text-xs text-muted-foreground">? Non verificate</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* Tags filter */}
         <div className="relative min-w-[140px]">
           <Input

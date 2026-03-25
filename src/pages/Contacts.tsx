@@ -40,6 +40,17 @@ export default function ContactsPage() {
       if (filters.hasEmail) query = query.not("email", "is", null);
       if (filters.hasTelefono) query = query.not("telefono", "is", null);
       if (filters.tags?.length) query = query.overlaps("tags", filters.tags);
+      if (filters.emailQuality?.length) {
+        const quals = filters.emailQuality;
+        if (quals.includes("unverified") && quals.length === 1) {
+          query = query.is("email_quality", null);
+        } else if (quals.includes("unverified")) {
+          const withoutUnverified = quals.filter((q) => q !== "unverified");
+          query = (query as any).or(`email_quality.in.(${withoutUnverified.join(",")}),email_quality.is.null`);
+        } else {
+          query = query.in("email_quality", quals);
+        }
+      }
       const { data } = await query.limit(10000);
       if (data) {
         setSelectedIds(new Set(data.map((r: any) => r.id)));

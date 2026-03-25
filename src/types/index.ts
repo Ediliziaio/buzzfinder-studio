@@ -462,6 +462,7 @@ export interface ContactFilters {
   hasTelefono?: boolean;
   dateFrom?: string;
   dateTo?: string;
+  emailQuality?: string[];   // "valid" | "risky" | "invalid" | "unverified"
 }
 
 // ── Chiamate AI ElevenLabs ──────────────────────────────────────────

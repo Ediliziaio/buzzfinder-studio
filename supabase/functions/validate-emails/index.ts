@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -140,14 +141,19 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const batchSize = Math.min(body.batch_size || 100, 500);
     const offset = body.offset || 0;
+    const reVerify = body.re_verify === true;
 
     let query = supabase
       .from("contacts")
       .select("id, email")
       .eq("user_id", userId)
       .not("email", "is", null)
-      .is("email_quality", null)
       .range(offset, offset + batchSize - 1);
+
+    // By default only process contacts that haven't been verified yet
+    if (!reVerify) {
+      query = query.is("email_quality", null);
+    }
 
     const { data: contacts, error } = await query;
     if (error) throw error;

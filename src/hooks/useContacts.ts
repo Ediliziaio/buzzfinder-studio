@@ -27,6 +27,17 @@ async function fetchContacts(filters: ContactFilters, page: number, pageSize: nu
   if (filters.hasTelefono === true) query = query.not("telefono", "is", null);
   if (filters.hasTelefono === false) query = query.is("telefono", null);
   if (filters.tags?.length) query = query.overlaps("tags", filters.tags);
+  if (filters.emailQuality?.length) {
+    const quals = filters.emailQuality;
+    if (quals.includes("unverified") && quals.length === 1) {
+      query = query.is("email_quality", null);
+    } else if (quals.includes("unverified")) {
+      const withoutUnverified = quals.filter((q) => q !== "unverified");
+      query = query.or(`email_quality.in.(${withoutUnverified.join(",")}),email_quality.is.null`);
+    } else {
+      query = query.in("email_quality", quals);
+    }
+  }
 
   const { data, count, error } = await query;
   if (error) throw error;
