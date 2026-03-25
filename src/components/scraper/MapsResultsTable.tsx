@@ -61,15 +61,19 @@ export function MapsResultsTable({ results, selectedIds, onSelectionChange, sess
         });
         csvRows.push(values.join(","));
       }
-      const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `contatti_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      let blobUrl: string | null = null;
+      try {
+        const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `contatti_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } finally {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      }
       toast.success(`${toExport.length} contatti esportati`);
     } catch (err: any) {
       toast.error(err.message || "Errore esportazione");

@@ -35,7 +35,7 @@ async function fetchContacts(filters: ContactFilters, page: number, pageSize: nu
 
 export function useContacts(filters: ContactFilters, page = 0, pageSize = DEFAULT_PAGE_SIZE) {
   const query = useQuery({
-    queryKey: ["contacts", filters, page, pageSize],
+    queryKey: ["contacts", JSON.stringify(filters), page, pageSize],
     queryFn: () => fetchContacts(filters, page, pageSize),
     staleTime: 30_000,
   });

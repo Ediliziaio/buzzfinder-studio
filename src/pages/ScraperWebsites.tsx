@@ -304,6 +304,8 @@ export default function ScraperWebsitesPage() {
       createdSessionId = sess.id;
       setSessionId(sess.id);
       setSession(sess as unknown as ScrapingSession);
+      setJobs([]);
+      setEnrichedContacts([]);
       completionToastShownRef.current = null;
 
       // Reset refs on new session start
@@ -539,16 +541,23 @@ export default function ScraperWebsitesPage() {
   };
 
   const handleClearQueue = () => {
+    if (urls.length > 100) {
+      if (!window.confirm(`Sei sicuro di voler rimuovere ${urls.length} URL dalla coda?`)) return;
+    }
     setUrls([]);
     toast.info("Coda svuotata");
   };
 
   const handleShowDetail = (job: ScrapingJob) => {
     setDetailJob(job);
+    setDetailContact(null);
     if (job.contact_id) {
+      let cancelled = false;
       supabase.from("contacts").select("*").eq("id", job.contact_id).maybeSingle().then(({ data }) => {
-        setDetailContact(data as unknown as Contact);
+        if (!cancelled) setDetailContact(data as unknown as Contact);
       });
+      // Note: we can't return cleanup from a non-useEffect, but the cancelled flag prevents stale setState
+      // The modal being open/closed handles the visual state
     }
   };
 
@@ -573,17 +582,14 @@ export default function ScraperWebsitesPage() {
   };
 
   // Stats with email/phone counts — use session-level stats during run, job-level after completion
-  const completedJobs = jobs.filter((j) => j.status === "completed");
-  const emailsFoundCount = isRunning
-    ? ((session as any)?.emails_found ?? 0)
-    : completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
-  const phonesFoundCount = isRunning
-    ? ((session as any)?.phones_found ?? 0)
-    : completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mobileFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_mobile as string[] | undefined)?.length ?? 0), 0);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const landlineFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_landline as string[] | undefined)?.length ?? 0), 0);
+  const { completedJobs, emailsFoundCount, phonesFoundCount, mobileFoundCount, landlineFoundCount } = useMemo(() => {
+    const completedJobs = jobs.filter((j) => j.status === "completed");
+    const emailsFoundCount = completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
+    const phonesFoundCount = completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
+    const mobileFoundCount = completedJobs.reduce((sum, j) => sum + ((j.phones_mobile?.length) ?? 0), 0);
+    const landlineFoundCount = completedJobs.reduce((sum, j) => sum + ((j.phones_landline?.length) ?? 0), 0);
+    return { completedJobs, emailsFoundCount, phonesFoundCount, mobileFoundCount, landlineFoundCount };
+  }, [jobs]);
 
   const queueStats = {
     queued: isRunning

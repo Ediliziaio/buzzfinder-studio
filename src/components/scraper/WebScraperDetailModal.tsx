@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ScrapingJob, Contact } from "@/types";
 
 interface Props {
@@ -22,6 +22,11 @@ interface Props {
 export function WebScraperDetailModal({ job, contact, open, onOpenChange }: Props) {
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current); };
+  }, []);
 
   if (!job) return null;
 
@@ -34,7 +39,8 @@ export function WebScraperDetailModal({ job, contact, open, onOpenChange }: Prop
     navigator.clipboard.writeText(text);
     if (type === "email") setCopiedEmail(text);
     else setCopiedPhone(text);
-    setTimeout(() => { setCopiedEmail(null); setCopiedPhone(null); }, 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => { setCopiedEmail(null); setCopiedPhone(null); }, 2000);
   };
 
   const handleSetPrimaryEmail = async (email: string) => {
