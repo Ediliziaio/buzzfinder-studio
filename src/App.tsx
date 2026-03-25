@@ -29,6 +29,7 @@ import CallsPage from "@/pages/Calls";
 import AutomationsPage from "@/pages/Automations";
 import AIAgentPage from "@/pages/AIAgent";
 import ScraperRegionalePage from "@/pages/ScraperRegionale";
+import SequencesPage from "@/pages/Sequences";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/templates" element={<TemplatesPage />} />
         <Route path="/unibox" element={<UniboxPage />} />
         <Route path="/follow-up" element={<FollowUpSequencesPage />} />
+        <Route path="/sequences" element={<SequencesPage />} />
         <Route path="/suppression" element={<SuppressionListPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/pipeline" element={<PipelinePage />} />
