@@ -66,6 +66,12 @@ export default function ScraperWebsitesPage() {
   // Track if we already showed the completion toast for this session
   const completionToastShownRef = useRef<string | null>(null);
 
+  // Refs for immediate stop/pause without waiting for edge function to finish
+  const stopSignalRef = useRef(false);
+  const pauseSignalRef = useRef(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [isPausingNow, setIsPausingNow] = useState(false);
+
   const { sessions: allSessions } = useScrapingSessions();
 
   // Derive isPausing: session is paused but some jobs are still processing
@@ -78,83 +84,62 @@ export default function ScraperWebsitesPage() {
     return session?.status === "paused" && !jobs.some((j) => j.status === "processing");
   }, [session, jobs]);
 
-  // Subscribe to session + jobs updates with debounced job batching
+  // Subscribe ONLY to session-level changes (1 row, not 1500 rows) to avoid Chrome crash
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
-    const jobBuffer = new Map<string, ScrapingJob>();
-    const newJobBuffer: ScrapingJob[] = [];
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const flushJobUpdates = () => {
-      if (cancelled) return;
-      flushTimer = null;
-      const updates = new Map(jobBuffer);
-      const inserts = [...newJobBuffer];
-      jobBuffer.clear();
-      newJobBuffer.length = 0;
-
-      if (updates.size > 0 || inserts.length > 0) {
-        setJobs((prev) => {
-          let next = prev;
-          if (updates.size > 0) {
-            next = next.map((j) => updates.has(j.id) ? updates.get(j.id)! : j);
-          }
-          if (inserts.length > 0) {
-            const existingIds = new Set(next.map((j) => j.id));
-            const truly = inserts.filter((j) => !existingIds.has(j.id));
-            if (truly.length > 0) next = [...next, ...truly];
-          }
-          return next;
-        });
-      }
-    };
-
-    const scheduleFlush = () => {
-      if (flushTimer) return;
-      flushTimer = setTimeout(flushJobUpdates, 300);
-    };
-
+    // Subscribe only to session-level changes (1 row, not 1500 rows)
     const channel = supabase
       .channel(`web-session-${sessionId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "scraping_sessions", filter: `id=eq.${sessionId}` },
-        (payload) => { if (!cancelled) setSession(payload.new as unknown as ScrapingSession); }
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "scraping_jobs", filter: `session_id=eq.${sessionId}` },
-        (payload) => {
-          if (cancelled) return;
-          if (payload.eventType === "INSERT") {
-            newJobBuffer.push(payload.new as unknown as ScrapingJob);
-          } else if (payload.eventType === "UPDATE") {
-            const job = payload.new as unknown as ScrapingJob;
-            jobBuffer.set(job.id, job);
-          }
-          scheduleFlush();
-        }
-      )
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "scraping_sessions",
+        filter: `id=eq.${sessionId}`
+      }, (payload) => {
+        if (!cancelled) setSession(payload.new as unknown as ScrapingSession);
+      })
       .subscribe();
 
     return () => {
       cancelled = true;
-      if (flushTimer) clearTimeout(flushTimer);
       supabase.removeChannel(channel);
     };
   }, [sessionId]);
 
+  // Load jobs only when session completes or pauses (paginated, max 200 at a time)
+  useEffect(() => {
+    if (!sessionId) return;
+    if (session?.status !== "completed" && session?.status !== "paused") return;
+
+    let cancelled = false;
+    supabase
+      .from("scraping_jobs")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("status", "completed")
+      .order("updated_at", { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (!cancelled && data) setJobs(data as unknown as ScrapingJob[]);
+      });
+
+    return () => { cancelled = true; };
+  }, [sessionId, session?.status]);
+
   // isRunning is now computed (isHandleStartActive || session.status) — no useEffect needed
 
-  // Show completion toast when session completes, with enrichment stats
+  // Show completion toast when session completes, with enrichment stats from session record
   useEffect(() => {
     if (!session || !sessionId) return;
     if (session.status !== "completed") return;
     if (completionToastShownRef.current === sessionId) return;
     completionToastShownRef.current = sessionId;
 
-    const emailsFound = jobs.filter((j) => j.status === "completed" && (j.emails_found?.length ?? 0) > 0).length;
-    const phonesFound = jobs.filter((j) => j.status === "completed" && (j.phones_found?.length ?? 0) > 0).length;
-    const enrichedCount = jobs.filter(
-      (j) => j.status === "completed" && j.contact_id && ((j.emails_found?.length ?? 0) > 0 || (j.phones_found?.length ?? 0) > 0)
-    ).length;
+    // Use session-level stats since jobs are loaded after completion
+    const completedCount = (session as any).completed_count ?? 0;
+    const enrichedCount = (session as any).enriched_count ?? 0;
+    const emailsFound = (session as any).emails_found ?? 0;
+    const phonesFound = (session as any).phones_found ?? 0;
 
     const parts: string[] = [];
     if (emailsFound > 0) parts.push(`${emailsFound} email trovate`);
@@ -168,24 +153,20 @@ export default function ScraperWebsitesPage() {
     }
   }, [session?.status, sessionId]);
 
-  // Optimize: only re-fetch contacts when completed job IDs change
-  const completedJobContactIds = useMemo(() => {
-    const completed = jobs.filter((j) => j.status === "completed" && j.contact_id);
-    return [...new Set(completed.map((j) => j.contact_id))].sort().join(",");
-  }, [jobs]);
-
-  // Fetch contacts with cancelled flag to prevent state update after unmount
+  // Load contacts when jobs are loaded after session completion
   useEffect(() => {
-    if (!completedJobContactIds) return;
-    let cancelled = false;
-    const contactIds = completedJobContactIds.split(",");
+    if (jobs.length === 0) return;
     const completedJobs = jobs.filter((j) => j.status === "completed" && j.contact_id);
+    if (completedJobs.length === 0) return;
+
+    const contactIds = [...new Set(completedJobs.map((j) => j.contact_id as string))];
+    let cancelled = false;
 
     supabase
       .from("contacts")
       .select("*")
       .in("id", contactIds)
-      .limit(1000)
+      .limit(200)
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
@@ -206,7 +187,7 @@ export default function ScraperWebsitesPage() {
       });
 
     return () => { cancelled = true; };
-  }, [completedJobContactIds]);
+  }, [jobs]);
 
   const handleAddUrls = (newUrls: string[]) => {
     setUrls((prev) => {
@@ -325,6 +306,10 @@ export default function ScraperWebsitesPage() {
       setSession(sess as unknown as ScrapingSession);
       completionToastShownRef.current = null;
 
+      // Reset refs on new session start
+      stopSignalRef.current = false;
+      pauseSignalRef.current = false;
+
       // Find matching contacts for URLs — fetch in pages to handle large contact lists
       const contactMap = new Map<string, string>();
       let contactPage = 0;
@@ -373,10 +358,10 @@ export default function ScraperWebsitesPage() {
       let totalCompleted = 0;
       let totalErrors = 0;
       let totalEnriched = 0;
-      let round = 0;
 
       while (true) {
-        round++;
+        // Immediate stop if user clicked stop
+        if (stopSignalRef.current) break;
 
         // Before each invocation check if user paused/stopped via DB
         const { data: sessionCheck } = await supabase
@@ -404,6 +389,7 @@ export default function ScraperWebsitesPage() {
 
         // Paused/stopped by user inside edge function — don't restart
         if (d?.interrupted) break;
+        if (stopSignalRef.current) break;
 
         // Time budget exceeded — re-invoke to continue remaining jobs
         if (d?.needsRestart) {
@@ -431,14 +417,26 @@ export default function ScraperWebsitesPage() {
       }
     } finally {
       setIsHandleStartActive(false);
+      setIsStopping(false);
+      setIsPausingNow(false);
+      stopSignalRef.current = false;
+      pauseSignalRef.current = false;
     }
   };
 
   const handlePause = async () => {
     if (!sessionId) return;
-    const { error } = await supabase.from("scraping_sessions").update({ status: "paused", paused_at: new Date().toISOString() }).eq("id", sessionId);
-    if (error) toast.error("Errore durante la pausa");
-    else toast.info("Scraping in pausa", { duration: 5000 });
+    setIsPausingNow(true);
+    pauseSignalRef.current = true;
+    const { error } = await supabase.from("scraping_sessions")
+      .update({ status: "paused", paused_at: new Date().toISOString() })
+      .eq("id", sessionId);
+    if (error) {
+      toast.error("Errore durante la pausa");
+      setIsPausingNow(false);
+    } else {
+      toast.info("Pausa richiesta — in attesa del completamento del batch corrente…", { duration: 8000 });
+    }
   };
 
   const handleResume = async () => {
@@ -493,8 +491,9 @@ export default function ScraperWebsitesPage() {
   const confirmStop = async () => {
     setShowStopConfirm(false);
     if (!sessionId) return;
+    setIsStopping(true);
+    stopSignalRef.current = true; // immediately stops browser loop re-invocations
 
-    // Set session as completed with interrupted_at
     const { error } = await supabase.from("scraping_sessions").update({
       status: "completed",
       completed_at: new Date().toISOString(),
@@ -503,16 +502,18 @@ export default function ScraperWebsitesPage() {
 
     if (error) {
       toast.error("Errore durante lo stop");
+      setIsStopping(false);
       return;
     }
 
-    // Reset remaining processing/queued jobs
+    // Reset remaining jobs
     await supabase.from("scraping_jobs")
       .update({ status: "failed", error_message: "Fermato dall'utente", updated_at: new Date().toISOString() })
       .eq("session_id", sessionId)
       .in("status", ["processing", "queued"]);
 
-    toast.info("Scraping fermato");
+    toast.info("Scraping fermato — caricamento risultati…");
+    setIsStopping(false);
   };
 
   const handleRetryJob = async (job: ScrapingJob) => {
@@ -565,25 +566,38 @@ export default function ScraperWebsitesPage() {
       .from("scraping_jobs")
       .select("*")
       .eq("session_id", prevSessionId)
-      .limit(1000);
+      .order("updated_at", { ascending: false })
+      .limit(200);
     if (jobsData) setJobs(jobsData as unknown as ScrapingJob[]);
     toast.success("Sessione caricata");
   };
 
-  // Stats with email/phone counts
+  // Stats with email/phone counts — use session-level stats during run, job-level after completion
   const completedJobs = jobs.filter((j) => j.status === "completed");
-  const emailsFoundCount = completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
-  const phonesFoundCount = completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
+  const emailsFoundCount = isRunning
+    ? ((session as any)?.emails_found ?? 0)
+    : completedJobs.reduce((sum, j) => sum + (j.emails_found?.length ?? 0), 0);
+  const phonesFoundCount = isRunning
+    ? ((session as any)?.phones_found ?? 0)
+    : completedJobs.reduce((sum, j) => sum + (j.phones_found?.length ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mobileFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_mobile as string[] | undefined)?.length ?? 0), 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const landlineFoundCount = completedJobs.reduce((sum, j) => sum + (((j.social_found as any)?.phones_landline as string[] | undefined)?.length ?? 0), 0);
 
   const queueStats = {
-    queued: jobs.filter((j) => j.status === "queued").length + (isRunning ? 0 : urls.length),
-    processing: jobs.filter((j) => j.status === "processing").length,
-    completed: jobs.filter((j) => j.status === "completed").length,
-    failed: jobs.filter((j) => j.status === "failed").length,
+    queued: isRunning
+      ? ((session as any)?.queued_count ?? (jobs.filter((j) => j.status === "queued").length + urls.length))
+      : jobs.filter((j) => j.status === "queued").length + urls.length,
+    processing: isRunning
+      ? ((session as any)?.processing_count ?? jobs.filter((j) => j.status === "processing").length)
+      : jobs.filter((j) => j.status === "processing").length,
+    completed: isRunning
+      ? ((session as any)?.completed_count ?? jobs.filter((j) => j.status === "completed").length)
+      : jobs.filter((j) => j.status === "completed").length,
+    failed: isRunning
+      ? ((session as any)?.failed_count ?? jobs.filter((j) => j.status === "failed").length)
+      : jobs.filter((j) => j.status === "failed").length,
     emailsFound: emailsFoundCount,
     phonesFound: phonesFoundCount,
     mobileFound: mobileFoundCount,
@@ -627,10 +641,11 @@ export default function ScraperWebsitesPage() {
             onJobClick={handleShowDetail}
             onRetryJob={handleRetryJob}
             isRunning={isRunning}
-            isPausing={isPausing}
-            isPaused={isPaused}
+            isPausing={isPausing || isPausingNow}
+            isPaused={isPaused && !isStopping}
             onResume={handleResume}
             stats={queueStats}
+            isStopping={isStopping}
           />
         </div>
 

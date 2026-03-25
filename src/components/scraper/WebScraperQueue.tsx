@@ -39,6 +39,7 @@ interface Props {
   isRunning: boolean;
   isPausing?: boolean;
   isPaused?: boolean;
+  isStopping?: boolean;
   onResume?: () => void;
   stats: { queued: number; processing: number; completed: number; failed: number; emailsFound?: number; mobileFound?: number; landlineFound?: number };
 }
@@ -46,7 +47,7 @@ interface Props {
 export function WebScraperQueue({
   urls, jobs, config, onConfigChange, onAddUrls, onImportFromMaps, onImportFromContacts,
   onStart, onPause, onStop, onClearQueue, onJobClick, onRetryJob, isRunning,
-  isPausing, isPaused, onResume, stats,
+  isPausing, isPaused, isStopping, onResume, stats,
 }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
@@ -209,7 +210,11 @@ export function WebScraperQueue({
         )}
 
         <div className="flex gap-2">
-          {isPaused && onResume ? (
+          {isStopping ? (
+            <Button disabled variant="destructive" className="flex-1 font-mono text-xs" size="sm">
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" /> FERMANDO...
+            </Button>
+          ) : isPaused && onResume ? (
             <>
               <Button onClick={onResume} className="flex-1 font-mono text-xs" size="sm">
                 <Play className="h-3 w-3 mr-1" /> RIPRENDI
