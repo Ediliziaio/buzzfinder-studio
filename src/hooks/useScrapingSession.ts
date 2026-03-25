@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ScrapingSession } from "@/types";
 
@@ -48,9 +48,11 @@ export function useScrapingSessions() {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const PAGE_SIZE = 10;
+  // useRef avoids stale closure on sessions.length — offset always reflects current count
+  const sessionsLenRef = useRef(0);
 
-  const fetchSessions = useCallback(async (loadMore = false) => {
-    const offset = loadMore ? sessions.length : 0;
+  const fetchSessions = useCallback(async (appendMode = false) => {
+    const offset = appendMode ? sessionsLenRef.current : 0;
     const { data } = await supabase
       .from("scraping_sessions")
       .select("*")
@@ -58,19 +60,23 @@ export function useScrapingSessions() {
       .order("created_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
     const newSessions = (data as unknown as ScrapingSession[]) || [];
-    if (loadMore) {
-      setSessions((prev) => [...prev, ...newSessions]);
+    if (appendMode) {
+      setSessions((prev) => {
+        const merged = [...prev, ...newSessions];
+        sessionsLenRef.current = merged.length;
+        return merged;
+      });
     } else {
       setSessions(newSessions);
+      sessionsLenRef.current = newSessions.length;
     }
     setHasMore(newSessions.length === PAGE_SIZE);
     setLoading(false);
-  }, [sessions.length]);
+  }, []); // no deps — uses ref for offset
 
   useEffect(() => {
     fetchSessions(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchSessions]);
 
   const loadMore = useCallback(() => fetchSessions(true), [fetchSessions]);
 

@@ -608,7 +608,14 @@ export default function ScraperRegionalePage() {
           }
           return false;
         })
-        .filter((el: any, idx: number, arr: any[]) => arr.findIndex((e: any) => e.id === el.id) === idx)
+        .filter((el: any, idx: number, arr: any[]) => {
+          // O(n) Set-based dedup instead of O(n²) findIndex
+          if (idx === 0) (arr as any).__seenIds = new Set<number>();
+          const seen: Set<number> = (arr as any).__seenIds;
+          if (seen.has(el.id)) return false;
+          seen.add(el.id);
+          return true;
+        })
         .slice(0, max * 2);
 
       // Bulk dedup
@@ -842,7 +849,13 @@ export default function ScraperRegionalePage() {
                 if (expectedTagPairs.has(`${k}=${v}`)) return true;
               }
               return false;
-            }).filter((el: any, idx: number, arr: any[]) => arr.findIndex((e: any) => e.id === el.id) === idx);
+            }).filter((el: any, idx: number, arr: any[]) => {
+              if (idx === 0) (arr as any).__seenIds = new Set<number>();
+              const seen: Set<number> = (arr as any).__seenIds;
+              if (seen.has(el.id)) return false;
+              seen.add(el.id);
+              return true;
+            });
 
             // Dedup against DB
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

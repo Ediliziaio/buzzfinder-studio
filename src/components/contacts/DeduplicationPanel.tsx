@@ -128,11 +128,12 @@ export function DeduplicationPanel({ open, onClose, onComplete }: Props) {
     setDismissed(new Set());
 
     try {
-      // Fetch all contacts with enough data for comparison
+      // Fetch only fields needed for dedup comparison — avoids loading 50+ columns per contact
       const { data, error } = await (supabase as any)
         .from("contacts")
-        .select("*")
-        .order("created_at", { ascending: true });
+        .select("id, nome, cognome, azienda, email, email_quality, email_valid, email_confidence, telefono, telefono_normalizzato, citta, provincia, cap, regione, indirizzo, sito_web, lat, lng, linkedin_url, facebook_url, instagram_url, fonte, stato, tags, note, google_rating, google_reviews_count, created_at, updated_at")
+        .order("created_at", { ascending: true })
+        .limit(10000);
 
       if (error) throw error;
       const contacts: Contact[] = data || [];

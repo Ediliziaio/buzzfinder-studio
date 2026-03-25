@@ -31,6 +31,7 @@ async function fetchAnalytics(): Promise<AnalyticsData> {
     usageRes,
     sessionsCountRes,
     contactsRecentRes,
+    sessionsImportedRes,
   ] = await Promise.all([
     supabase.from("contacts").select("*", { count: "exact", head: true }),
     supabase.from("contacts").select("*", { count: "exact", head: true }).not("email", "is", null),
@@ -43,10 +44,11 @@ async function fetchAnalytics(): Promise<AnalyticsData> {
       .gte("created_at", subDays(new Date(), 30).toISOString())
       .order("created_at", { ascending: false })
       .limit(5000),
+    // Sessions imported — now included in the same parallel batch
+    supabase.from("scraping_sessions").select("totale_importati"),
   ]);
 
-  // Get scraping imported total separately
-  const { data: sessionsData } = await supabase.from("scraping_sessions").select("totale_importati");
+  const sessionsData = sessionsImportedRes.data;
 
   const totalContacts = totalContactsRes.count || 0;
   const contactsWithEmail = contactsWithEmailRes.count || 0;

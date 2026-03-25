@@ -64,9 +64,10 @@ export function BulkActionBar({ count, selectedIds, onClear, onDelete, onRefresh
       id: c.id,
       tags: Array.from(new Set([...(c.tags || []), tag])),
     }));
-    for (const u of updates) {
-      await supabase.from("contacts").update({ tags: u.tags }).eq("id", u.id);
-    }
+    // Parallelise: fire all updates at the same time instead of awaiting each one
+    await Promise.all(
+      updates.map((u) => supabase.from("contacts").update({ tags: u.tags }).eq("id", u.id))
+    );
     toast.success(`Tag "${tag}" aggiunto a ${count} contatti`);
     setShowTagDialog(false);
     setTagInput("");

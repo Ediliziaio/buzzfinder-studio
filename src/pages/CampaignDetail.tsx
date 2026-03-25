@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Pause, Square, Copy, Mail, Phone, MessageSquare, Users, Send, CheckCircle, Eye, MousePointerClick, Euro, Clock, FlaskConical, Trophy, Sparkles, ListChecks, Save, GitBranch } from "lucide-react";
 import { format } from "date-fns";
@@ -46,6 +46,8 @@ export default function CampaignDetailPage() {
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [confirmingLaunch, setConfirmingLaunch] = useState(false);
   const [callStats, setCallStats] = useState<{ totale: number; interessati: number; appuntamenti: number } | null>(null);
+  // Debounce ref: avoids 1000 DB queries when a campaign sends 1000 emails simultaneously
+  const recipientsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -53,13 +55,21 @@ export default function CampaignDetailPage() {
     loadRecipients();
     loadCallStats();
 
+    const debouncedLoadRecipients = () => {
+      if (recipientsDebounceRef.current) clearTimeout(recipientsDebounceRef.current);
+      recipientsDebounceRef.current = setTimeout(loadRecipients, 2000);
+    };
+
     const channel = supabase
       .channel(`campaign-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "campaigns", filter: `id=eq.${id}` }, () => loadCampaign())
-      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_recipients", filter: `campaign_id=eq.${id}` }, () => loadRecipients())
+      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_recipients", filter: `campaign_id=eq.${id}` }, debouncedLoadRecipients)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+      if (recipientsDebounceRef.current) clearTimeout(recipientsDebounceRef.current);
+    };
   }, [id]);
 
   const loadCampaign = async () => {
