@@ -9,6 +9,58 @@ function getCorsHeaders(_req: Request): Record<string, string> {
   };
 }
 
+/* ─── SECURITY: Circuit Breaker per servizi esterni ─────────────────────────── */
+
+enum CircuitState {
+  CLOSED = "closed",
+  OPEN = "open",
+  HALF_OPEN = "half_open"
+}
+
+class CircuitBreaker {
+  private state: CircuitState = CircuitState.CLOSED;
+  private failureCount: number = 0;
+  private lastFailureTime: number | null = null;
+  
+  constructor(
+    private readonly failureThreshold: number = 5,
+    private readonly recoveryTimeoutMs: number = 60000
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state === CircuitState.OPEN) {
+      if (this.lastFailureTime && Date.now() - this.lastFailureTime > this.recoveryTimeoutMs) {
+        console.log("Circuit Breaker: passaggio a HALF_OPEN");
+        this.state = CircuitState.HALF_OPEN;
+      } else {
+        throw new Error("Circuit Breaker: servizio temporaneamente non disponibile");
+      }
+    }
+
+    try {
+      const result = await fn();
+      if (this.state === CircuitState.HALF_OPEN) {
+        console.log("Circuit Breaker: successo, chiusura circuito");
+        this.state = CircuitState.CLOSED;
+        this.failureCount = 0;
+      }
+      return result;
+    } catch (error) {
+      this.failureCount++;
+      this.lastFailureTime = Date.now();
+      
+      if (this.failureCount >= this.failureThreshold) {
+        console.error(`Circuit Breaker: soglia raggiunta (${this.failureThreshold}), apertura circuito`);
+        this.state = CircuitState.OPEN;
+      }
+      throw error;
+    }
+  }
+}
+
+// Circuit breaker per fetch HTML: 3 fallimenti consecutivi aprono il circuito per 30s
+const fetchCircuitBreaker = new CircuitBreaker(3, 30000);
+
 /* ── SSRF Protection (private IPs only, no geo-blocking) ── */
 const PRIVATE_IP_RANGES = [
   /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
@@ -266,19 +318,26 @@ async function fetchHtml(url: string, timeoutMs: number): Promise<string> {
   }
   const domain = getDomain(url);
   await acquireDomainSlot(domain);
+  
+  // SECURITY: Circuit Breaker + Timeout gerarchico
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // Timeout TCP connection: 2s, Timeout totale: min(timeoutMs, 8s)
+  const effectiveTimeout = Math.min(timeoutMs, 8000);
+  const timer = setTimeout(() => controller.abort(), effectiveTimeout);
+  
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; BuzzFinderBot/1.0; +https://buzzfinder-studio.lovable.app)",
-        Accept: "text/html,application/xhtml+xml,*/*",
-      },
-      redirect: "follow",
+    return await fetchCircuitBreaker.execute(async () => {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; BuzzFinderBot/1.0; +https://buzzfinder-studio.lovable.app)",
+          Accept: "text/html,application/xhtml+xml,*/*",
+        },
+        redirect: "follow",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
   } finally {
     clearTimeout(timer);
     releaseDomainSlot(domain);

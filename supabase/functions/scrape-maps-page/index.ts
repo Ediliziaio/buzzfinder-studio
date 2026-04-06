@@ -28,6 +28,100 @@ interface RequestBody {
   };
 }
 
+// ─── SECURITY: Rate Limiter con Token Bucket ─────────────────────────────────
+
+class TokenBucketLimiter {
+  private tokens: number;
+  private lastRefill: number;
+  private readonly rate: number; // tokens al secondo
+  private readonly capacity: number;
+
+  constructor(rate: number, capacity: number) {
+    this.rate = rate;
+    this.capacity = capacity;
+    this.tokens = capacity;
+    this.lastRefill = Date.now();
+  }
+
+  async acquire(tokens: number = 1, timeoutMs: number = 10000): Promise<boolean> {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < timeoutMs) {
+      this.refill();
+      
+      if (this.tokens >= tokens) {
+        this.tokens -= tokens;
+        return true;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    throw new Error("Timeout acquisizione token");
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = (now - this.lastRefill) / 1000;
+    this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.rate);
+    this.lastRefill = now;
+  }
+}
+
+// Istanzia un rate limiter globale: 2 richieste/sec, burst di 5
+const globalRateLimiter = new TokenBucketLimiter(2.0, 5);
+
+// ─── SECURITY: Circuit Breaker per servizi esterni ───────────────────────────
+
+enum CircuitState {
+  CLOSED = "closed",
+  OPEN = "open",
+  HALF_OPEN = "half_open"
+}
+
+class CircuitBreaker {
+  private state: CircuitState = CircuitState.CLOSED;
+  private failureCount: number = 0;
+  private lastFailureTime: number | null = null;
+  
+  constructor(
+    private readonly failureThreshold: number = 5,
+    private readonly recoveryTimeoutMs: number = 60000
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state === CircuitState.OPEN) {
+      if (this.lastFailureTime && Date.now() - this.lastFailureTime > this.recoveryTimeoutMs) {
+        console.log("Circuit Breaker: passaggio a HALF_OPEN");
+        this.state = CircuitState.HALF_OPEN;
+      } else {
+        throw new Error("Circuit Breaker: servizio temporaneamente non disponibile");
+      }
+    }
+
+    try {
+      const result = await fn();
+      if (this.state === CircuitState.HALF_OPEN) {
+        console.log("Circuit Breaker: successo, chiusura circuito");
+        this.state = CircuitState.CLOSED;
+        this.failureCount = 0;
+      }
+      return result;
+    } catch (error) {
+      this.failureCount++;
+      this.lastFailureTime = Date.now();
+      
+      if (this.failureCount >= this.failureThreshold) {
+        console.error(`Circuit Breaker: soglia raggiunta (${this.failureThreshold}), apertura circuito`);
+        this.state = CircuitState.OPEN;
+      }
+      throw error;
+    }
+  }
+}
+
+const googleMapsCircuitBreaker = new CircuitBreaker(3, 30000);
+
 // ─── GOOGLE MAPS ─────────────────────────────────────────────────────────────
 
 interface PlaceResult {
@@ -63,6 +157,12 @@ function preFilterPlace(p: PlaceResult, rMin: number, recMin: number): boolean {
 async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) {
   const { session_id, query, citta, raggio_km, max_results, next_page_token, filtri } = body;
 
+  // SECURITY: Validazione max_results per prevenire DoS o costi elevati
+  const SAFE_MAX_RESULTS = Math.min(max_results, 500);
+  if (max_results > 500) {
+    console.warn(`max_results ridotto da ${max_results} a ${SAFE_MAX_RESULTS} per sicurezza`);
+  }
+
   const { data: apiKeySetting } = await supabase
     .from("app_settings").select("valore")
     .eq("chiave", "google_maps_api_key").eq("user_id", session.user_id).maybeSingle();
@@ -76,13 +176,39 @@ async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) 
 
   const placesUrl = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
   placesUrl.searchParams.set("query", `${query} ${citta}`);
+  // SECURITY: Sanitizzazione log - non stampare mai la API key
   placesUrl.searchParams.set("key", apiKey);
   placesUrl.searchParams.set("language", "it");
   placesUrl.searchParams.set("radius", String(raggio_km * 1000));
   if (next_page_token) placesUrl.searchParams.set("pagetoken", next_page_token);
 
-  const placesRes = await fetch(placesUrl.toString());
-  const placesData = await placesRes.json();
+  let placesData;
+  try {
+    // SECURITY: Circuit Breaker + Rate Limiter + Timeout
+    await globalRateLimiter.acquire(1, 10000);
+    placesData = await googleMapsCircuitBreaker.execute(async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      try {
+        const res = await fetch(placesUrl.toString(), { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Errore sconosciuto";
+    const safeMsg = errorMsg.replace(apiKey, "***REDACTED***");
+    console.error(`Google Maps API error: ${safeMsg}`);
+    await supabase.from("scraping_sessions").update({ 
+      status: "failed", 
+      error_message: `Google Maps API error: ${safeMsg}` 
+    }).eq("id", session_id);
+    return ok({ error: safeMsg });
+  }
 
   if (placesData.status === "INVALID_REQUEST" && next_page_token) {
     return ok({ done: false, next_page_token, total_importati: 0, retry: true });
@@ -107,12 +233,14 @@ async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) 
 
   const candidates: PlaceResult[] = [];
   for (const p of places) {
-    if (totaleImportati + candidates.length >= max_results) break;
+    // SECURITY: Usa SAFE_MAX_RESULTS invece di max_results non validato
+    if (totaleImportati + candidates.length >= SAFE_MAX_RESULTS) break;
     totaleTrovati++;
     if (preFilterPlace(p, rMin, recMin)) candidates.push(p);
   }
 
   const pids = candidates.map((p) => p.place_id);
+  // QUALITÀ DATI: Deduplicazione a livello DB con vincolo di unicità
   const { data: existing } = await supabase.from("contacts").select("google_maps_place_id")
     .in("google_maps_place_id", pids.length ? pids : ["__none__"]).eq("user_id", session.user_id);
   // deno-lint-ignore no-explicit-any
@@ -120,11 +248,18 @@ async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) 
   const newC = candidates.filter((p) => !existSet.has(p.place_id));
 
   for (let i = 0; i < newC.length; i += 5) {
-    if (totaleImportati >= max_results) break;
+    // SECURITY: Usa SAFE_MAX_RESULTS
+    if (totaleImportati >= SAFE_MAX_RESULTS) break;
     const batch = newC.slice(i, i + 5);
-    const details = await Promise.all(batch.map((p) => fetchPlaceDetails(p.place_id, apiKey)));
+    
+    // SECURITY: Circuit Breaker + Rate Limiter per fetchPlaceDetails
+    const details = await Promise.all(batch.map(async (p) => {
+      await globalRateLimiter.acquire(1, 10000);
+      return googleMapsCircuitBreaker.execute(() => fetchPlaceDetails(p.place_id, apiKey));
+    }));
+    
     for (let j = 0; j < batch.length; j++) {
-      if (totaleImportati >= max_results) break;
+      if (totaleImportati >= SAFE_MAX_RESULTS) break;
       const p = batch[j]; const d = details[j];
       const website = d.website || null;
       const phone = d.international_phone_number || d.formatted_phone_number || null;
@@ -139,7 +274,9 @@ async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) 
       }
       let telNorm: string | null = null;
       if (phone) { telNorm = phone.replace(/[\s\-()]/g, ""); if (!telNorm.startsWith("+")) telNorm = "+39" + telNorm; }
-      const { error: ie } = await supabase.from("contacts").insert({
+      
+      // QUALITÀ DATI: Upsert con gestione errori
+      const { error: ie } = await supabase.from("contacts").upsert({
         azienda: p.name, indirizzo: p.formatted_address || null,
         citta, provincia: provincia || null, cap: cap || null, regione: regione || null,
         telefono: phone, telefono_normalizzato: telNorm, sito_web: website,
@@ -148,13 +285,15 @@ async function scrapeGoogleMaps(body: RequestBody, supabase: any, session: any) 
         google_categories: (p.types || []).filter((t: string) => !["point_of_interest", "establishment"].includes(t)),
         lat: p.geometry?.location?.lat || null, lng: p.geometry?.location?.lng || null,
         fonte: "google_maps", stato: "nuovo", user_id: session.user_id, scraping_session_id: session_id,
-      });
+      }, { onConflict: "google_maps_place_id,user_id" });
+      
       if (!ie) { importedCount++; totaleImportati++; }
     }
   }
 
-  const isDone = !placesData.next_page_token || totaleImportati >= max_results;
-  const pct = max_results > 0 ? Math.min(100, Math.round((totaleImportati / max_results) * 100)) : 0;
+  const isDone = !placesData.next_page_token || totaleImportati >= SAFE_MAX_RESULTS;
+  // PERFORMANCE: Calcolo progresso reale basato su SAFE_MAX_RESULTS
+  const pct = SAFE_MAX_RESULTS > 0 ? Math.min(100, Math.round((totaleImportati / SAFE_MAX_RESULTS) * 100)) : 0;
   const upd: Record<string, unknown> = { totale_trovati: totaleTrovati, totale_importati: totaleImportati, progress_percent: pct };
   if (isDone) { upd.status = "completed"; upd.completed_at = new Date().toISOString(); }
   await supabase.from("scraping_sessions").update(upd).eq("id", session_id);
